@@ -115,7 +115,7 @@ export function OnboardingWizard({
   const optional = status.steps.filter((s) => s.optional);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -185,7 +185,7 @@ export function OnboardingWizard({
         </StepCard>
 
         <StepCard id="leads" n={2} title="Capture leads" done={step("leads").done} detail="So AdLedger knows who signed up, and from which ad.">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
               <div className="text-xs font-medium text-muted-foreground">Forms on your site: add one attribute</div>
               <CodeBlock code={`<form data-adledger-lead="Book a demo"> … </form>`} />

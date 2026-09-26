@@ -28,7 +28,7 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
   const spend = useFormAction(importSpendCsvAction);
   const revenue = useFormAction(importRevenueCsvAction);
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -100,7 +100,7 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             . Zapier and Make can call these with their Webhooks / HTTP steps, which covers hundreds of tools. Requests are idempotent: sending the same row or event again updates it.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-1.5">
             <div className="text-xs font-medium text-muted-foreground">Send ad spend</div>
             <CodeBlock

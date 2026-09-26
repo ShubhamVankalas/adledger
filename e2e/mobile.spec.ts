@@ -59,6 +59,34 @@ test("bottom tab bar navigates between pages", async ({ page }) => {
   await expect(nav.getByRole("button", { name: "More" })).toBeVisible();
 });
 
+// The app shell clips horizontal overflow (so fixed elements stay on screen), which means anything wider
+// than the phone would be cut off and unreachable. Wide tables must scroll inside their own container.
+test("pages fit a phone-width screen without clipped content", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/contacts");
+  const contact = await page.locator('a[href^="/contacts/"]').first().getAttribute("href");
+  const settings = ["", "/account", "/organization", "/organization/members", "/organization/audit", "/workspace", "/workspace/integrations", "/workspace/tracking", "/workspace/import", "/workspace/ai", "/workspace/api", "/workspace/notifications"];
+  for (const path of ["/", "/performance", "/contacts", contact!, "/insights", "/onboarding", ...settings.map((s) => `/settings${s}`)]) {
+    await page.goto(path);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    // Elements poking past the right edge that are not inside their own horizontal scroller are cut off.
+    const clipped = await page.locator('[data-slot="sidebar-inset"]').evaluate((main) => {
+      const vw = document.documentElement.clientWidth;
+      const scrolls = (el: Element) => {
+        for (let a = el.parentElement; a && a !== main; a = a.parentElement) {
+          if (["auto", "scroll"].includes(getComputedStyle(a).overflowX)) return true;
+        }
+        return false;
+      };
+      return [...main.querySelectorAll("*")]
+        .filter((el) => el.getBoundingClientRect().right > vw + 1 && !el.closest('[data-slot="mobile-nav"]') && !scrolls(el))
+        .slice(0, 3)
+        .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)}`);
+    });
+    expect(clipped, `${path} has content wider than the screen`).toEqual([]);
+  }
+});
+
 test("tab bar is hidden on desktop widths", async ({ page }) => {
   await signIn(page);
   await page.setViewportSize({ width: 1280, height: 800 });

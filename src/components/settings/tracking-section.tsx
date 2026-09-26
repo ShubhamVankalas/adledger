@@ -96,7 +96,7 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
   const addSite = useFormAction(createPixelSiteAction);
   const addHook = useFormAction(createLeadWebhookAction);
   return (
-    <div className="grid gap-6 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
       <div className="space-y-6 xl:col-span-3">
         {sites.map((s) => (
           <SiteCard key={s.id} site={s} origin={origin} />
