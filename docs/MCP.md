@@ -42,17 +42,25 @@ Settings → Developer → Edit config:
 | `get_performance` | Per campaign / ad group / ad: spend, leads, customers, revenue, ROAS, CPL, CAC |
 | `find_wasted_spend` | Campaigns or ads with real spend and ROAS < 0.5 |
 | `compare_periods` | KPIs vs the previous period + biggest movers |
+| `get_platform_breakdown` | Spend, ad-attributed revenue, ROAS, leads and customers per ad platform, with totals |
+| `get_timeseries` | Daily spend vs total and ad-attributed revenue and leads (max 400 days) |
+| `search_campaigns` | Fuzzy campaign-name search (`query`, tolerates partial words and typos) → ids + spend, revenue, ROAS, leads, customers |
 | `list_contacts` | Leads/customers (emails masked) |
 | `get_contact_journey` | Touchpoints, leads and payments for one contact + credit per model |
 | `get_latest_insights` | The latest weekly insights report |
 | `get_sync_status` | Connection health, recent syncs, pixel activity |
+| `list_integrations` | Every connected integration with mode, health (`ok`, `stale` > 48 h, `never_synced`, `error`, `disabled`, `active` for push-only channels), last sync run and last error, plus pixel activity. Credentials are never read. |
 
 Period tools accept `start`, `end` (YYYY-MM-DD, inclusive, workspace timezone), `model`
-(`first_touch` | `last_touch` | `linear`) and `platform` (`meta` | `google`). Defaults: the last
-30 days with data, linear model. Every answer states the date range, currency and model.
+(`first_touch` | `last_touch` | `linear`) and, where it applies, `platform` (`meta`, `google`,
+`microsoft`, `tiktok`, `linkedin`, `pinterest`, `snapchat`, `reddit`, `x`, `other`). Defaults: the
+last 30 days with data, linear model. Every answer states the date range, currency and model.
+Outputs are compact markdown (tables or one line per row) so they fit in an agent's context.
 
 Try: *“Which campaigns made money last month and which wasted spend?”*, *“Compare this week with
-last week”*, *“Show me the journey of our biggest customer this month”*.
+last week”*, *“Is Meta or Google giving us the better ROAS?”*, *“Plot daily spend vs revenue for
+September”*, *“How is the retargeting campaign doing?”*, *“Are all our integrations syncing?”*,
+*“Show me the journey of our biggest customer this month”*.
 
 ## Safety
 
@@ -63,4 +71,5 @@ last week”*, *“Show me the journey of our biggest customer this month”*.
 ## REST API
 
 The same data is available at `/api/v1/reports/{overview|performance|timeseries|channels|wasted-spend|compare|model-comparison|ltv}`,
-`/api/v1/contacts` and `/api/v1/contacts/{id}/journey` with the same bearer key.
+`/api/v1/contacts` and `/api/v1/contacts/{id}/journey` with the same bearer key. The full REST
+API is described in [API.md](API.md) and as OpenAPI 3.1 at `/api/v1/openapi.json`.

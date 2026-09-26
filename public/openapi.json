@@ -1,0 +1,2256 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AdLedger API",
+    "version": "0.1.0",
+    "summary": "Self-hosted ad attribution: which ad actually made you money.",
+    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. A dashboard session cookie also works for same-origin calls. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This AdLedger install"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "sessionCookie": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reports",
+      "description": "Attribution reports (read-only)."
+    },
+    {
+      "name": "Contacts",
+      "description": "Leads, customers and their journeys (read-only)."
+    },
+    {
+      "name": "Ingestion",
+      "description": "Push spend, conversions and pixel events into AdLedger."
+    },
+    {
+      "name": "Sync",
+      "description": "Trigger connector syncs."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Inbound webhooks from form tools and revenue platforms."
+    },
+    {
+      "name": "MCP",
+      "description": "Model Context Protocol endpoint for AI agents (read-only tools)."
+    },
+    {
+      "name": "System",
+      "description": "Health and API description."
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "operationId": "getHealth",
+        "summary": "Health check",
+        "description": "Liveness + database check for load balancers and uptime monitors. No authentication.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "App and database are up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unreachable (`status: degraded`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "operationId": "getOpenApi",
+        "summary": "This OpenAPI document",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The API description.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "OpenAPI 3.1 document."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report}": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getReport",
+        "summary": "Run a report",
+        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length.",
+        "parameters": [
+          {
+            "name": "report",
+            "in": "path",
+            "required": true,
+            "description": "Which report.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "overview",
+                "performance",
+                "timeseries",
+                "channels",
+                "wasted-spend",
+                "compare"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "description": "First day, YYYY-MM-DD (workspace timezone).",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "description": "Last day, inclusive, YYYY-MM-DD.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "last_touch"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "description": "Limit to one ad platform (overview, performance, timeseries, wasted-spend).",
+            "schema": {
+              "$ref": "#/components/schemas/Platform"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "description": "Row level for `performance` and `wasted-spend`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "campaign",
+                "ad_group",
+                "ad"
+              ],
+              "default": "campaign"
+            }
+          },
+          {
+            "name": "parentId",
+            "in": "query",
+            "required": false,
+            "description": "`performance` only: rows under this campaign (level=ad_group) or ad group (level=ad).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report with the period, model, currency and timezone it was computed for.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/contacts": {
+      "get": {
+        "tags": [
+          "Contacts"
+        ],
+        "operationId": "listContacts",
+        "summary": "List contacts",
+        "description": "Leads and customers, newest first. Returns raw emails: treat responses as personal data.",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive match on email or name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lifecycle",
+            "in": "query",
+            "required": false,
+            "description": "Only leads or only customers.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lead",
+                "customer"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Rows to skip.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of contacts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "description": "Matching contacts."
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Contact"
+                      }
+                    }
+                  },
+                  "required": [
+                    "total",
+                    "rows"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/{id}/journey": {
+      "get": {
+        "tags": [
+          "Contacts"
+        ],
+        "operationId": "getContactJourney",
+        "summary": "Contact journey",
+        "description": "Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Contact id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The journey.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Journey"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/{provider}": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "operationId": "syncProvider",
+        "summary": "Sync a connector now",
+        "description": "Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`.",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Connector to sync.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta",
+                "google_ads",
+                "stripe"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync finished or was skipped.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "502": {
+            "description": "The upstream API failed (`status: error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spend": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "operationId": "pushSpend",
+        "summary": "Push ad spend",
+        "description": "Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rows": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/SpendRow"
+                    },
+                    "maxItems": 20000
+                  }
+                },
+                "required": [
+                  "rows"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rows stored (some may have errors).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "422": {
+            "description": "No row could be stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversions": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "operationId": "pushConversions",
+        "summary": "Push payments, refunds and leads",
+        "description": "Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ConversionEvent"
+                    },
+                    "maxItems": 5000
+                  }
+                },
+                "required": [
+                  "events"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Events stored (some may have errors).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "422": {
+            "description": "No event could be stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collect": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "operationId": "collect",
+        "summary": "Pixel events",
+        "description": "Endpoint of the website pixel (`/p/al.js`). Sent with `navigator.sendBeacon` as `text/plain` JSON to avoid a CORS preflight. Authenticated by the public site key; the request origin must match the site's domains. Bots are silently dropped.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectPayload"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted (or dropped as bot traffic)."
+          },
+          "400": {
+            "description": "Invalid payload.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin not allowed for this site.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown site key.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload over 64 KB.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Ingestion"
+        ],
+        "operationId": "collectPreflight",
+        "summary": "CORS preflight",
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "CORS headers for the calling origin."
+          }
+        }
+      }
+    },
+    "/api/v1/import/template": {
+      "get": {
+        "tags": [
+          "Ingestion"
+        ],
+        "operationId": "getImportTemplate",
+        "summary": "CSV import template",
+        "description": "Example CSV for Settings → Import data.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "Template type.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "spend",
+                "revenue"
+              ],
+              "default": "spend"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/leads/{token}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "leadWebhook",
+        "summary": "Form lead webhook",
+        "description": "Generic lead webhook for Typeform, Tally, Webflow, Jotform, Zapier or any form. Create one in Settings → Tracking; the URL token authenticates the call. Email, phone and name are auto-detected (or mapped in settings); send `al_vid` to link the visitor.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "description": "Webhook token from Settings.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lead recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "contactId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "leadId": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "contactId",
+                    "leadId"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/stripe/{workspaceId}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "stripeWebhook",
+        "summary": "Stripe webhook",
+        "description": "Receives Stripe events (charges, refunds, checkout sessions). Verified with the `Stripe-Signature` header. AdLedger registers this webhook in Stripe automatically when it can.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Stripe-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Stripe event."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event processed (or ignored).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "handled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "handled"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "description": "Processing failed; Stripe will retry (ingestion is idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/{provider}/{workspaceId}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "revenueWebhook",
+        "summary": "Revenue platform webhook",
+        "description": "Orders, payments and refunds from connected revenue platforms. Each provider's own signature scheme is verified. WooCommerce's `webhook_id=N` activation ping is acknowledged.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Revenue connector.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shopify",
+                "woocommerce",
+                "paddle",
+                "lemonsqueezy",
+                "razorpay",
+                "paypal"
+              ]
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "The platform's webhook payload."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "stored": {
+                      "type": "integer",
+                      "description": "Revenue events stored."
+                    },
+                    "ping": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "received"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Invalid signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "Processing failed; the platform will retry (ingestion is idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpGet",
+        "summary": "MCP event stream (not supported)",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/McpMethodNotAllowed"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcp",
+        "summary": "MCP endpoint (Streamable HTTP)",
+        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "JSON-RPC 2.0 request."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response (JSON or a single server-sent event).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpDelete",
+        "summary": "End an MCP session (not supported)",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/McpMethodNotAllowed"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "al_...",
+        "description": "API key from Settings → API & MCP."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "al_session",
+        "description": "Dashboard session (same-origin browser calls)."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "InvalidParameters": {
+        "description": "A query parameter failed validation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "TooLarge": {
+        "description": "Too many rows in one request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unprocessable": {
+        "description": "Nothing usable in the payload.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests; retry later.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "McpMethodNotAllowed": {
+        "description": "The server is stateless, so there is no server-initiated event stream (GET) or session to end (DELETE).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "JSON-RPC 2.0 error, code -32000 \"Method not allowed.\""
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable message."
+          },
+          "hint": {
+            "type": "string",
+            "description": "How to fix it."
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "invalid parameters"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Zod issue."
+            }
+          }
+        },
+        "required": [
+          "error",
+          "details"
+        ]
+      },
+      "Date": {
+        "type": "string",
+        "description": "Calendar date.",
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "examples": [
+          "2026-09-01"
+        ]
+      },
+      "AttributionModel": {
+        "type": "string",
+        "enum": [
+          "first_touch",
+          "last_touch",
+          "linear"
+        ]
+      },
+      "Platform": {
+        "type": "string",
+        "enum": [
+          "meta",
+          "google",
+          "microsoft",
+          "tiktok",
+          "linkedin",
+          "pinterest",
+          "snapchat",
+          "reddit",
+          "x",
+          "other"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "db": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "embedded",
+              "postgres"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "db",
+          "database",
+          "version"
+        ]
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "end": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AttributionModel"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 reporting currency; every *Minor value is in this currency.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Workspace IANA timezone the dates refer to.",
+            "examples": [
+              "America/New_York"
+            ]
+          },
+          "data": {
+            "description": "Shape depends on `report`.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Overview"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PerformanceRow"
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SeriesPoint"
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChannelRow"
+                }
+              },
+              {
+                "$ref": "#/components/schemas/Comparison"
+              }
+            ]
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "model",
+          "currency",
+          "timezone",
+          "data"
+        ]
+      },
+      "Overview": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/AttributionModel"
+          },
+          "start": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "end": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "spendMinor": {
+            "type": "integer",
+            "description": "Ad spend. Integer minor units (cents) in the reporting currency."
+          },
+          "impressions": {
+            "type": "integer"
+          },
+          "clicks": {
+            "type": "integer"
+          },
+          "leads": {
+            "type": "integer",
+            "description": "All leads."
+          },
+          "paidLeads": {
+            "type": "number",
+            "description": "Lead credit attributed to ads (fractional for linear)."
+          },
+          "customers": {
+            "type": "integer",
+            "description": "All new customers."
+          },
+          "paidCustomers": {
+            "type": "number",
+            "description": "Customer credit attributed to ads."
+          },
+          "revenueMinor": {
+            "type": "integer",
+            "description": "All revenue. Integer minor units (cents) in the reporting currency."
+          },
+          "attributedRevenueMinor": {
+            "type": "integer",
+            "description": "Revenue credited to ads. Integer minor units (cents) in the reporting currency."
+          },
+          "unattributedRevenueMinor": {
+            "type": "integer",
+            "description": "Revenue with no touchpoint. Integer minor units (cents) in the reporting currency."
+          },
+          "roas": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Attributed revenue / spend."
+          },
+          "blendedRoas": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "All revenue / spend."
+          },
+          "cplMinor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Cost per paid lead. Integer minor units (cents) in the reporting currency."
+          },
+          "cacMinor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Cost per paid customer. Integer minor units (cents) in the reporting currency."
+          },
+          "unattributedShare": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Share of revenue without a touchpoint (0–1)."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "currency",
+          "model",
+          "start",
+          "end",
+          "spendMinor",
+          "impressions",
+          "clicks",
+          "leads",
+          "paidLeads",
+          "customers",
+          "paidCustomers",
+          "revenueMinor",
+          "attributedRevenueMinor",
+          "unattributedRevenueMinor",
+          "roas",
+          "blendedRoas",
+          "cplMinor",
+          "cacMinor",
+          "unattributedShare",
+          "warnings"
+        ]
+      },
+      "PerformanceRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "parentName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "spendMinor": {
+            "type": "integer",
+            "description": "Spend. Integer minor units (cents) in the reporting currency."
+          },
+          "impressions": {
+            "type": "integer"
+          },
+          "clicks": {
+            "type": "integer"
+          },
+          "leads": {
+            "type": "number",
+            "description": "Attributed lead credit."
+          },
+          "customers": {
+            "type": "number",
+            "description": "Attributed customer credit."
+          },
+          "revenueMinor": {
+            "type": "integer",
+            "description": "Attributed revenue. Integer minor units (cents) in the reporting currency."
+          },
+          "roas": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "cplMinor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Cost per lead. Integer minor units (cents) in the reporting currency."
+          },
+          "cacMinor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Cost per customer. Integer minor units (cents) in the reporting currency."
+          },
+          "ctr": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Clicks / impressions."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "status",
+          "parentId",
+          "parentName",
+          "spendMinor",
+          "impressions",
+          "clicks",
+          "leads",
+          "customers",
+          "revenueMinor",
+          "roas",
+          "cplMinor",
+          "cacMinor",
+          "ctr"
+        ]
+      },
+      "SeriesPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "spendMinor": {
+            "type": "integer",
+            "description": "Spend that day. Integer minor units (cents) in the reporting currency."
+          },
+          "revenueMinor": {
+            "type": "integer",
+            "description": "All revenue that day. Integer minor units (cents) in the reporting currency."
+          },
+          "attributedRevenueMinor": {
+            "type": "integer",
+            "description": "Revenue credited to ads. Integer minor units (cents) in the reporting currency."
+          },
+          "leads": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "spendMinor",
+          "revenueMinor",
+          "attributedRevenueMinor",
+          "leads"
+        ]
+      },
+      "ChannelRow": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "e.g. paid_social, paid_search, organic, direct, unattributed."
+          },
+          "leads": {
+            "type": "number"
+          },
+          "customers": {
+            "type": "number"
+          },
+          "revenueMinor": {
+            "type": "integer",
+            "description": "Revenue credit. Integer minor units (cents) in the reporting currency."
+          }
+        },
+        "required": [
+          "channel",
+          "leads",
+          "customers",
+          "revenueMinor"
+        ]
+      },
+      "Comparison": {
+        "type": "object",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/Overview"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/Overview"
+          },
+          "movers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "platform": {
+                  "$ref": "#/components/schemas/Platform"
+                },
+                "spendMinor": {
+                  "type": "integer",
+                  "description": "Spend. Integer minor units (cents) in the reporting currency."
+                },
+                "prevSpendMinor": {
+                  "type": "integer",
+                  "description": "Spend in the previous period. Integer minor units (cents) in the reporting currency."
+                },
+                "revenueMinor": {
+                  "type": "integer",
+                  "description": "Revenue. Integer minor units (cents) in the reporting currency."
+                },
+                "prevRevenueMinor": {
+                  "type": "integer",
+                  "description": "Revenue in the previous period. Integer minor units (cents) in the reporting currency."
+                },
+                "roas": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "prevRoas": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "platform",
+                "spendMinor",
+                "prevSpendMinor",
+                "revenueMinor",
+                "prevRevenueMinor",
+                "roas",
+                "prevRoas"
+              ]
+            }
+          }
+        },
+        "required": [
+          "current",
+          "previous",
+          "movers"
+        ]
+      },
+      "Contact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "lead",
+              "customer"
+            ]
+          },
+          "firstSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firstLeadAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revenueMinor": {
+            "type": "integer",
+            "description": "Lifetime revenue. Integer minor units (cents) in the reporting currency."
+          },
+          "firstChannel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "firstCampaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "touchpoints": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "lifecycle",
+          "firstSeenAt",
+          "firstLeadAt",
+          "revenueMinor",
+          "firstChannel",
+          "firstCampaign",
+          "touchpoints"
+        ]
+      },
+      "Journey": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lifecycle": {
+                "type": "string"
+              },
+              "firstSeenAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "devices": {
+                "type": "integer",
+                "description": "Linked browsers/devices."
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "name",
+              "lifecycle",
+              "firstSeenAt",
+              "devices"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "touchpoint"
+                    },
+                    "at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "medium": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "campaign": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "adGroup": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "ad": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "platform": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "landingUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "referrer": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "device": {
+                      "type": "integer",
+                      "description": "1-based device number."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "at",
+                    "channel",
+                    "source",
+                    "medium",
+                    "campaign",
+                    "adGroup",
+                    "ad",
+                    "platform",
+                    "landingUrl",
+                    "referrer",
+                    "device"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "lead"
+                    },
+                    "at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "formName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "at",
+                    "source",
+                    "formName"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "payment",
+                        "refund"
+                      ]
+                    },
+                    "at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "amountMinor": {
+                      "type": "integer",
+                      "description": "Minor units."
+                    },
+                    "currency": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "at",
+                    "amountMinor",
+                    "currency"
+                  ]
+                }
+              ]
+            }
+          },
+          "credits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "$ref": "#/components/schemas/AttributionModel"
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Campaign or channel credited."
+                },
+                "revenueMinor": {
+                  "type": "integer",
+                  "description": "Revenue credit. Integer minor units (cents) in the reporting currency."
+                }
+              },
+              "required": [
+                "model",
+                "label",
+                "revenueMinor"
+              ]
+            }
+          }
+        },
+        "required": [
+          "contact",
+          "items",
+          "credits"
+        ]
+      },
+      "SyncResult": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error",
+              "skipped"
+            ]
+          },
+          "rows": {
+            "type": "integer",
+            "description": "Rows upserted."
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "rows"
+        ]
+      },
+      "SpendRow": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "campaign_name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "spend": {
+            "type": [
+              "string",
+              "number"
+            ],
+            "description": "Decimal amount in `currency`, e.g. \"12.34\"."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217; defaults to the reporting currency.",
+            "pattern": "^[A-Za-z]{3}$"
+          },
+          "platform": {
+            "type": "string",
+            "description": "Ad platform, e.g. meta, google, tiktok; unknown values become `other`."
+          },
+          "account_id": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "account_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "campaign_id": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "ad_group_id": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "ad_group_name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "ad_id": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "ad_name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "impressions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "clicks": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "conversions": {
+            "type": "number",
+            "description": "Platform-reported conversions.",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "date",
+          "campaign_name",
+          "spend"
+        ]
+      },
+      "SpendImportResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "rows": {
+            "type": "integer",
+            "description": "Rows stored."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "rows",
+          "errors"
+        ]
+      },
+      "ConversionEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "refund",
+              "lead"
+            ]
+          },
+          "external_id": {
+            "type": "string",
+            "description": "Your id; idempotency key together with `source`.",
+            "maxLength": 200
+          },
+          "related_external_id": {
+            "type": "string",
+            "description": "For refunds: the payment's external_id.",
+            "maxLength": 200
+          },
+          "amount": {
+            "type": [
+              "string",
+              "number"
+            ],
+            "description": "Decimal amount (payments/refunds), e.g. \"49.00\"."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217; defaults to the reporting currency.",
+            "pattern": "^[A-Za-z]{3}$"
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "Defaults to now.",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "visitor_id": {
+            "type": "string",
+            "description": "Pixel visitor id (`al_vid`) to link the browser.",
+            "maxLength": 64
+          },
+          "source": {
+            "type": "string",
+            "description": "Source label, e.g. woocommerce.",
+            "pattern": "^[a-z0-9_-]{1,40}$",
+            "default": "api"
+          },
+          "form_name": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "type",
+          "external_id"
+        ]
+      },
+      "ConversionImportResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "revenue": {
+            "type": "integer",
+            "description": "Payments/refunds stored."
+          },
+          "leads": {
+            "type": "integer",
+            "description": "Leads stored."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ok",
+          "revenue",
+          "leads",
+          "errors"
+        ]
+      },
+      "CollectPayload": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "type": "string",
+            "description": "Public site key (pk_...).",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "vid": {
+            "type": "string",
+            "description": "Anonymous visitor id.",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "fbp": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "fbc": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 400
+          },
+          "events": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "string",
+                  "enum": [
+                    "page_view",
+                    "identify",
+                    "lead",
+                    "custom"
+                  ]
+                },
+                "ts": {
+                  "type": "integer",
+                  "description": "Client timestamp (ms since epoch)."
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 4000
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "props": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "traits": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 320
+                    },
+                    "phone": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 40
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 200
+                    }
+                  },
+                  "required": []
+                }
+              },
+              "required": [
+                "t"
+              ]
+            }
+          }
+        },
+        "required": [
+          "site",
+          "vid",
+          "events"
+        ]
+      }
+    }
+  }
+}
