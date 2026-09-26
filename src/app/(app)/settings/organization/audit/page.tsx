@@ -1,7 +1,9 @@
 import { desc, eq } from "drizzle-orm";
+import { FileClockIcon } from "lucide-react";
 import { SettingsHeader } from "@/components/settings/section";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
+import { allIntegrations } from "@/lib/connectors/registry";
 import { getDb, schema } from "@/lib/db";
 
 export const metadata = { title: "Audit log" };
@@ -50,32 +52,62 @@ export default async function AuditPage() {
     .where(eq(schema.auditLog.organizationId, user.organization.id))
     .orderBy(desc(schema.auditLog.createdAt))
     .limit(300);
-  const fmt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: user.workspace.timezone });
-  const target = (a: string, t: string | null) => (t && !/^[0-9a-f-]{36}$/i.test(t) && !["member.invite_revoked", "member.updated", "member.removed"].includes(a) ? t : "");
+  const tz = user.workspace.timezone;
+  const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: tz });
+  const timeFmt = new Intl.DateTimeFormat("en-US", { timeStyle: "short", timeZone: tz });
+  const fullFmt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: tz });
+  // Group entries by day (in the workspace timezone) so long logs are easy to scan.
+  const days: { day: string; rows: typeof rows }[] = [];
+  for (const r of rows) {
+    const day = dayFmt.format(r.log.createdAt);
+    if (days.at(-1)?.day !== day) days.push({ day, rows: [] });
+    days.at(-1)!.rows.push(r);
+  }
+  // Integration entries store the provider id (e.g. notify_slack); show its display name.
+  const names = new Map(allIntegrations().map((i) => [i.provider, i.name]));
+  names.set("llm", "AI model");
+  const target = (a: string, t: string | null) => {
+    if (!t || /^[0-9a-f-]{36}$/i.test(t) || ["member.invite_revoked", "member.updated", "member.removed"].includes(a)) return "";
+    return a.startsWith("integration.") ? (names.get(t) ?? t) : t;
+  };
 
   return (
     <>
       <SettingsHeader title="Audit log" description="Who changed what, across every workspace in the organization. The latest 300 entries." />
-      <Card>
-        <CardContent className="p-0">
-          {rows.length === 0 ? <p className="p-6 text-sm text-muted-foreground">Nothing yet.</p> : null}
-          <ol className="divide-y">
-            {rows.map(({ log, email, name, workspace }) => (
-              <li key={log.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-2.5 text-sm">
-                <span>
-                  <span className="font-medium">{name || email || "System"}</span> {LABELS[log.action] ?? log.action}{" "}
-                  <span className="font-medium">{target(log.action, log.target)}</span>
-                  {typeof log.meta.role === "string" ? <span className="text-muted-foreground"> ({log.meta.role})</span> : null}
-                  {workspace ? <span className="text-muted-foreground"> · {workspace}</span> : null}
-                </span>
-                <time className="text-xs text-muted-foreground tabular" dateTime={log.createdAt.toISOString()}>
-                  {fmt.format(log.createdAt)}
-                </time>
-              </li>
+      {rows.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+            <FileClockIcon className="size-5 text-muted-foreground" />
+            <p className="text-sm font-medium">Nothing logged yet</p>
+            <p className="max-w-sm text-xs text-muted-foreground">Changes to settings, members, integrations and data will show up here.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="py-0">
+          <CardContent className="p-0">
+            {days.map((d) => (
+              <section key={d.day} aria-label={d.day}>
+                <h3 className="border-b bg-muted/40 px-4 py-1.5 text-xs font-medium text-muted-foreground [&:not(:first-child)]:border-t">{d.day}</h3>
+                <ol className="divide-y">
+                  {d.rows.map(({ log, email, name, workspace }) => (
+                    <li key={log.id} className="grid gap-x-4 gap-y-0.5 px-4 py-2.5 text-sm @xl/settings:grid-cols-[minmax(0,1fr)_auto] @xl/settings:items-baseline">
+                      <span className="min-w-0 break-words">
+                        <span className="font-medium">{name || email || "System"}</span> {LABELS[log.action] ?? log.action}{" "}
+                        <span className="font-medium">{target(log.action, log.target)}</span>
+                        {typeof log.meta.role === "string" ? <span className="text-muted-foreground"> ({log.meta.role})</span> : null}
+                        {workspace ? <span className="text-muted-foreground"> · {workspace}</span> : null}
+                      </span>
+                      <time className="text-xs text-muted-foreground tabular-nums" dateTime={log.createdAt.toISOString()} title={fullFmt.format(log.createdAt)}>
+                        {timeFmt.format(log.createdAt)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              </section>
             ))}
-          </ol>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

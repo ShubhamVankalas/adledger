@@ -17,7 +17,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
   const zones = TIMEZONES.includes(workspace.timezone) ? TIMEZONES : [workspace.timezone, ...TIMEZONES];
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @4xl/settings:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader>
           <CardTitle>Workspace details</CardTitle>
@@ -30,7 +30,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
                 <Label htmlFor="ws-name">Name</Label>
                 <Input id="ws-name" name="name" defaultValue={workspace.name} required />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 @lg/settings:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="ws-cur">Reporting currency</Label>
                   <NativeSelect id="ws-cur" name="reportingCurrency" defaultValue={workspace.reportingCurrency}>
@@ -55,7 +55,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
               <div className="grid gap-1.5">
                 <Label htmlFor="ws-window">Attribution window (days)</Label>
                 <Input id="ws-window" name="attributionWindowDays" type="number" min={1} max={365} defaultValue={workspace.attributionWindowDays} className="max-w-32" />
-                <p className="text-[11px] text-muted-foreground">Touchpoints older than this before a first purchase get no credit. 30 days suits most businesses; use 60–90 for long B2B sales cycles.</p>
+                <p className="text-xs text-muted-foreground">Touchpoints older than this before a first purchase get no credit. 30 days suits most businesses; use 60–90 for long B2B sales cycles.</p>
               </div>
             </fieldset>
             {canEdit ? (
@@ -76,7 +76,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
           </CardTitle>
           <CardDescription>{workspace.isDemo ? "This workspace contains demo data." : "Load demo data to explore, or wipe imported data to start fresh."}</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="flex flex-col gap-2 @md/settings:flex-row @md/settings:flex-wrap @4xl/settings:flex-col @4xl/settings:items-start">
           {!canData ? (
             <p className="text-sm text-muted-foreground">Only owners and admins can load or delete data.</p>
           ) : workspace.isDemo ? (

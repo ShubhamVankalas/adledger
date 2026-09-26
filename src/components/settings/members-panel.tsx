@@ -23,7 +23,7 @@ function WorkspacePicker({ workspaces, selected, name }: { workspaces: { id: str
       <span className="text-xs font-medium">Workspaces this client can see</span>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {workspaces.map((w) => (
-          <label key={w.id} className="flex items-center gap-1.5 text-sm">
+          <label key={w.id} className="flex min-h-8 items-center gap-2 text-sm max-md:min-h-10">
             <input type="checkbox" name={name} value={w.id} defaultChecked={selected.includes(w.id)} className="size-4 accent-[var(--primary)]" />
             {w.name}
           </label>
@@ -38,23 +38,23 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
   const save = useFormAction((f) => updateMemberAction(m.id, f));
   const initials = (m.name || m.email).slice(0, 2).toUpperCase();
   return (
-    <div className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <div className="grid gap-3 px-4 py-3 @3xl/settings:grid-cols-[minmax(0,1fr)_auto] @3xl/settings:items-center">
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{initials}</span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-            {m.name || m.email}
+            <span className="min-w-0 break-all">{m.name || m.email}</span>
             {m.userId === me ? <Badge variant="secondary">You</Badge> : null}
           </div>
-          <div className="truncate text-xs text-muted-foreground">
-            {m.email} · last active {timeAgo(m.lastLoginAt)}
+          <div className="text-xs text-muted-foreground">
+            <span className="break-all">{m.email}</span> <span className="whitespace-nowrap">· last active {timeAgo(m.lastLoginAt)}</span>
           </div>
         </div>
       </div>
       {m.editable ? (
         <form action={save.submit} className="grid gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <NativeSelect name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className="w-36" aria-label="Role">
+          <div className="flex items-center gap-2 pl-12 @3xl/settings:pl-0">
+            <NativeSelect name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className="min-w-0 flex-1 @3xl/settings:w-36 @3xl/settings:flex-none" aria-label="Role">
               {roles
                 .filter((r) => r.assignable)
                 .map((r) => (
@@ -73,7 +73,7 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
           {role === "client" ? <WorkspacePicker workspaces={workspaces} selected={m.workspaceIds ?? []} name="workspaceIds" /> : null}
         </form>
       ) : (
-        <Badge variant="outline" className="justify-self-start lg:justify-self-end">
+        <Badge variant="outline" className="ml-12 justify-self-start @3xl/settings:ml-0 @3xl/settings:justify-self-end">
           {roles.find((r) => r.role === m.role)?.label}
         </Badge>
       )}
@@ -100,8 +100,8 @@ export function MembersPanel({
   const label = (r: Role) => roles.find((x) => x.role === r)?.label ?? r;
 
   return (
-    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div className="space-y-6">
+    <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @6xl/settings:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-5 md:space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export function MembersPanel({
           </CardHeader>
           <CardContent className="space-y-3">
             <form action={invite.submit} className="grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] sm:items-end">
+              <div className="grid gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_11rem_auto] @2xl/settings:items-end">
                 <div className="grid gap-1.5">
                   <Label htmlFor="inv-email">Email</Label>
                   <Input id="inv-email" name="email" type="email" placeholder="teammate@company.com" required />
@@ -128,7 +128,7 @@ export function MembersPanel({
                       ))}
                   </NativeSelect>
                 </div>
-                <Button type="submit" disabled={invite.pending}>
+                <Button type="submit" disabled={invite.pending} className="md:h-9">
                   Send invite
                 </Button>
               </div>
@@ -146,10 +146,12 @@ export function MembersPanel({
 
         <Card>
           <CardHeader>
-            <CardTitle>Members ({members.length})</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Members <Badge variant="secondary">{members.length}</Badge>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="px-0">
-            <div className="divide-y border-y">
+          <CardContent className="-mb-(--card-spacing) px-0">
+            <div className="divide-y border-t">
               {members.map((m) => (
                 <MemberRow key={m.id} m={m} roles={roles} workspaces={workspaces} me={me} />
               ))}
@@ -160,14 +162,19 @@ export function MembersPanel({
         {invites.length ? (
           <Card>
             <CardHeader>
-              <CardTitle>Pending invitations</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Pending invitations <Badge variant="secondary">{invites.length}</Badge>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="divide-y rounded-lg border p-0">
+            <CardContent className="-mb-(--card-spacing) divide-y border-t px-0">
               {invites.map((i) => (
-                <div key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
-                  <span>
-                    <span className="font-medium">{i.email}</span> <span className="text-muted-foreground">as {label(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString()}</span>
-                  </span>
+                <div key={i.id} className="flex items-center justify-between gap-3 py-2.5 pr-2 pl-4 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium break-all">{i.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {label(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString()}
+                    </div>
+                  </div>
                   <ActionButton action={() => revokeInvitationAction(i.id)} variant="ghost" size="sm">
                     Revoke
                   </ActionButton>
@@ -178,13 +185,13 @@ export function MembersPanel({
         ) : null}
       </div>
 
-      <Card className="self-start">
+      <Card className="self-start @6xl/settings:sticky @6xl/settings:top-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldCheckIcon className="size-4 text-success" /> What each role can do
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="grid gap-3 @2xl/settings:grid-cols-2 @6xl/settings:grid-cols-1">
           {roles.map((r) => (
             <div key={r.role}>
               <div className="text-sm font-medium">{r.label}</div>

@@ -29,8 +29,8 @@ export function AiSection({ current }: { current: { provider: string; model: str
   const needsBase = provider === "ollama" || provider === "lmstudio" || provider === "custom" || provider === "openrouter" || provider === "deepseek";
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-      <Card className="lg:col-span-3">
+    <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @4xl/settings:grid-cols-5">
+      <Card className="@4xl/settings:col-span-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CpuIcon className="size-4 text-muted-foreground" /> Bring your own model
@@ -67,7 +67,7 @@ export function AiSection({ current }: { current: { provider: string; model: str
                 <Label htmlFor="ai-base">Base URL</Label>
                 <Input id="ai-base" name="baseUrl" defaultValue={current?.provider === provider && current.baseUrl ? current.baseUrl : p.base} placeholder="https://…/v1" />
                 {provider === "ollama" || provider === "lmstudio" ? (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Running AdLedger in Docker? Use <code>host.docker.internal</code> to reach a model on your computer. Running with <code>pnpm dev</code>? Use <code>localhost</code>.
                   </p>
                 ) : null}
@@ -103,7 +103,7 @@ export function AiSection({ current }: { current: { provider: string; model: str
           </form>
         </CardContent>
       </Card>
-      <Card className="lg:col-span-2">
+      <Card className="@4xl/settings:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldCheckIcon className="size-4 text-success" /> Your numbers stay honest

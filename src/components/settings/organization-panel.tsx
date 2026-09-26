@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
+import { TOUCH_TARGETS } from "./touch";
 
 type WS = { id: string; name: string; currency: string; timezone: string; isDemo: boolean; contacts: number; createdAt: string };
 
@@ -60,13 +61,13 @@ export function OrganizationPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={org.submit} className="flex flex-wrap items-end gap-3">
-            <div className="grid min-w-64 flex-1 gap-1.5">
+          <form action={org.submit} className="grid gap-3 @lg/settings:grid-cols-[minmax(0,1fr)_auto] @lg/settings:items-end">
+            <div className="grid gap-1.5">
               <Label htmlFor="org-name">Name</Label>
               <Input id="org-name" name="name" defaultValue={organization.name} disabled={!canManageOrg} />
             </div>
             {canManageOrg ? (
-              <Button type="submit" disabled={org.pending}>
+              <Button type="submit" disabled={org.pending} className="md:h-9">
                 Save
               </Button>
             ) : null}
@@ -76,7 +77,7 @@ export function OrganizationPanel({
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <CardTitle>Workspaces</CardTitle>
             <CardDescription>Separate data, integrations and reports for each brand or client.</CardDescription>
           </div>
@@ -89,10 +90,10 @@ export function OrganizationPanel({
         <CardContent>
           <div className="divide-y rounded-lg border">
             {workspaces.map((w) => (
-              <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div key={w.id} className="flex items-center justify-between gap-3 py-3 pr-2 pl-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 font-medium">
-                    {w.name}
+                    <span className="min-w-0 break-words">{w.name}</span>
                     {w.id === currentWorkspaceId ? <Badge>Current</Badge> : null}
                     {w.isDemo ? <Badge variant="secondary">Demo data</Badge> : null}
                   </div>
@@ -100,7 +101,7 @@ export function OrganizationPanel({
                     {w.currency} · {w.timezone} · {w.contacts.toLocaleString()} contacts
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex shrink-0 gap-1">
                   {w.id !== currentWorkspaceId ? (
                     <Button variant="outline" size="sm" disabled={pending} onClick={() => switchTo(w.id)}>
                       <ArrowRightLeftIcon /> Switch
@@ -119,8 +120,8 @@ export function OrganizationPanel({
       </Card>
 
       <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className={`max-h-[90dvh] overflow-y-auto sm:max-w-md ${TOUCH_TARGETS}`}>
+          <DialogHeader className="pr-8">
             <DialogTitle>New workspace</DialogTitle>
             <DialogDescription>For another brand, store or client. You can invite a client to see only this workspace.</DialogDescription>
           </DialogHeader>
@@ -161,9 +162,9 @@ export function OrganizationPanel({
       </Dialog>
 
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete “{deleting?.name}”?</DialogTitle>
+        <DialogContent className={`max-h-[90dvh] overflow-y-auto sm:max-w-md ${TOUCH_TARGETS}`}>
+          <DialogHeader className="pr-8">
+            <DialogTitle className="leading-snug break-words">Delete “{deleting?.name}”?</DialogTitle>
             <DialogDescription>This permanently deletes the workspace and all of its visitors, contacts, revenue, ad data and settings. It cannot be undone.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
