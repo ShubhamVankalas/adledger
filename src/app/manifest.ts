@@ -12,7 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     background_color: "#fbfcfb",
-    theme_color: "#0f9d74",
+    // Matches the light theme-color meta in app/layout.tsx so an installed app does not flash brand green on launch.
+    theme_color: "#fbfcfb",
     categories: ["business", "productivity"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
