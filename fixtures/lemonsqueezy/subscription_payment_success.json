@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "test_mode": false,
+    "event_name": "subscription_payment_success",
+    "custom_data": { "adledger_vid": "0f1e2d3c-4b5a-4968-8776-655443322110" },
+    "webhook_id": "8b2f6c1e-3d4a-4b5c-9d6e-7f8a9b0c1d2e"
+  },
+  "data": {
+    "type": "subscription-invoices",
+    "id": "1987654",
+    "attributes": {
+      "store_id": 51234,
+      "subscription_id": 612345,
+      "customer_id": 3890127,
+      "user_name": "Marcus Lee",
+      "user_email": "marcus.lee@example.com",
+      "billing_reason": "renewal",
+      "card_brand": "visa",
+      "card_last_four": "4242",
+      "currency": "GBP",
+      "currency_rate": "1.33420000",
+      "status": "paid",
+      "status_formatted": "Paid",
+      "refunded": false,
+      "refunded_at": null,
+      "subtotal": 1500,
+      "discount_total": 0,
+      "tax": 300,
+      "total": 1800,
+      "refunded_amount": 0,
+      "created_at": "2026-09-26T08:31:05.000000Z",
+      "updated_at": "2026-09-26T08:31:09.000000Z",
+      "test_mode": false
+    },
+    "relationships": {},
+    "links": { "self": "https://api.lemonsqueezy.com/v1/subscription-invoices/1987654" }
+  }
+}

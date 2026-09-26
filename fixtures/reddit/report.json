@@ -1,0 +1,10 @@
+{
+  "data": {
+    "metrics": [
+      { "ad_id": "t3_ad0000001", "date": "2026-09-20", "spend": 58310000, "impressions": 30214, "clicks": 197, "key_conversion_total_count": 6 },
+      { "ad_id": "t3_ad0000002", "date": "2026-09-21", "spend": 4999, "impressions": 3, "clicks": 0, "key_conversion_total_count": 0 }
+    ],
+    "metrics_updated_at": "2026-09-22T06:00:00Z"
+  },
+  "pagination": { "next_url": null }
+}

@@ -57,20 +57,27 @@ pnpm install && pnpm dev
 | <img src="docs/screenshots/insights.png" alt="AI insights" /> | <img src="docs/screenshots/overview-dark.png" alt="Dark mode" /> |
 | **One-snippet tracking setup** | **Setup wizard** |
 | <img src="docs/screenshots/settings-tracking.png" alt="Tracking settings" /> | <img src="docs/screenshots/setup.png" alt="Setup wizard" /> |
+| **20+ integrations** | **Guided setup checklist** |
+| <img src="docs/screenshots/settings-integrations.png" alt="Integrations catalog" /> | <img src="docs/screenshots/onboarding.png" alt="Setup checklist" /> |
+| **Teams, roles and client access** | **Alerts by email, Slack, Discord, Teams, SMS** |
+| <img src="docs/screenshots/settings-members.png" alt="Members and roles" /> | <img src="docs/screenshots/settings-notifications.png" alt="Notifications" /> |
 
 ## Features
 
 | | |
 |---|---|
-| **Ad spend sync** | Meta Ads + Google Ads — daily spend, impressions, clicks at campaign, ad set/ad group and ad level. Re-syncs never duplicate. |
+| **Ad spend sync** | **Meta, Google Ads, Microsoft Ads, TikTok, LinkedIn, Pinterest, Snapchat, Reddit and X** — daily spend, impressions and clicks per campaign, ad set and ad. Any other network via CSV or the Spend API. Re-syncs never duplicate. |
 | **First-party pixel** | One `<script>` tag (**1.7 KB** gzipped). Page views, UTMs, click IDs (`gclid`, `fbclid`, `gbraid`, `wbraid`, `ttclid`…), `_fbp`/`_fbc`, SPA support, consent API. |
-| **Lead capture** | `data-adledger-lead` on any form, `adledger.lead()` in JS, or a webhook for Typeform, Tally, Webflow, Zapier… (fields auto-detected). |
-| **Revenue** | Stripe webhooks + 90-day backfill. Refunds, renewals and multi-currency handled. |
+| **Lead capture** | `data-adledger-lead` on any form, `adledger.lead()` in JS, or a webhook for Typeform, Tally, Webflow, Zapier… (fields auto-detected). **WordPress/WooCommerce plugin**, Shopify custom pixel and guides for Webflow, Wix, Squarespace, Framer and GTM. |
+| **Revenue** | **Stripe, Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay and PayPal** via signed webhooks (Stripe: paste one key, the webhook is created for you). Anything else via CSV or the Conversions API. Refunds and renewals handled. |
 | **Identity stitching** | Anonymous visitor → lead → customer, across devices, by email. |
 | **Attribution** | First-touch, last-touch and linear — switch instantly. Exact revenue splits (integer cents, largest-remainder). LTV: renewals credit the journey that acquired the customer. Unattributed revenue is shown, never hidden. |
 | **Dashboard** | KPIs with period-over-period change, spend vs revenue chart, drill-down tables with CSV export, contact journeys, dark mode. |
 | **AI insights (BYO model)** | Weekly note on what changed, wasted spend and where to move budget. Works with **Ollama / LM Studio (local, free)**, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, or no AI at all. Every number is computed in SQL; invented numbers are flagged. |
 | **MCP server** | Read-only tools for Claude, Cursor or any agent: overview, performance, wasted spend, period comparison, contact journeys (emails masked). |
+| **Teams & agencies** | Organizations with many workspaces (one per brand or client), invitations, roles (Owner, Admin, Analyst, Viewer, Client) and an audit log. Clients see only their own workspace. |
+| **Notifications** | Weekly report, daily digest, wasted-spend alerts, sync failures, new customers and large payments — by email, Slack, Discord, Microsoft Teams, SMS (Twilio) or signed webhook. |
+| **Guided setup** | First run: explore a demo or set up your business with a checklist that ticks itself off as data arrives. |
 | **Demo mode** | Realistic mock connectors for every integration — the whole app works with zero API access. |
 
 ## How it compares
@@ -79,11 +86,12 @@ pnpm install && pnpm dev
 |---|---|---|---|---|
 | Price | **Free (AGPL)** | Paid, scales with revenue tracked | Paid, scales with GMV | Paid subscription |
 | Self-hosted / own your data | **Yes** | No | No | No |
-| Meta + Google spend | Yes | Yes | Yes | Yes |
+| Ad platforms | 9 native + CSV/API | Many | Many | Many |
 | First-party pixel + click IDs | Yes | Yes | Yes | Yes |
-| Stripe revenue | Yes | Yes | Partial | Yes |
+| Payment sources | 7 native + CSV/API | Many | Shopify-first | Many |
+| Teams, roles, client access | **Yes, unlimited seats** | Paid tiers | Paid tiers | Paid tiers |
 | Multi-touch models | First, last, linear | Many | Many | Many |
-| Conversions API upload | Roadmap (v0.2) | Yes | Yes | Yes |
+| Conversions API upload to ad platforms | Roadmap | Yes | Yes | Yes |
 | AI with your own model | **Yes (incl. local)** | No | Proprietary | Proprietary |
 | MCP server for AI agents | **Yes** | No | No | No |
 
@@ -103,11 +111,14 @@ Upgrading: `docker compose pull && docker compose up -d`. Database migrations ru
 
 ## Connect your data
 
-Everything is configured in **Settings** — no config files:
+Everything is configured in the app — no config files. After signing up choose **Set up my business** and follow the **setup checklist**:
 
-1. **Tracking** → add your website and paste the snippet into your `<head>`.
-2. **Connections** → Stripe (restricted key + webhook), Meta (system-user token), Google Ads (developer token + OAuth). Step-by-step instructions are on each card and in [docs/CONNECTORS.md](docs/CONNECTORS.md).
-3. **AI model** (optional) → pick Ollama, OpenAI, Anthropic, etc.
+1. **Install the pixel** — paste one snippet (or use the [WordPress plugin](integrations/wordpress), [Shopify pixel](integrations/shopify), or a [guide for your site builder](docs/integrations/)).
+2. **Connect payments** — Stripe (just paste a key), Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal — or CSV / API.
+3. **Connect ad platforms** — Meta, Google, Microsoft, TikTok, LinkedIn, Pinterest, Snapchat, Reddit, X — or CSV / API for any other network.
+4. **Optional:** alerts (email, Slack…), invite your team, pick an AI model, add the MCP server.
+
+Step-by-step instructions are on each integration card and in [docs/CONNECTORS.md](docs/CONNECTORS.md). You can try every integration without an account — the demo workspace uses realistic mock data.
 
 Use IDs in your UTMs so AdLedger can match visits to exact ads:
 

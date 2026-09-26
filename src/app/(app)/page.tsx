@@ -25,7 +25,7 @@ import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { CHANNEL_LABELS, delta, money, moneyKpi, num, pct, roas } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
-import { channels, overview, performance, previousPeriod, timeseries, wastedSpend } from "@/lib/reports";
+import { channels, overview, performance, platforms, previousPeriod, timeseries, wastedSpend } from "@/lib/reports";
 
 export const metadata = { title: "Overview" };
 
@@ -33,7 +33,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const p = await resolvePeriodParams(db, ws, await searchParams);
-  const [cur, prev, series, camps, ch, waste, [latest], setup] = await Promise.all([
+  const [cur, prev, series, camps, ch, waste, [latest], setup, plats] = await Promise.all([
     overview(db, ws, p),
     overview(db, ws, previousPeriod(p)),
     timeseries(db, ws, p),
@@ -42,6 +42,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
     wastedSpend(db, ws, { ...p, level: "campaign" }),
     db.select().from(schema.aiReports).where(eq(schema.aiReports.workspaceId, ws.id)).orderBy(desc(schema.aiReports.createdAt)).limit(1),
     getSetupStatus(db, ws),
+    platforms(db, ws, p),
   ]);
   const c = ws.reportingCurrency;
   const top = [...camps].sort((a, b) => b.revenueMinor - a.revenueMinor).slice(0, 6);
@@ -89,7 +90,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
           />
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3 2xl:grid-cols-4">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Spend vs revenue</CardTitle>
@@ -133,6 +134,33 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-3 2xl:col-span-1">
+            <CardHeader>
+              <CardTitle>By ad platform</CardTitle>
+              <CardDescription>Spend and the revenue each platform&apos;s ads earned</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {plats.length === 0 ? <p className="text-sm text-muted-foreground">Connect an ad platform to compare them here.</p> : null}
+              <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-1">
+                {plats.map((pl) => (
+                  <Link
+                    key={pl.platform}
+                    href={`/performance?platform=${pl.platform}&range=${p.range}&model=${p.model}${p.range === "custom" ? `&from=${p.start}&to=${p.end}` : ""}`}
+                    className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <PlatformBadge platform={pl.platform} />
+                      <span className="tabular truncate text-xs text-muted-foreground">
+                        {money(pl.spendMinor, c, true)} → {money(pl.revenueMinor, c, true)}
+                      </span>
+                    </span>
+                    <span className={(pl.roas ?? 0) >= 1 ? "tabular text-sm font-semibold text-success" : "tabular text-sm font-semibold text-destructive"}>{roas(pl.roas)}</span>
+                  </Link>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>

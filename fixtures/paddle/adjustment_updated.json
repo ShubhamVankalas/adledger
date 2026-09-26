@@ -1,0 +1,23 @@
+{
+  "event_id": "evt_01j8zz0a1b2c3d4e5f6g7h8j9k",
+  "event_type": "adjustment.updated",
+  "occurred_at": "2026-09-24T11:20:44.118Z",
+  "notification_id": "ntf_01j8zz0b2c3d4e5f6g7h8j9k0l",
+  "data": {
+    "id": "adj_01j8zyx9w8v7u6t5s4r3q2p1o0",
+    "action": "refund",
+    "type": "partial",
+    "status": "approved",
+    "reason": "Customer requested partial refund",
+    "transaction_id": "txn_01j8x3sq0a1b2c3d4e5f6g7h8j",
+    "subscription_id": "sub_01j8x3v0z9y8x7w6v5u4t3s2r1",
+    "customer_id": "ctm_01j8x3rz9m8n7b6v5c4x3z2l1k",
+    "currency_code": "USD",
+    "credit_applied_to_balance": null,
+    "totals": { "subtotal": "18350", "tax": "1629", "total": "19979", "fee": "1014", "earnings": "17336", "currency_code": "USD" },
+    "payout_totals": { "subtotal": "18350", "tax": "1629", "total": "19979", "fee": "1014", "earnings": "17336", "currency_code": "USD" },
+    "items": [{ "item_id": "txnitm_01j8x3sq5e6r7t8y9u0i1o2p3q", "type": "partial", "amount": "19979" }],
+    "created_at": "2026-09-24T09:02:11.451Z",
+    "updated_at": "2026-09-24T11:20:43.902Z"
+  }
+}

@@ -30,7 +30,27 @@ end to end in that form. Status below.
 - [ ] Lighthouse accessibility pass on Overview (target ≥ 90).
 - [x] `pnpm audit --prod`: no known vulnerabilities (2026-09-26).
 
-## v0.2 backlog
+## v0.2 — status
+
+| Feature | Status | Notes |
+|---|---|---|
+| Organizations, workspaces, roles, invitations, audit log | ✅ | Owner / Admin / Analyst / Viewer / Client; workspace + organization switcher |
+| Settings: Account, Workspace, Organization | ✅ | Profile, password, devices; integrations catalog; notifications; import; members |
+| Ad platforms: Microsoft, TikTok, LinkedIn, Pinterest, Snapchat, Reddit, X | 🟡 Beta | Contract-tested against real-format fixtures; not yet verified on live accounts |
+| Revenue: Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal | 🟡 Beta | Signed webhooks + tests; backfill for Shopify and WooCommerce |
+| Stripe one-key setup | ✅ | Webhook created automatically on public https installs |
+| CSV import, Spend API, Conversions API | ✅ | Covers any other ad network or checkout |
+| Notifications: email, Slack, Discord, Teams, SMS, webhook | ✅ | Weekly report, daily digest, wasted spend, sync failed, new customer, large payment |
+| WordPress/WooCommerce plugin, Shopify pixel, GTM tag, site-builder guides | ✅ | `integrations/`, `docs/integrations/` |
+| First-run choice + guided setup checklist with live checks | ✅ | |
+| Real brand logos | ✅ | Simple Icons (CC0) + drawn marks |
+
+## Next (v0.3)
+- One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
+- Meta Conversions API + Google offline/enhanced conversions upload (hashed PII) — biggest value add.
+- Verify beta connectors against live accounts; publish the WordPress plugin to wordpress.org.
+
+## Backlog
 - Meta Conversions API + Google offline/enhanced conversions upload (hashed PII) — biggest value add.
 - OAuth “Connect” buttons for Meta/Google instead of pasted tokens.
 - WhatsApp click-to-chat attribution, Razorpay, Shopify, TikTok, LinkedIn.

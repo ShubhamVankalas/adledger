@@ -20,12 +20,15 @@ async function freshDatabase() {
   process.env.DATABASE_URL = url.toString();
 }
 
-export async function setupWorkspace(overrides: Partial<typeof schema.workspaces.$inferInsert> = {}) {
+const rand = () => Math.random().toString(36).slice(2, 8);
+
+export async function setupWorkspace(overrides: Partial<Omit<typeof schema.workspaces.$inferInsert, "organizationId">> = {}) {
   await freshDatabase();
   const db = await getDb();
+  const [org] = await db.insert(schema.organizations).values({ name: "Test org", slug: `org-${rand()}` }).returning();
   const [ws] = await db
     .insert(schema.workspaces)
-    .values({ name: "Test", slug: `test-${Math.random().toString(36).slice(2, 8)}`, reportingCurrency: "USD", timezone: "UTC", ...overrides })
+    .values({ organizationId: org.id, name: "Test", slug: `test-${rand()}`, reportingCurrency: "USD", timezone: "UTC", ...overrides })
     .returning();
-  return { db, ws };
+  return { db, ws, org };
 }

@@ -1,0 +1,40 @@
+{
+  "entity": "event",
+  "account_id": "acc_Kx8vN2mQ4rT6yU",
+  "event": "payment.captured",
+  "contains": ["payment"],
+  "payload": {
+    "payment": {
+      "entity": {
+        "id": "pay_Q9aB3cD4eF5gH6",
+        "entity": "payment",
+        "amount": 249900,
+        "currency": "INR",
+        "status": "captured",
+        "order_id": "order_Q9aA1bB2cC3dD4",
+        "invoice_id": null,
+        "international": false,
+        "method": "upi",
+        "amount_refunded": 0,
+        "refund_status": null,
+        "captured": true,
+        "description": "Annual plan",
+        "card_id": null,
+        "bank": null,
+        "wallet": null,
+        "vpa": "ananya@okicici",
+        "email": "ananya.rao@example.com",
+        "contact": "+919876543210",
+        "customer_id": "cust_Q9a0Zz9Yy8Xx7W",
+        "notes": { "adledger_vid": "c0ffee00-1234-4567-89ab-cdef01234567", "plan": "annual" },
+        "fee": 5898,
+        "tax": 900,
+        "error_code": null,
+        "error_description": null,
+        "acquirer_data": { "rrn": "426512345678" },
+        "created_at": 1790150400
+      }
+    }
+  },
+  "created_at": 1790150412
+}

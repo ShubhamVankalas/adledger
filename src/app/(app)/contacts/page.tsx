@@ -68,7 +68,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                 Contacts appear when someone submits a form on your site (pixel <code>adledger.lead()</code>), a form tool calls your lead webhook, or a Stripe payment arrives.
               </EmptyDescription>
             </EmptyHeader>
-            <Button variant="outline" size="sm" render={<Link href="/settings?tab=tracking" />}>
+            <Button variant="outline" size="sm" render={<Link href="/settings/workspace/tracking" />}>
               Set up tracking
             </Button>
           </Empty>

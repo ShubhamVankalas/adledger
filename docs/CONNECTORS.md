@@ -90,3 +90,39 @@ visits still count at channel level.
 `CONNECTOR_MODE=mock` makes every connector return realistic demo data in the platforms' real
 API formats (see `src/lib/demo/world.ts` and `fixtures/`). New workspaces created with
 “Start with demo data” use mock connections until you enter real credentials.
+
+## All integrations
+
+| Category | Integration | Status | How data arrives |
+|---|---|---|---|
+| Ad platforms | Meta Ads, Google Ads | Stable | Scheduled sync every 6 h |
+| Ad platforms | Microsoft Ads, TikTok, LinkedIn, Pinterest, Snapchat, Reddit, X | Beta | Scheduled sync every 6 h |
+| Payments & stores | Stripe | Stable | Webhooks (auto-created) + 90-day backfill |
+| Payments & stores | Shopify, WooCommerce | Beta | Signed webhooks + backfill |
+| Payments & stores | Paddle, Lemon Squeezy, Razorpay, PayPal | Beta | Signed webhooks |
+| Anything else | CSV import, Spend API, Conversions API | Stable | Upload or push (Zapier, Make, n8n, scripts) |
+| Website | Pixel, WordPress plugin, Shopify custom pixel, GTM tag | Stable | Browser → `/api/v1/collect` |
+| Notifications | Email (SMTP), Slack, Discord, Microsoft Teams, SMS (Twilio), webhook | Stable | Rules in Settings → Notifications |
+
+“Beta” connectors follow each platform's official API documentation and are covered by contract tests
+against real-format sample responses (`fixtures/`), but haven't yet been verified against every kind of
+live account. Please open an issue if something doesn't match your account.
+
+Every revenue webhook URL is shown in the integration's dialog:
+`https://your-adledger/api/v1/webhooks/<provider>/<workspace-id>` (Stripe: `/api/v1/webhooks/stripe/<workspace-id>`).
+
+## Trying integrations without real accounts
+
+You don't need any ad or payment account to evaluate AdLedger — the demo workspace (and
+`CONNECTOR_MODE=mock`) serves realistic data for every integration. When you're ready to test with
+real APIs, all of these are free and use fake money:
+
+| Platform | Free test option |
+|---|---|
+| Stripe | Test mode (toggle in the dashboard). Fake cards like `4242 4242 4242 4242`. |
+| Shopify | A free development store from a Shopify Partners account. |
+| PayPal | Sandbox accounts at developer.paypal.com. |
+| Razorpay, Paddle, Lemon Squeezy | Test / sandbox mode in each dashboard. |
+| Meta | A sandbox ad account from your Meta developer app (no real spend). |
+| Google Ads | A test manager account; the test developer token works immediately. |
+| TikTok | The TikTok for Business API sandbox. |

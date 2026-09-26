@@ -1,0 +1,51 @@
+{
+  "adaccount": {
+    "id": "8b1c2d3e-0000-4000-8000-000000000001",
+    "name": "Acme Analytics – Snapchat",
+    "type": "PARTNER",
+    "status": "ACTIVE",
+    "organization_id": "0f0e0d0c-0000-4000-8000-0000000000aa",
+    "currency": "USD",
+    "timezone": "America/Los_Angeles"
+  },
+  "campaigns": [
+    {
+      "request_status": "SUCCESS",
+      "request_id": "c0000000000000000000000001",
+      "campaigns": [
+        {
+          "sub_request_status": "SUCCESS",
+          "campaign": { "id": "c1000000-0000-4000-8000-000000000001", "name": "Snap – Website conversions", "ad_account_id": "8b1c2d3e-0000-4000-8000-000000000001", "status": "ACTIVE", "objective": "WEB_CONVERSION" }
+        }
+      ]
+    }
+  ],
+  "adsquads": [
+    {
+      "request_status": "SUCCESS",
+      "request_id": "c0000000000000000000000002",
+      "adsquads": [
+        {
+          "sub_request_status": "SUCCESS",
+          "adsquad": { "id": "d1000000-0000-4000-8000-000000000001", "name": "US 18-34 – Founders", "campaign_id": "c1000000-0000-4000-8000-000000000001", "status": "ACTIVE", "type": "SNAP_ADS" }
+        }
+      ]
+    }
+  ],
+  "ads": [
+    {
+      "request_status": "SUCCESS",
+      "request_id": "c0000000000000000000000003",
+      "ads": [
+        {
+          "sub_request_status": "SUCCESS",
+          "ad": { "id": "a1b2c3d4-0000-4000-8000-00000000a001", "name": "Vertical video – Product tour", "ad_squad_id": "d1000000-0000-4000-8000-000000000001", "creative_id": "e1000000-0000-4000-8000-000000000001", "status": "ACTIVE", "type": "REMOTE_WEBPAGE" }
+        },
+        {
+          "sub_request_status": "SUCCESS",
+          "ad": { "id": "a1b2c3d4-0000-4000-8000-00000000a002", "name": "Story – Customer quote", "ad_squad_id": "d1000000-0000-4000-8000-000000000001", "creative_id": "e1000000-0000-4000-8000-000000000002", "status": "PAUSED", "type": "REMOTE_WEBPAGE" }
+        }
+      ]
+    }
+  ]
+}

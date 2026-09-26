@@ -1,14 +1,17 @@
 import { eq, sql } from "drizzle-orm";
 import { recomputeAttribution } from "./attribution";
-import { fetchAdRows, type AdDayRow, type DateWindow } from "./connectors/ads";
+import type { AdDayRow, DateWindow } from "./connectors/types";
+import { ADS_CONNECTORS, getAdsConnector, getRevenueConnector } from "./connectors/registry";
+import { ingestRevenue } from "./connectors/revenue/ingest";
 import { backfillStripe } from "./connectors/stripe";
 import { schema, type DB } from "./db";
 import type { Provider } from "./db/schema";
 import { DAY, isoDate } from "./demo/world";
 import { requestAttribution } from "./jobs";
 import { log } from "./log";
+import { notifyLater } from "./notify";
 import { matchTouchpoints } from "./matching";
-import { forcedMockMode, getConnection, requireWorkspace } from "./settings";
+import { forcedMockMode, getConnection } from "./settings";
 
 /** Default window: yesterday + trailing 7 days (platforms restate recent data). */
 export function defaultWindow(now = new Date()): DateWindow {
@@ -124,12 +127,13 @@ export type SyncResult = { provider: Provider; status: "success" | "error" | "sk
 export async function syncProvider(
   db: DB,
   workspaceId: string,
-  provider: Exclude<Provider, "llm">,
+  provider: Provider,
   opts: { window?: DateWindow; backfillDays?: number; inlineAttribution?: boolean } = {},
 ): Promise<SyncResult> {
   const conn = await getConnection(workspaceId, provider, db);
   if (!conn || !conn.enabled) return { provider, status: "skipped", rows: 0 };
-  const ws = await requireWorkspace(db);
+  const [ws] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+  if (!ws) return { provider, status: "skipped", rows: 0 };
   const mock = forcedMockMode() || conn.mode === "mock";
   const [run] = await db
     .insert(schema.syncRuns)
@@ -138,17 +142,28 @@ export async function syncProvider(
 
   try {
     let n = 0;
+    const ads = getAdsConnector(provider);
+    const revenue = getRevenueConnector(provider);
     if (provider === "stripe") {
       n = await backfillStripe(db, workspaceId, conn, { days: opts.backfillDays ?? 90, mock, currency: ws.reportingCurrency });
-    } else {
+    } else if (revenue) {
+      if (!revenue.backfill || mock) {
+        n = 0; // webhook-only source (or demo mode): nothing to pull
+      } else {
+        const events = await revenue.backfill(conn, { sinceMs: Date.now() - (opts.backfillDays ?? 90) * DAY });
+        n = await ingestRevenue(db, workspaceId, revenue.source, events);
+      }
+    } else if (ads) {
       const window =
         opts.window ??
         (mock && conn.config.demoAnchor && !conn.lastSyncedAt
           ? { since: isoDate(new Date(Date.parse(conn.config.demoAnchor) - 89 * DAY)), until: conn.config.demoAnchor }
           : defaultWindow());
-      const rows = await fetchAdRows(provider, conn, window, { mock, currency: ws.reportingCurrency });
+      const rows = mock ? ads.mock(window, ws.reportingCurrency) : await ads.fetchLive(conn, window);
       n = await upsertAdRows(db, workspaceId, rows);
       await matchTouchpoints(db, workspaceId);
+    } else {
+      throw new Error(`${provider} has nothing to sync`);
     }
     const finished = new Date();
     await db.update(schema.syncRuns).set({ status: "success", finishedAt: finished, rowsUpserted: n }).where(eq(schema.syncRuns.id, run.id));
@@ -161,6 +176,12 @@ export async function syncProvider(
     log.error(`sync ${provider} failed`, err);
     await db.update(schema.syncRuns).set({ status: "error", finishedAt: new Date(), error: message.slice(0, 1000) }).where(eq(schema.syncRuns.id, run.id));
     await db.update(schema.connections).set({ lastError: message.slice(0, 1000) }).where(eq(schema.connections.id, conn.id));
+    notifyLater(workspaceId, "sync_failed", () => ({
+      title: `${provider} sync failed`,
+      text: `The last sync returned an error:\n- ${message.slice(0, 300)}\n\nCheck the credentials in Settings → Integrations.`,
+      severity: "critical",
+      url: process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL.replace(/\/$/, "")}/settings/workspace/integrations` : undefined,
+    }), db);
     return { provider, status: "error", rows: 0, error: message };
   }
 }
@@ -168,7 +189,7 @@ export async function syncProvider(
 /** Scheduled: sync every enabled live ad connection (Stripe arrives via webhooks; demo data stays frozen). */
 export async function syncAll(db: DB, workspaceId: string) {
   const results: SyncResult[] = [];
-  for (const p of ["meta", "google_ads"] as const) {
+  for (const p of ADS_CONNECTORS.map((c) => c.meta.provider)) {
     const conn = await getConnection(workspaceId, p, db);
     if (!conn || conn.mode === "mock") continue;
     results.push(await syncProvider(db, workspaceId, p));

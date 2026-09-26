@@ -1,15 +1,29 @@
+import { BrandGlyph } from "@/components/brand-icon";
 import { cn } from "@/lib/utils";
 
-const STYLES: Record<string, { label: string; className: string }> = {
-  meta: { label: "Meta", className: "bg-[#0866ff]/12 text-[#0866ff] dark:bg-[#4d8dff]/15 dark:text-[#7aa9ff]" },
-  google: { label: "Google", className: "bg-[#ea4335]/10 text-[#d93025] dark:bg-[#ff7b6e]/15 dark:text-[#ff9a8f]" },
+const LABELS: Record<string, string> = {
+  meta: "Meta",
+  google: "Google",
+  microsoft: "Microsoft",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  pinterest: "Pinterest",
+  snapchat: "Snapchat",
+  reddit: "Reddit",
+  x: "X",
+  other: "Other",
 };
 
-export function PlatformBadge({ platform, className }: { platform: string | null; className?: string }) {
-  const s = STYLES[platform ?? ""] ?? { label: platform ?? "—", className: "bg-muted text-muted-foreground" };
+/** Platform logo + name, used in tables and lists. `compact` shows only the logo. */
+export function PlatformBadge({ platform, className, compact }: { platform: string | null; className?: string; compact?: boolean }) {
+  const label = LABELS[platform ?? ""] ?? platform ?? "—";
   return (
-    <span className={cn("inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[10px] font-semibold tracking-wide uppercase", s.className, className)}>
-      {s.label}
+    <span
+      title={label}
+      className={cn("inline-flex h-5 shrink-0 items-center gap-1 rounded-md border bg-background px-1.5 text-[10px] font-semibold tracking-wide uppercase text-muted-foreground", compact && "px-1", className)}
+    >
+      <BrandGlyph id={platform ?? "other"} className="size-3" />
+      {compact ? <span className="sr-only">{label}</span> : label}
     </span>
   );
 }

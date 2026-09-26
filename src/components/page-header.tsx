@@ -16,5 +16,5 @@ export function PageHeader({ title, description, children }: { title: string; de
 }
 
 export function PageBody({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">{children}</div>;
+  return <div className="mx-auto w-full max-w-[1760px] space-y-6 p-4 md:p-6 2xl:px-8">{children}</div>;
 }

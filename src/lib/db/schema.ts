@@ -1,3 +1,4 @@
+import type { Platform } from "../connectors/types";
 import {
   bigint,
   boolean,
@@ -36,15 +37,33 @@ export const appMeta = pgTable("app_meta", {
 });
 
 // ---------------------------------------------------------------- tenancy
+//
+// organization (a business or an agency)
+//   ├── memberships: users + role (+ optional workspace restriction for clients)
+//   └── workspaces: one per business/brand/client — all tracked data hangs off these
+
+export type Role = "owner" | "admin" | "analyst" | "viewer" | "client";
+
+export const organizations = pgTable("organizations", {
+  id: id(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: createdAt(),
+});
 
 export const workspaces = pgTable("workspaces", {
   id: id(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   reportingCurrency: text("reporting_currency").notNull().default("USD"),
   timezone: text("timezone").notNull().default("UTC"),
   attributionWindowDays: integer("attribution_window_days").notNull().default(30),
   isDemo: boolean("is_demo").notNull().default(false),
+  /** Onboarding progress: which platforms the user picked, dismissed checklist, etc. */
+  onboarding: jsonb("onboarding").$type<{ platforms?: string[]; dismissed?: boolean; completedAt?: string }>().notNull().default({}),
   createdAt: createdAt(),
 });
 
@@ -52,15 +71,68 @@ export const users = pgTable(
   "users",
   {
     id: id(),
-    workspaceId: workspaceId(),
-    // Login identity of the dashboard admin (not a tracked contact).
+    // Login identity of a team member (not a tracked contact). Access comes from memberships.
     email: text("email").notNull(),
     name: text("name"),
     passwordHash: text("password_hash").notNull(),
-    role: text("role").notNull().default("admin"),
+    lastLoginAt: tstz("last_login_at"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_uq").on(t.email)],
+);
+
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: id(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").$type<Role>().notNull(),
+    /** null = every workspace in the organization; otherwise only these (used for clients). */
+    workspaceIds: jsonb("workspace_ids").$type<string[] | null>(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("memberships_org_user_uq").on(t.organizationId, t.userId), index().on(t.userId)],
+);
+
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: id(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").$type<Role>().notNull(),
+    workspaceIds: jsonb("workspace_ids").$type<string[] | null>(),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: tstz("expires_at").notNull(),
+    acceptedAt: tstz("accepted_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("invitations_token_uq").on(t.tokenHash), index().on(t.organizationId)],
+);
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    target: text("target"),
+    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.organizationId, t.createdAt)],
 );
 
 export const sessions = pgTable(
@@ -138,7 +210,8 @@ export const connections = pgTable(
   },
   (t) => [uniqueIndex("connections_provider_uq").on(t.workspaceId, t.provider)],
 );
-export type Provider = "meta" | "google_ads" | "stripe" | "llm";
+/** Integration id from src/lib/connectors/registry.ts (e.g. "meta", "tiktok_ads", "shopify", "slack") or "llm". */
+export type Provider = string;
 
 // ---------------------------------------------------------------- ads
 
@@ -158,7 +231,24 @@ export const adAccounts = pgTable(
   },
   (t) => [uniqueIndex("ad_accounts_ext_uq").on(t.workspaceId, t.platform, t.externalId)],
 );
-export type Platform = "meta" | "google";
+export type { Platform };
+
+/** Which events go to which notification channel (channels live in `connections` as notify_*). */
+export const notificationRules = pgTable(
+  "notification_rules",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    channel: text("channel").notNull(), // connections.provider, e.g. "notify_slack"
+    event: text("event").$type<NotificationEvent>().notNull(),
+    settings: jsonb("settings").$type<Record<string, string | number>>().notNull().default({}),
+    enabled: boolean("enabled").notNull().default(true),
+    lastSentAt: tstz("last_sent_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("notification_rules_uq").on(t.workspaceId, t.channel, t.event)],
+);
+export type NotificationEvent = "weekly_report" | "daily_digest" | "wasted_spend" | "sync_failed" | "new_customer" | "big_payment";
 
 export const campaigns = pgTable(
   "campaigns",
@@ -389,7 +479,7 @@ export const leads = pgTable(
     contactId: uuid("contact_id")
       .notNull()
       .references(() => contacts.id, { onDelete: "cascade" }),
-    source: text("source").$type<"pixel" | "webhook">().notNull(),
+    source: text("source").$type<"pixel" | "webhook" | "api" | "csv">().notNull(),
     formName: text("form_name"),
     occurredAt: tstz("occurred_at").notNull(),
     // PII-redacted copy of the submitted payload.
@@ -405,7 +495,8 @@ export const revenueEvents = pgTable(
     id: id(),
     workspaceId: workspaceId(),
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
-    source: text("source").$type<"stripe">().notNull(),
+    // "stripe", "shopify", "woocommerce", "paddle", "lemonsqueezy", "razorpay", "paypal", "api", "csv"…
+    source: text("source").notNull(),
     externalId: text("external_id").notNull(),
     // For refunds: the external_id of the payment being refunded.
     relatedExternalId: text("related_external_id"),

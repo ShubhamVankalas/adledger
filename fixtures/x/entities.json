@@ -1,0 +1,26 @@
+{
+  "account": {
+    "data": { "id": "18ce54d4x5t", "name": "Acme Analytics – X", "timezone": "America/Los_Angeles", "approval_status": "ACCEPTED", "deleted": false }
+  },
+  "campaigns": [
+    {
+      "data": [{ "id": "8wku2", "name": "Website traffic – Founders", "entity_status": "ACTIVE", "currency": "USD", "funding_instrument_id": "lygyi", "deleted": false }],
+      "next_cursor": null
+    }
+  ],
+  "lineItems": [
+    {
+      "data": [{ "id": "8v7jo", "name": "Followers of growth accounts", "campaign_id": "8wku2", "objective": "WEBSITE_CLICKS", "entity_status": "ACTIVE", "currency": "USD", "deleted": false }],
+      "next_cursor": null
+    }
+  ],
+  "promotedTweets": [
+    {
+      "data": [
+        { "id": "8u94t", "line_item_id": "8v7jo", "tweet_id": "1839000000000000001", "entity_status": "ACTIVE", "deleted": false },
+        { "id": "8u95a", "line_item_id": "8v7jo", "tweet_id": "1839000000000000002", "entity_status": "PAUSED", "deleted": false }
+      ],
+      "next_cursor": null
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<!-- AdLedger pixel for Google Tag Manager (Custom HTML tag, trigger: All Pages).
+     Replace YOUR-ADLEDGER and pk_REPLACE_ME with the values from AdLedger → Settings → Tracking. -->
+<script>
+  window.adledger = window.adledger || { q: [] };
+  ["identify", "lead", "track", "consent"].forEach(function (m) {
+    adledger[m] = adledger[m] || function () { adledger.q.push([m].concat([].slice.call(arguments))); };
+  });
+</script>
+<script async src="https://YOUR-ADLEDGER/p/al.js" data-site="pk_REPLACE_ME"></script>

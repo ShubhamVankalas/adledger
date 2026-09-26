@@ -3,6 +3,7 @@
 // slices of it in the platforms' real API formats, so the same parsing code runs
 // in demo mode and live mode.
 
+import type { Platform } from "../connectors/types";
 import { currencyExponent } from "../money";
 
 // ---------------------------------------------------------------- PRNG
@@ -62,7 +63,7 @@ export function dateRange(since: string, until: string): string[] {
 
 type CampaignSpec = {
   key: string;
-  platform: "meta" | "google";
+  platform: Platform;
   account: number;
   name: string;
   objective: string;
@@ -101,16 +102,28 @@ const CAMPAIGNS: CampaignSpec[] = [
   { key: "pmax", platform: "google", account: 2, name: "Performance Max – All Products", objective: "PERFORMANCE_MAX",
     dailySpend: 300, cpc: 8, leadRate: 0.04, custRate: 0.2, firstOrder: 1000,
     groups: ["Asset group – Core", "Asset group – Seasonal"], adsPerGroup: 3, adNames: ["Assets – Dashboard", "Assets – AI insights", "Assets – Integrations"] },
+  { key: "tiktok", platform: "tiktok", account: 3, name: "TikTok – Spark Ads Creators", objective: "CONVERSIONS",
+    dailySpend: 220, cpc: 3.5, leadRate: 0.045, custRate: 0.12, firstOrder: 700,
+    groups: ["Creators – US 18-34", "Creators – Founders"], adsPerGroup: 2, adNames: ["Creator: I found my wasted spend", "Screen recording walkthrough"] },
+  { key: "linkedin", platform: "linkedin", account: 4, name: "LinkedIn – Lead Gen Forms (Marketing Leaders)", objective: "LEAD_GENERATION",
+    dailySpend: 180, cpc: 11, leadRate: 0.09, custRate: 0.05, firstOrder: 1500,
+    groups: ["Heads of Growth – NA"], adsPerGroup: 2, adNames: ["Document ad: Attribution playbook", "Single image: Stop guessing"] },
+  { key: "bing", platform: "microsoft", account: 5, name: "Microsoft Search – Brand + Category", objective: "SEARCH",
+    dailySpend: 60, cpc: 2, leadRate: 0.1, custRate: 0.2, firstOrder: 900,
+    groups: ["Brand", "Marketing attribution software"], adsPerGroup: 2, adNames: ["RSA – Official site", "RSA – Free & open source"] },
 ];
 
 export const DEMO_ACCOUNTS = [
   { platform: "meta" as const, externalId: "act_1010101010", name: "Acme Analytics – Meta (Main)", timezone: "America/New_York" },
   { platform: "meta" as const, externalId: "act_2020202020", name: "Acme Analytics – Meta (Brand)", timezone: "America/New_York" },
   { platform: "google" as const, externalId: "1234567890", name: "Acme Analytics – Google Ads", timezone: "America/New_York" },
-];
+  { platform: "tiktok" as const, externalId: "7300000000000000001", name: "Acme Analytics – TikTok", timezone: "America/New_York" },
+  { platform: "linkedin" as const, externalId: "508000001", name: "Acme Analytics – LinkedIn", timezone: "America/New_York" },
+  { platform: "microsoft" as const, externalId: "180000001", name: "Acme Analytics – Microsoft Ads", timezone: "America/New_York" },
+] as { platform: Platform; externalId: string; name: string; timezone: string }[];
 
 export type DemoAd = {
-  platform: "meta" | "google";
+  platform: Platform;
   account: (typeof DEMO_ACCOUNTS)[number];
   campaign: { externalId: string; name: string; objective: string; spec: CampaignSpec };
   group: { externalId: string; name: string };
@@ -118,18 +131,28 @@ export type DemoAd = {
   share: number; // share of campaign spend
 };
 
+/** Platform-shaped ids (Meta/Google ids are kept stable for existing demos and fixtures). */
+function idFor(platform: Platform, level: "c" | "g" | "a", key: string): string {
+  const k = key.split("");
+  if (platform === "meta") return level === "c" ? `23850${k[0]}00000${k[0]}` : level === "g" ? `23851${k[0]}${k[1]}0000${k[1]}` : `23852${k[0]}${k[1]}${k[2]}000${k[2]}`;
+  if (platform === "google") return level === "c" ? `1700${k[0]}0000${k[0]}` : level === "g" ? `1400${k[0]}${k[1]}000${k[1]}` : `6800${k[0]}${k[1]}${k[2]}00${k[2]}`;
+  const prefix: Record<string, string> = { tiktok: "17", linkedin: "5", microsoft: "4", pinterest: "54", snapchat: "9", reddit: "2", x: "14", other: "0" };
+  const lvl = { c: "1", g: "2", a: "3" }[level];
+  return `${prefix[platform] ?? "0"}${lvl}${key.padStart(6, "0")}`;
+}
+
 export function demoAds(): DemoAd[] {
   const out: DemoAd[] = [];
   CAMPAIGNS.forEach((c, ci) => {
     const account = DEMO_ACCOUNTS[c.account];
-    const cid = c.platform === "meta" ? `23850${ci}00000${ci}` : `1700${ci}0000${ci}`;
+    const cid = idFor(c.platform, "c", `${ci}`);
     const r = rng(`shares:${c.key}`);
     const weights: number[] = [];
     const tmp: Omit<DemoAd, "share">[] = [];
     c.groups.forEach((g, gi) => {
-      const gid = c.platform === "meta" ? `23851${ci}${gi}0000${gi}` : `1400${ci}${gi}000${gi}`;
+      const gid = idFor(c.platform, "g", `${ci}${gi}`);
       for (let ai = 0; ai < c.adsPerGroup; ai++) {
-        const aid = c.platform === "meta" ? `23852${ci}${gi}${ai}000${ai}` : `6800${ci}${gi}${ai}00${ai}`;
+        const aid = idFor(c.platform, "a", `${ci}${gi}${ai}`);
         const adName = `${c.adNames[ai % c.adNames.length]}${c.adsPerGroup > c.adNames.length && ai >= c.adNames.length ? " v2" : ""}`;
         tmp.push({
           platform: c.platform,
@@ -145,6 +168,30 @@ export function demoAds(): DemoAd[] {
     tmp.forEach((t, i) => out.push({ ...t, share: weights[i] / sum }));
   });
   return out;
+}
+
+/**
+ * Demo ads for one platform. Platforms without campaigns in the demo world get a small
+ * deterministic synthetic campaign so every connector's mock mode returns realistic rows.
+ */
+export function demoAdsFor(platform: Platform): DemoAd[] {
+  const real = demoAds().filter((a) => a.platform === platform);
+  if (real.length) return real;
+  const label = platform === "x" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1);
+  const spec: CampaignSpec = {
+    key: `synthetic-${platform}`, platform, account: 0, name: `${label} – Prospecting`, objective: "CONVERSIONS",
+    dailySpend: 80, cpc: 2.5, leadRate: 0.04, custRate: 0.08, firstOrder: 500,
+    groups: ["Broad – US"], adsPerGroup: 2, adNames: ["Video – Product tour", "Static – Customer quote"],
+  };
+  const account = { platform, externalId: idFor(platform, "c", "999"), name: `Acme Analytics – ${label}`, timezone: "America/New_York" };
+  return [0, 1].map((ai) => ({
+    platform,
+    account,
+    campaign: { externalId: idFor(platform, "c", "90"), name: spec.name, objective: spec.objective, spec },
+    group: { externalId: idFor(platform, "g", "900"), name: spec.groups[0] },
+    ad: { externalId: idFor(platform, "a", `90${ai}`), name: spec.adNames[ai] },
+    share: ai === 0 ? 0.6 : 0.4,
+  }));
 }
 
 /** Currency scale so the story reads naturally in the workspace currency. */
@@ -170,7 +217,8 @@ export function adDayMetrics(ad: DemoAd, date: string, currency: string): AdDayM
   const spendRounded = Math.round(spend * 10 ** exp) / 10 ** exp;
   const cpc = spec.cpc * currencyScale(currency) * r.range(0.85, 1.15);
   const clicks = Math.max(0, Math.round(spendRounded / cpc));
-  const ctr = spec.platform === "google" ? r.range(0.03, 0.08) : r.range(0.008, 0.02);
+  const search = spec.platform === "google" || spec.platform === "microsoft";
+  const ctr = search ? r.range(0.03, 0.08) : r.range(0.008, 0.02);
   const impressions = Math.round(clicks / ctr);
   const conversions = Math.round(clicks * spec.leadRate * 0.7 * r.range(0.8, 1.3) * 100) / 100;
   return { spend: spendRounded, clicks, impressions, conversions };
@@ -230,24 +278,45 @@ export type DemoWorld = {
 
 export const DEMO_SITE = "https://demo.adledger.local";
 
+const REFERRERS: Partial<Record<Platform, string>> = {
+  meta: "https://l.facebook.com/",
+  google: "https://www.google.com/",
+  tiktok: "https://www.tiktok.com/",
+  linkedin: "https://www.linkedin.com/",
+  microsoft: "https://www.bing.com/",
+};
+
 function landingUrl(ad: DemoAd, r: ReturnType<typeof rng>): string {
   const pages = ["/", "/pricing", "/features/attribution", "/guide"];
   const path = ad.campaign.spec.key === "guide" ? "/guide" : r.pick(pages);
   const u = new URL(path, DEMO_SITE);
-  if (ad.platform === "meta") {
-    u.searchParams.set("utm_source", r.chance(0.8) ? "facebook" : "instagram");
-    u.searchParams.set("utm_medium", "paid_social");
+  const set = (source: string, medium: string, clickParam: string, clickValue: string) => {
+    u.searchParams.set("utm_source", source);
+    u.searchParams.set("utm_medium", medium);
     u.searchParams.set("utm_campaign", ad.campaign.externalId);
     u.searchParams.set("utm_term", ad.group.externalId);
     u.searchParams.set("utm_content", ad.ad.externalId);
-    u.searchParams.set("fbclid", `IwAR${Math.floor(r.next() * 1e12).toString(36)}`);
-  } else {
-    u.searchParams.set("utm_source", "google");
-    u.searchParams.set("utm_medium", "cpc");
-    u.searchParams.set("utm_campaign", ad.campaign.externalId);
-    u.searchParams.set("utm_term", ad.group.externalId);
-    u.searchParams.set("utm_content", ad.ad.externalId);
-    u.searchParams.set("gclid", `Cj0K${Math.floor(r.next() * 1e14).toString(36)}`);
+    u.searchParams.set(clickParam, clickValue);
+  };
+  const rand = (n: number) => Math.floor(r.next() * 10 ** n).toString(36);
+  switch (ad.platform) {
+    case "meta":
+      set(r.chance(0.8) ? "facebook" : "instagram", "paid_social", "fbclid", `IwAR${rand(12)}`);
+      break;
+    case "google":
+      set("google", "cpc", "gclid", `Cj0K${rand(14)}`);
+      break;
+    case "tiktok":
+      set("tiktok", "paid_social", "ttclid", `E.C.P.${rand(14)}`);
+      break;
+    case "linkedin":
+      set("linkedin", "paid_social", "li_fat_id", rand(12));
+      break;
+    case "microsoft":
+      set("bing", "cpc", "msclkid", rand(14));
+      break;
+    default:
+      set(ad.platform, "paid_social", "utm_id", rand(10));
   }
   return u.toString();
 }
@@ -339,7 +408,7 @@ export function buildDemoWorld(anchor: string, currency: string, days = 90): Dem
       for (let i = 0; i < landed; i++) {
         const v = newVisitor();
         const at = new Date(dayStart + r.int(6 * 3600, 23 * 3600) * 1000);
-        addVisit(v, at, landingUrl(ad, r), ad.platform === "meta" ? "https://l.facebook.com/" : "https://www.google.com/", true);
+        addVisit(v, at, landingUrl(ad, r), REFERRERS[ad.platform] ?? null, true);
         visitors.push(v);
         if (!r.chance(spec.leadRate)) {
           // Some non-converters come back via retargeting later.

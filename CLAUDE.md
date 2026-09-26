@@ -39,6 +39,10 @@ The target user may be non-technical. Every change must keep these true:
   (e.g. `middleware` is now `proxy`, `params`/`searchParams` are Promises).
 
 ## Conventions
+- Integrations live in `src/lib/connectors/` (ads/, revenue/) and `src/lib/notify/channels/`; register
+  them in the folder's `index.ts`. The registry drives the Settings catalog, sync and webhooks.
+- Server actions start with `guard(permission)` (see `src/lib/permissions.ts`) and log changes with
+  `audit()`. Pages that need a role use `requireUser(permission)`.
 - Money: integer minor units (`*_minor bigint`) + ISO currency. Never floats. Use `src/lib/money.ts`.
 - Timestamps: UTC `timestamptz`; convert only in the UI / via workspace timezone in SQL.
 - Every tenant table has `workspace_id` (except `workspaces`, `app_meta`) — a test enforces it.

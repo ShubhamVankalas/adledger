@@ -1,0 +1,58 @@
+{
+  "adAccount": {
+    "id": 508000001,
+    "name": "Acme Analytics – LinkedIn",
+    "currency": "EUR",
+    "status": "ACTIVE",
+    "type": "BUSINESS",
+    "reference": "urn:li:organization:2414183",
+    "test": false
+  },
+  "adCampaignGroups": [
+    {
+      "elements": [{ "id": 700100001, "name": "Q3 Lead Gen – Marketing Leaders", "status": "ACTIVE", "account": "urn:li:sponsoredAccount:508000001" }],
+      "metadata": {},
+      "paging": { "count": 1000, "start": 0, "links": [] }
+    }
+  ],
+  "adCampaigns": [
+    {
+      "elements": [
+        {
+          "id": 360000001,
+          "name": "Heads of Growth – NA",
+          "campaignGroup": "urn:li:sponsoredCampaignGroup:700100001",
+          "account": "urn:li:sponsoredAccount:508000001",
+          "status": "ACTIVE",
+          "objectiveType": "LEAD_GENERATION",
+          "type": "SPONSORED_UPDATES"
+        }
+      ],
+      "metadata": {},
+      "paging": { "count": 1000, "start": 0, "links": [] }
+    }
+  ],
+  "creatives": [
+    {
+      "elements": [
+        {
+          "id": "urn:li:sponsoredCreative:612340001",
+          "campaign": "urn:li:sponsoredCampaign:360000001",
+          "account": "urn:li:sponsoredAccount:508000001",
+          "name": "Document ad: Attribution playbook",
+          "intendedStatus": "ACTIVE",
+          "isServing": true
+        },
+        {
+          "id": "urn:li:sponsoredCreative:612340002",
+          "campaign": "urn:li:sponsoredCampaign:360000001",
+          "account": "urn:li:sponsoredAccount:508000001",
+          "intendedStatus": "PAUSED",
+          "isServing": false
+        }
+      ],
+      "metadata": {},
+      "paging": { "count": 100, "start": 0, "links": [] }
+    }
+  ]
+}

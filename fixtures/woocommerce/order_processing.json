@@ -1,0 +1,40 @@
+{
+  "id": 7271,
+  "parent_id": 0,
+  "status": "processing",
+  "currency": "EUR",
+  "version": "10.2.1",
+  "prices_include_tax": true,
+  "date_created": "2026-09-21T14:03:09",
+  "date_created_gmt": "2026-09-21T12:03:09",
+  "date_modified": "2026-09-21T14:03:12",
+  "date_modified_gmt": "2026-09-21T12:03:12",
+  "discount_total": "0.00",
+  "shipping_total": "4.90",
+  "total": "59.80",
+  "total_tax": "9.55",
+  "customer_id": 0,
+  "order_key": "wc_order_Xk2pQ9LmN3vB7",
+  "billing": {
+    "first_name": "Lena",
+    "last_name": "Fischer",
+    "company": "",
+    "city": "Berlin",
+    "country": "DE",
+    "email": "lena.fischer@example.com",
+    "phone": "+4930123456"
+  },
+  "payment_method": "stripe",
+  "payment_method_title": "Credit card",
+  "transaction_id": "pi_3Q1abc",
+  "date_paid": "2026-09-21T14:03:11",
+  "date_paid_gmt": "2026-09-21T12:03:11",
+  "date_completed": null,
+  "date_completed_gmt": null,
+  "meta_data": [
+    { "id": 99101, "key": "_stripe_customer_id", "value": "cus_Q1abc" },
+    { "id": 99102, "key": "adledger_vid", "value": "9a8b7c6d-1111-4222-8333-944455556666" }
+  ],
+  "line_items": [{ "id": 315, "name": "Linen Apron", "quantity": 2, "subtotal": "45.35", "total": "45.35", "price": 22.675 }],
+  "refunds": []
+}

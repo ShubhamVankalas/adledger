@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { decrypt, encrypt, randomToken } from "./crypto";
 import { getDb, schema, type DB } from "./db";
 import type { Provider } from "./db/schema";
@@ -24,19 +24,6 @@ export async function getAppSecret(db?: DB): Promise<string> {
 }
 
 export type Workspace = typeof schema.workspaces.$inferSelect;
-
-/** v0.1 runs a single workspace per install (the schema is multi-tenant). */
-export async function getWorkspace(db?: DB): Promise<Workspace | undefined> {
-  const d = db ?? (await getDb());
-  const [ws] = await d.select().from(schema.workspaces).orderBy(asc(schema.workspaces.createdAt)).limit(1);
-  return ws;
-}
-
-export async function requireWorkspace(db?: DB): Promise<Workspace> {
-  const ws = await getWorkspace(db);
-  if (!ws) throw new Error("AdLedger is not set up yet. Open the dashboard to run setup.");
-  return ws;
-}
 
 export type Connection = typeof schema.connections.$inferSelect & {
   secrets: Record<string, string>;

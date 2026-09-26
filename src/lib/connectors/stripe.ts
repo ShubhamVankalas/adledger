@@ -2,11 +2,10 @@ import { and, eq, sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { schema, type DB } from "../db";
 import { buildDemoWorld, DAY, isoDate } from "../demo/world";
-import { linkVisitor, upsertContact } from "../tracking/identity";
+import { ingestRevenue, resolveRevenueContact } from "./revenue/ingest";
+import type { IntegrationMeta, RevenueEventInput } from "./types";
 import type { Connection } from "../settings";
 
-type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
-type Q = DB | Tx;
 
 /** The subset of a Stripe Charge we rely on (works for webhooks, API lists and mocks). */
 export type ChargeLike = {
@@ -28,113 +27,50 @@ export type ChargeLike = {
 
 const idOf = (v: string | { id: string } | null | undefined) => (typeof v === "string" ? v : (v?.id ?? null));
 
-async function resolveContact(
-  tx: Q,
-  workspaceId: string,
-  info: { vid?: string | null; email?: string | null; name?: string | null; phone?: string | null; customerId?: string | null; at: Date },
-): Promise<string | null> {
-  let visitor: typeof schema.visitors.$inferSelect | undefined;
-  if (info.vid) {
-    [visitor] = await tx
-      .select()
-      .from(schema.visitors)
-      .where(and(eq(schema.visitors.workspaceId, workspaceId), eq(schema.visitors.anonymousId, info.vid)));
-    if (visitor?.contactId) return visitor.contactId;
+/** Convert a Stripe charge into revenue events (payment + cumulative refund). */
+export function chargeToEvents(charge: ChargeLike, opts: { refundedAt?: Date } = {}): RevenueEventInput[] {
+  const succeeded = charge.status ? charge.status === "succeeded" : charge.paid !== false;
+  if (!succeeded && !charge.amount_refunded) return [];
+  const paymentId = idOf(charge.payment_intent) ?? charge.id;
+  const customer = typeof charge.customer === "object" && charge.customer && !charge.customer.deleted ? charge.customer : null;
+  const who = {
+    email: charge.billing_details?.email || charge.receipt_email || customer?.email || null,
+    name: charge.billing_details?.name ?? null,
+    phone: charge.billing_details?.phone ?? null,
+    visitorId: charge.metadata?.adledger_vid ?? null,
+    externalCustomerId: idOf(charge.customer),
+  };
+  const events: RevenueEventInput[] = [
+    {
+      type: "payment",
+      externalId: paymentId,
+      amountMinor: charge.amount_captured || charge.amount,
+      currency: charge.currency,
+      occurredAt: new Date(charge.created * 1000),
+      customer: who,
+    },
+  ];
+  if (charge.amount_refunded > 0) {
+    const lastRefund = Math.max(0, ...(charge.refunds?.data ?? []).map((r) => r.created));
+    events.push({
+      type: "refund",
+      // Cumulative refund total per charge: partial refunds update the same row.
+      externalId: `refunds:${charge.id}`,
+      relatedExternalId: paymentId,
+      amountMinor: charge.amount_refunded,
+      currency: charge.currency,
+      occurredAt: lastRefund ? new Date(lastRefund * 1000) : (opts.refundedAt ?? new Date()),
+      customer: who,
+    });
   }
-  if (info.email) {
-    const c = await upsertContact(tx, workspaceId, { email: info.email, name: info.name, phone: info.phone }, info.at);
-    if (c) {
-      if (visitor) await linkVisitor(tx, visitor.id, c.id);
-      return c.id;
-    }
-  }
-  if (info.customerId) {
-    const [c] = await tx
-      .select({ id: schema.contacts.id })
-      .from(schema.contacts)
-      .where(
-        and(
-          eq(schema.contacts.workspaceId, workspaceId),
-          sql`${schema.contacts.externalIds}->>'stripe_customer_id' = ${info.customerId}`,
-        ),
-      )
-      .limit(1);
-    if (c) return c.id;
-  }
-  return null;
-}
-
-async function markCustomer(tx: Q, contactId: string, customerId: string | null) {
-  await tx
-    .update(schema.contacts)
-    .set({
-      lifecycle: "customer",
-      ...(customerId
-        ? { externalIds: sql`${schema.contacts.externalIds} || ${JSON.stringify({ stripe_customer_id: customerId })}::jsonb` }
-        : {}),
-    })
-    .where(eq(schema.contacts.id, contactId));
+  return events;
 }
 
 /** Upsert the payment (and cumulative refund) for a charge. Idempotent. */
 export async function ingestCharge(db: DB, workspaceId: string, charge: ChargeLike, opts: { refundedAt?: Date } = {}) {
-  const succeeded = charge.status ? charge.status === "succeeded" : charge.paid !== false;
-  if (!succeeded && !charge.amount_refunded) return { payment: false, refund: false };
-  const paymentId = idOf(charge.payment_intent) ?? charge.id;
-  const currency = charge.currency.toUpperCase();
-  const customer = typeof charge.customer === "object" && charge.customer && !charge.customer.deleted ? charge.customer : null;
-  const customerId = idOf(charge.customer);
-  const email = charge.billing_details?.email || charge.receipt_email || customer?.email || null;
-  const at = new Date(charge.created * 1000);
-
-  return db.transaction(async (tx) => {
-    const contactId = await resolveContact(tx, workspaceId, {
-      vid: charge.metadata?.adledger_vid,
-      email,
-      name: charge.billing_details?.name,
-      phone: charge.billing_details?.phone,
-      customerId,
-      at,
-    });
-    const amount = charge.amount_captured || charge.amount;
-    await tx
-      .insert(schema.revenueEvents)
-      .values({ workspaceId, contactId, source: "stripe", externalId: paymentId, type: "payment", amountMinor: amount, currency, occurredAt: at })
-      .onConflictDoUpdate({
-        target: [schema.revenueEvents.workspaceId, schema.revenueEvents.source, schema.revenueEvents.externalId],
-        set: {
-          amountMinor: amount,
-          currency,
-          occurredAt: at,
-          contactId: sql`coalesce(${schema.revenueEvents.contactId}, excluded.contact_id)`,
-        },
-      });
-    if (contactId) await markCustomer(tx, contactId, customerId);
-
-    const refundKey = `refunds:${charge.id}`;
-    if (charge.amount_refunded > 0) {
-      const lastRefund = Math.max(0, ...(charge.refunds?.data ?? []).map((r) => r.created));
-      const refundedAt = lastRefund ? new Date(lastRefund * 1000) : (opts.refundedAt ?? new Date());
-      await tx
-        .insert(schema.revenueEvents)
-        .values({
-          workspaceId,
-          contactId,
-          source: "stripe",
-          externalId: refundKey,
-          relatedExternalId: paymentId,
-          type: "refund",
-          amountMinor: -charge.amount_refunded,
-          currency,
-          occurredAt: refundedAt,
-        })
-        .onConflictDoUpdate({
-          target: [schema.revenueEvents.workspaceId, schema.revenueEvents.source, schema.revenueEvents.externalId],
-          set: { amountMinor: -charge.amount_refunded, contactId: sql`coalesce(${schema.revenueEvents.contactId}, excluded.contact_id)` },
-        });
-    }
-    return { payment: true, refund: charge.amount_refunded > 0 };
-  });
+  const events = chargeToEvents(charge, opts);
+  await ingestRevenue(db, workspaceId, "stripe", events);
+  return { payment: events.some((e) => e.type === "payment"), refund: events.some((e) => e.type === "refund") };
 }
 
 type CheckoutSessionLike = {
@@ -159,12 +95,12 @@ export async function ingestCheckoutSession(db: DB, workspaceId: string, s: Chec
   const email = s.customer_details?.email || s.customer_email || null;
   const at = new Date(s.created * 1000);
   await db.transaction(async (tx) => {
-    const contactId = await resolveContact(tx, workspaceId, {
-      vid,
+    const contactId = await resolveRevenueContact(tx, workspaceId, "stripe", {
+      visitorId: vid,
       email,
       name: s.customer_details?.name,
       phone: s.customer_details?.phone,
-      customerId: idOf(s.customer),
+      externalCustomerId: idOf(s.customer),
       at,
     });
     if (!contactId) return;
@@ -192,6 +128,25 @@ export async function ingestCheckoutSession(db: DB, workspaceId: string, s: Chec
     }
   });
 }
+
+export const stripeIntegration: IntegrationMeta = {
+  provider: "stripe",
+  name: "Stripe",
+  category: "revenue",
+  description: "Payments, renewals and refunds via webhooks, plus a 90-day backfill.",
+  status: "stable",
+  color: "#635bff",
+  docsUrl: "https://dashboard.stripe.com/apikeys",
+  fields: [
+    { name: "apiKey", label: "Secret or restricted key", secret: true, placeholder: "rk_live_… or sk_test_…", hint: "Read access to Charges, Customers and Checkout Sessions is enough." },
+    { name: "webhookSecret", label: "Webhook signing secret", secret: true, placeholder: "whsec_…", optional: true, hint: "Leave empty — AdLedger creates the webhook in Stripe for you when this install has a public https address." },
+  ],
+  steps: [
+    "In Stripe open Developers → API keys (use Test mode to try it free) and copy the Secret key (sk_…).",
+    "Paste it below and click Connect. AdLedger imports the last 90 days and creates the webhook in Stripe automatically.",
+    "Prefer least privilege? Use a restricted key with Read on Charges, Customers, Checkout Sessions and Write on Webhook Endpoints.",
+  ],
+};
 
 export const HANDLED_STRIPE_EVENTS = ["charge.succeeded", "charge.refunded", "checkout.session.completed"] as const;
 
@@ -271,4 +226,31 @@ export async function backfillStripe(
     n++;
   }
   return n;
+}
+
+/**
+ * Create (or replace) AdLedger's webhook endpoint in the merchant's Stripe account so the
+ * user only has to paste an API key. Returns the signing secret, or an explanation when the
+ * install isn't reachable from the internet (Stripe needs a public https URL).
+ */
+export async function ensureStripeWebhook(apiKey: string, url: string): Promise<{ secret: string } | { error: string }> {
+  if (!/^https:\/\//.test(url) || /\/\/(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(url)) {
+    return { error: "Stripe can only send webhooks to a public https address. Payments are still imported with “Sync now”; for local testing use the Stripe CLI." };
+  }
+  try {
+    const stripe = stripeClient(apiKey);
+    // A signing secret is only returned on creation, so replace any previous AdLedger endpoint.
+    for await (const ep of stripe.webhookEndpoints.list({ limit: 100 })) {
+      if (ep.url === url) await stripe.webhookEndpoints.del(ep.id);
+    }
+    const created = await stripe.webhookEndpoints.create({
+      url,
+      enabled_events: [...HANDLED_STRIPE_EVENTS],
+      description: "AdLedger — revenue attribution",
+    });
+    return created.secret ? { secret: created.secret } : { error: "Stripe didn't return a signing secret." };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { error: `Couldn't create the webhook automatically (${msg.slice(0, 160)}). Add it by hand, or give the key “Webhook Endpoints: Write” permission.` };
+  }
 }

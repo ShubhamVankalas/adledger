@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { ActionResult } from "@/app/actions/settings";
+import type { ActionResult } from "@/lib/actions";
 
 /** A button that runs a server action and toasts the result. */
 export function ActionButton({

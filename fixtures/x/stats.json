@@ -1,0 +1,51 @@
+{
+  "data_type": "stats",
+  "time_series_length": 2,
+  "data": [
+    {
+      "id": "8u94t",
+      "id_data": [
+        {
+          "segment": null,
+          "metrics": {
+            "impressions": [18402, 511],
+            "clicks": [233, 1],
+            "engagements": [410, 3],
+            "billed_charge_local_micro": [74250000, 1995000],
+            "billed_engagements": [233, 1],
+            "conversion_purchases": { "metric": [2, null], "order_quantity": [2, null], "sale_amount": [120000000, null] },
+            "conversion_sign_ups": { "metric": [5, 0] }
+          }
+        }
+      ]
+    },
+    {
+      "id": "8u95a",
+      "id_data": [
+        {
+          "segment": null,
+          "metrics": {
+            "impressions": null,
+            "clicks": null,
+            "engagements": null,
+            "billed_charge_local_micro": null,
+            "billed_engagements": null,
+            "conversion_purchases": null,
+            "conversion_sign_ups": null
+          }
+        }
+      ]
+    }
+  ],
+  "request": {
+    "params": {
+      "start_time": "2026-09-20T07:00:00Z",
+      "end_time": "2026-09-22T07:00:00Z",
+      "granularity": "DAY",
+      "entity": "PROMOTED_TWEET",
+      "entity_ids": ["8u94t", "8u95a"],
+      "placement": "ALL_ON_TWITTER",
+      "metric_groups": ["ENGAGEMENT", "BILLING", "WEB_CONVERSION"]
+    }
+  }
+}

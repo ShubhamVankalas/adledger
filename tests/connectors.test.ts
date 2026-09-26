@@ -49,11 +49,11 @@ describe("Google Ads parser", () => {
 });
 
 describe("demo world / mock connectors", () => {
-  it("has 8 campaigns and ~40 ads across 3 accounts", () => {
+  it("has 11 campaigns and ~50 ads across 6 accounts on 5 platforms", () => {
     const ads = demoAds();
-    expect(new Set(ads.map((a) => a.campaign.externalId)).size).toBe(8);
+    expect(new Set(ads.map((a) => a.campaign.externalId)).size).toBe(11);
     expect(ads.length).toBeGreaterThanOrEqual(40);
-    expect(new Set(ads.map((a) => a.account.externalId)).size).toBe(3);
+    expect(new Set(ads.map((a) => a.account.externalId)).size).toBe(6);
   });
   it("ad-day metrics are a pure function of (ad, date)", () => {
     const ad = demoAds()[0];

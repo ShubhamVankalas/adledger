@@ -2,10 +2,11 @@ import { desc, eq } from "drizzle-orm";
 import { generateReport } from "./ai/report";
 import { getDb, isEmbeddedDb, schema } from "./db";
 import { requestAttribution, startScheduler } from "./jobs";
-import { createAdmin, hasUsers } from "./auth";
+import { createOrganizationWithOwner, hasUsers } from "./auth";
 import { hashPassword } from "./crypto";
 import { seedDemo } from "./demo/seed";
 import { log } from "./log";
+import { notify, runScheduledNotifications } from "./notify";
 import { getAppSecret } from "./settings";
 import { syncAll } from "./sync";
 
@@ -45,8 +46,22 @@ export async function boot() {
             .limit(1);
           if (last && Date.now() - last.at.getTime() < 7 * 24 * HOUR) continue;
           const [hasData] = await db.select({ id: schema.adInsightsDaily.id }).from(schema.adInsightsDaily).where(eq(schema.adInsightsDaily.workspaceId, ws.id)).limit(1);
-          if (hasData) await generateReport(db, ws);
+          if (!hasData) continue;
+          const { report } = await generateReport(db, ws);
+          await notify(ws.id, "weekly_report", () => ({
+            title: `Weekly ad report · ${ws.name} · ${report.periodStart} → ${report.periodEnd}`,
+            text: report.contentMd.replace(/^#+\s*/gm, "").slice(0, 3500),
+            severity: "info",
+            url: process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL.replace(/\/$/, "")}/insights` : undefined,
+          }), db);
         }
+      },
+    },
+    {
+      name: "notifications",
+      everyMs: HOUR,
+      run: async () => {
+        for (const ws of await db.select().from(schema.workspaces)) await runScheduledNotifications(db, ws);
       },
     },
   ]);
@@ -78,16 +93,15 @@ async function bootstrapFromEnv() {
     return;
   }
   const name = process.env.WORKSPACE_NAME?.trim() || "My business";
-  const [ws] = await db
-    .insert(schema.workspaces)
-    .values({
-      name,
-      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "workspace",
-      reportingCurrency: (process.env.REPORTING_CURRENCY || "USD").toUpperCase(),
-      timezone: process.env.TIMEZONE || "UTC",
-    })
-    .returning();
-  await createAdmin(db, ws.id, email, password, "Admin");
+  const { workspace: ws } = await createOrganizationWithOwner(db, {
+    organizationName: process.env.ORGANIZATION_NAME?.trim() || name,
+    workspaceName: name,
+    email,
+    password,
+    name: "Admin",
+    reportingCurrency: (process.env.REPORTING_CURRENCY || "USD").toUpperCase(),
+    timezone: process.env.TIMEZONE || "UTC",
+  });
   log.info("created workspace and admin from ADMIN_EMAIL / ADMIN_PASSWORD");
   // Seed in the background so the server starts answering immediately.
   if (process.env.DEMO_DATA === "true") {

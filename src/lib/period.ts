@@ -1,3 +1,4 @@
+import { AD_PLATFORMS, type Platform } from "./connectors/types";
 import type { DB } from "./db";
 import { dataBounds, type ReportParams } from "./reports";
 import type { Workspace } from "./settings";
@@ -24,7 +25,7 @@ export async function resolvePeriodParams(db: DB, ws: Workspace, sp: SearchParam
   const to = one(sp.to);
   const base = {
     model: (["first_touch", "last_touch", "linear"].includes(model ?? "") ? model : "linear") as ReportParams["model"],
-    platform: platform === "meta" || platform === "google" ? (platform as "meta" | "google") : undefined,
+    platform: (AD_PLATFORMS as readonly string[]).includes(platform ?? "") ? (platform as Platform) : undefined,
   };
   if (from && to && DATE.test(from) && DATE.test(to) && from <= to) return { ...base, start: from, end: to, range: "custom" };
 

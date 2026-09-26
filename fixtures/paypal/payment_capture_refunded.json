@@ -1,0 +1,32 @@
+{
+  "id": "WH-1GE84257G0350133W-6RW800890C634293G",
+  "create_time": "2026-09-25T08:02:41.311Z",
+  "resource_type": "refund",
+  "event_type": "PAYMENT.CAPTURE.REFUNDED",
+  "event_version": "1.0",
+  "resource_version": "2.0",
+  "summary": "A $ 40.00 USD capture payment was refunded",
+  "resource": {
+    "id": "1JU08902781691411",
+    "status": "COMPLETED",
+    "amount": { "currency_code": "USD", "value": "40.00" },
+    "note_to_payer": "Partial refund for returned item",
+    "custom_id": "adledger_vid=7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9",
+    "invoice_id": "INV-20260921-0042",
+    "seller_payable_breakdown": {
+      "gross_amount": { "currency_code": "USD", "value": "40.00" },
+      "paypal_fee": { "currency_code": "USD", "value": "0.00" },
+      "net_amount": { "currency_code": "USD", "value": "40.00" },
+      "total_refunded_amount": { "currency_code": "USD", "value": "40.00" }
+    },
+    "create_time": "2026-09-25T01:02:38-07:00",
+    "update_time": "2026-09-25T01:02:38-07:00",
+    "links": [
+      { "href": "https://api.paypal.com/v2/payments/refunds/1JU08902781691411", "rel": "self", "method": "GET" },
+      { "href": "https://api.paypal.com/v2/payments/captures/42311647XV020574X", "rel": "up", "method": "GET" }
+    ]
+  },
+  "links": [
+    { "href": "https://api.paypal.com/v1/notifications/webhooks-events/WH-1GE84257G0350133W-6RW800890C634293G", "rel": "self", "method": "GET" }
+  ]
+}

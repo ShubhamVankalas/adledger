@@ -40,7 +40,7 @@ export function SpendRevenueChart({
         </defs>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={28} tickFormatter={fmtDate} />
-        <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => compact.format(v)} />
+        <YAxis tickLine={false} axisLine={false} width={48} domain={[0, "auto"]} allowDataOverflow tickFormatter={(v: number) => compact.format(v)} />
         <ChartTooltip
           cursor={{ fill: "var(--muted)", opacity: 0.5 }}
           content={

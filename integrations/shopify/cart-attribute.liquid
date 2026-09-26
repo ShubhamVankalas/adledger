@@ -1,0 +1,37 @@
+{% comment %}
+  AdLedger: store the visitor id on the cart so every order carries it (as the
+  "adledger_vid" note attribute). AdLedger's Shopify connector uses it to match the
+  order to the ad click exactly.
+
+  Install: Online Store → Themes → … → Edit code → Snippets → Add a new snippet named
+  "adledger" → paste this file → then in layout/theme.liquid, just before </head>, add:
+      {% render 'adledger' %}
+{% endcomment %}
+<script>
+  (function () {
+    var KEY = "_al_vid";
+    var current = {{ cart.attributes.adledger_vid | default: "" | json }};
+    function readCookie() {
+      var m = document.cookie.match(/(?:^|; )_al_vid=([^;]*)/);
+      return m ? decodeURIComponent(m[1]) : "";
+    }
+    var vid = readCookie();
+    if (!vid) {
+      try { vid = localStorage.getItem(KEY) || ""; } catch (e) {}
+    }
+    if (!/^[A-Za-z0-9_-]{8,64}$/.test(vid)) {
+      vid = "";
+      for (var i = 0; i < 32; i++) vid += Math.floor(Math.random() * 16).toString(16);
+    }
+    if (!readCookie()) {
+      document.cookie = KEY + "=" + vid + "; Max-Age=63072000; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
+    }
+    try { localStorage.setItem(KEY, vid); } catch (e) {}
+    if (current === vid) return;
+    fetch({{ routes.cart_update_url | append: '.js' | json }}, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ attributes: { adledger_vid: vid } })
+    }).catch(function () {});
+  })();
+</script>

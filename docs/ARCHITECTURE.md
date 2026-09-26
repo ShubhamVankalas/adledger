@@ -91,10 +91,14 @@ Every tenant table has `id uuid pk`, `workspace_id uuid fk`, `created_at timesta
 (`workspaces` and the instance-level `app_meta` are the exceptions). Money is
 `*_minor bigint` + `currency`. Timestamps are UTC `timestamptz`.
 
-**Tenancy & access** — `workspaces` (reporting_currency, timezone, attribution_window_days,
-is_demo), `users` (admin login; scrypt hash), `sessions` (hashed token), `api_keys` (hashed),
+**Tenancy & access** — `organizations` (a business or agency) → `workspaces` (one per brand or
+client: reporting_currency, timezone, attribution_window_days, is_demo, onboarding),
+`users` (login identity; scrypt hash), `memberships` (user × organization with a role: owner, admin,
+analyst, viewer, client — clients carry an explicit list of workspace ids), `invitations` (hashed
+token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace), `api_keys` (hashed),
 `pixel_sites` (public key, allowed domains), `lead_webhooks` (token, field mapping),
-`connections` (provider meta|google_ads|stripe|llm, mode mock|live, config jsonb,
+`notification_rules` (event × channel, settings such as hour or threshold), `connections`
+(any provider id from the integration registry, `llm`, or a `notify_*` channel; mode mock|live, config jsonb,
 `secrets_enc` AES-256-GCM, last_synced_at, last_error), `app_meta` (generated app secret).
 
 **Ads** — `ad_accounts`, `campaigns`, `ad_groups`, `ads`, `ad_insights_daily`
@@ -170,6 +174,29 @@ deterministic template report is produced. `ai/numbers.ts` flags numbers not pre
 API-key auth. Tool output always states date range, currency and attribution model; contact
 emails are masked.
 
+**Integration registry.** `src/lib/connectors/registry.ts` lists every integration. Ad connectors
+implement `AdsConnector` (`fetchLive` + `mock`, both returning normalized `AdDayRow`s), revenue
+sources implement `RevenueConnector` (`verifyWebhook`, `parseWebhook`, optional `backfill`), and
+notification channels implement `NotificationChannelDriver`. Each carries `IntegrationMeta` (fields,
+setup steps, docs link) that drives the Settings catalog and connect forms — adding an integration is one
+file plus one registry line. Revenue webhooks for every non-Stripe source share
+`/api/v1/webhooks/{provider}/{workspaceId}`; all revenue goes through `ingestRevenue` (idempotent on
+source + external id; contact matched by visitor id → email → customer id → phone).
+
+**Imports.** The Spend API (`POST /api/v1/spend`), Conversions API (`POST /api/v1/conversions`) and
+CSV uploads share `src/lib/imports.ts`, so any ad network or checkout without a native connector can be
+brought in (Zapier, Make, n8n, scripts, spreadsheets).
+
+**Teams & permissions.** Roles are per organization (`src/lib/permissions.ts`): owner (everything),
+admin (workspaces, integrations, members), analyst (reports, exports, insights, API keys), viewer
+(read-only), client (read-only, only listed workspaces). Every server action calls `guard(permission)`;
+owners can't be demoted or removed if they are the last one. Sessions store the current workspace;
+switching validates access.
+
+**Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
+failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
+events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
+
 ## 6. Configuration
 
 All optional; see `.env.example`. Connector credentials and the AI model are configured in the
@@ -205,5 +232,8 @@ smoke-tests the Docker image with `docker compose up`.
 - **Drizzle + PGlite.** SQL-first ORM (reports are hand-written SQL) with an embedded Postgres
   for zero-setup development, single-container trials and fast tests.
 - **Credentials in the UI, not env vars.** Easier for non-technical users; encrypted at rest.
+- **2026-09-27 — organizations & roles.** Agencies need many client workspaces and read-only client
+  access; teams need roles. Existing installs are migrated automatically (each workspace becomes its own
+  organization; its admin becomes the owner).
 - **LTV attribution for repeat payments.** Renewals credit the acquiring journey instead of
   becoming “unattributed” once the window has passed.

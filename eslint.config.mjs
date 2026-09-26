@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/p/**",
+    // Plain browser/PHP-plugin scripts for other platforms (ES5-style on purpose).
+    "integrations/**",
     ".data/**",
   ]),
 ]);

@@ -8,6 +8,20 @@
       "when": 1790440396306,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790447099061,
+      "tag": "0001_teams_integrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790447115070,
+      "tag": "0002_drop_legacy_user_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,18 @@
+{
+  "id": 7271,
+  "parent_id": 0,
+  "status": "completed",
+  "currency": "EUR",
+  "date_created_gmt": "2026-09-21T12:03:09",
+  "date_modified_gmt": "2026-09-24T08:30:00",
+  "total": "59.80",
+  "customer_id": 0,
+  "billing": { "first_name": "Lena", "last_name": "Fischer", "email": "lena.fischer@example.com", "phone": "+4930123456" },
+  "date_paid_gmt": "2026-09-21T12:03:11",
+  "date_completed_gmt": "2026-09-22T09:00:00",
+  "meta_data": [{ "id": 99102, "key": "adledger_vid", "value": "9a8b7c6d-1111-4222-8333-944455556666" }],
+  "refunds": [
+    { "id": 7290, "reason": "One apron returned", "total": "-22.68" },
+    { "id": 7295, "reason": "Shipping refund", "total": "-4.90" }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "code": 0,
+  "message": "OK",
+  "request_id": "2026092012345601020304050607080910",
+  "data": {
+    "page_info": { "page": 1, "page_size": 1000, "total_number": 2, "total_page": 1 },
+    "list": [
+      {
+        "dimensions": { "ad_id": "1790000000000000301", "stat_time_day": "2026-09-20 00:00:00" },
+        "metrics": {
+          "campaign_id": "1790000000000000101",
+          "campaign_name": "Spark Ads – Creators",
+          "adgroup_id": "1790000000000000201",
+          "adgroup_name": "US 18-34",
+          "ad_name": "Creator: I found my wasted spend",
+          "objective_type": "WEB_CONVERSIONS",
+          "spend": "128.47",
+          "impressions": "40211",
+          "clicks": "362",
+          "conversion": "14"
+        }
+      },
+      {
+        "dimensions": { "ad_id": "1790000000000000302", "stat_time_day": "2026-09-21 00:00:00" },
+        "metrics": {
+          "campaign_id": "1790000000000000101",
+          "campaign_name": "Spark Ads – Creators",
+          "adgroup_id": "1790000000000000201",
+          "adgroup_name": "US 18-34",
+          "ad_name": "Screen recording walkthrough",
+          "objective_type": "WEB_CONVERSIONS",
+          "spend": "0.5",
+          "impressions": "88",
+          "clicks": "0",
+          "conversion": "0"
+        }
+      }
+    ]
+  }
+}

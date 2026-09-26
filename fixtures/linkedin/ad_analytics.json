@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "pivotValues": ["urn:li:sponsoredCreative:612340001"],
+      "dateRange": { "start": { "year": 2026, "month": 9, "day": 20 }, "end": { "year": 2026, "month": 9, "day": 20 } },
+      "costInLocalCurrency": "187.91833",
+      "impressions": 5120,
+      "clicks": 41,
+      "externalWebsiteConversions": 2,
+      "oneClickLeads": 5
+    },
+    {
+      "pivotValues": ["urn:li:sponsoredCreative:612340002"],
+      "dateRange": { "start": { "year": 2026, "month": 9, "day": 21 }, "end": { "year": 2026, "month": 9, "day": 21 } },
+      "costInLocalCurrency": "0.0",
+      "impressions": 6,
+      "clicks": 0,
+      "externalWebsiteConversions": 0,
+      "oneClickLeads": 0
+    }
+  ],
+  "paging": { "count": 10, "links": [], "start": 0 }
+}

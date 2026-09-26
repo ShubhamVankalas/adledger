@@ -4,10 +4,11 @@ import { recomputeAttribution } from "../attribution";
 import { hashEmail, hashPhone, randomToken } from "../crypto";
 import { schema, type DB } from "../db";
 import { matchTouchpoints } from "../matching";
+import { ADS_CONNECTORS } from "../connectors/registry";
 import { saveConnection } from "../settings";
 import { syncProvider } from "../sync";
 import { classify, hostOf, parseMarketingParams, platformOf } from "../tracking/utm";
-import { buildDemoWorld, DAY, isoDate, parseDate } from "./world";
+import { buildDemoWorld, DAY, demoAds, isoDate, parseDate } from "./world";
 
 const DEMO_SITE_NAME = "Demo website";
 const DEMO_WEBHOOK_NAME = "Typeform – Demo requests";
@@ -107,13 +108,14 @@ export async function seedDemo(db: DB, workspaceId: string, opts: { anchor?: str
     await db.update(schema.visitors).set({ contactId }).where(inArray(schema.visitors.id, vids));
   }
 
-  // Connectors in mock mode: spend from "Meta" + "Google Ads", revenue from "Stripe".
+  // Connectors in mock mode: every ad platform with demo campaigns, revenue from "Stripe".
   const since = isoDate(new Date(parseDate(anchor).getTime() - 89 * DAY));
-  for (const provider of ["meta", "google_ads", "stripe"] as const) {
+  const demoPlatforms = new Set(demoAds().map((a) => a.platform));
+  const adProviders = ADS_CONNECTORS.filter((c) => demoPlatforms.has(c.platform)).map((c) => c.meta.provider);
+  for (const provider of [...adProviders, "stripe"]) {
     await saveConnection(workspaceId, provider, { mode: "mock", config: { demoAnchor: anchor } }, db);
   }
-  await syncProvider(db, workspaceId, "meta", { window: { since, until: anchor } });
-  await syncProvider(db, workspaceId, "google_ads", { window: { since, until: anchor } });
+  for (const provider of adProviders) await syncProvider(db, workspaceId, provider, { window: { since, until: anchor } });
   await syncProvider(db, workspaceId, "stripe", { backfillDays: 120 });
   await matchTouchpoints(db, workspaceId);
   await recomputeAttribution(db, workspaceId);

@@ -12,7 +12,19 @@ import { cn } from "@/lib/utils";
 
 const RANGES = { "7d": "Last 7 days", "14d": "Last 14 days", "30d": "Last 30 days", "90d": "Last 90 days", "180d": "Last 180 days", custom: "Custom range" };
 const MODELS = { linear: "Linear", first_touch: "First touch", last_touch: "Last touch" };
-const PLATFORMS = { all: "All platforms", meta: "Meta", google: "Google Ads" };
+const PLATFORMS = {
+  all: "All platforms",
+  meta: "Meta",
+  google: "Google Ads",
+  microsoft: "Microsoft Ads",
+  tiktok: "TikTok",
+  linkedin: "LinkedIn",
+  pinterest: "Pinterest",
+  snapchat: "Snapchat",
+  reddit: "Reddit",
+  x: "X",
+  other: "Other / imported",
+};
 
 const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 

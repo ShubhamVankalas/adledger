@@ -44,7 +44,7 @@ export default async function InsightsPage() {
                 </div>
               </div>
             </div>
-            <Link href="/settings?tab=ai" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/settings/workspace/ai" className="text-sm font-medium text-primary hover:underline">
               {llm ? "Change model" : "Connect a model"} →
             </Link>
           </CardContent>

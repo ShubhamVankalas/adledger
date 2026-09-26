@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { buildFacts } from "./ai/facts";
+import { AD_PLATFORMS } from "./connectors/types";
 import { templateReport } from "./ai/report";
 import { getDb, schema } from "./db";
 import { formatMoney } from "./money";
@@ -27,9 +28,9 @@ const period = {
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("End date YYYY-MM-DD, inclusive. Defaults to the latest day with data."),
   model: z.enum(["first_touch", "last_touch", "linear"]).optional().describe("Attribution model (default linear)."),
 };
-const platform = z.enum(["meta", "google"]).optional().describe("Limit to one ad platform.");
+const platform = z.enum(AD_PLATFORMS).optional().describe("Limit to one ad platform.");
 
-async function resolvePeriod(ws: Workspace, a: { start?: string; end?: string; model?: ReportParams["model"]; platform?: "meta" | "google" }): Promise<ReportParams> {
+async function resolvePeriod(ws: Workspace, a: { start?: string; end?: string; model?: ReportParams["model"]; platform?: ReportParams["platform"] }): Promise<ReportParams> {
   const db = await getDb();
   const end = a.end ?? (await dataBounds(db, ws)).max ?? new Date().toISOString().slice(0, 10);
   const start = a.start ?? new Date(Date.parse(`${end}T00:00:00Z`) - 29 * 86_400_000).toISOString().slice(0, 10);

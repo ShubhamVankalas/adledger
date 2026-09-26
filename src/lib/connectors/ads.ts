@@ -1,22 +1,10 @@
-import { adDayMetrics, dateRange, demoAds } from "../demo/world";
+import { adDayMetrics, dateRange, demoAdsFor } from "../demo/world";
 import { currencyExponent, fromDecimalString, fromMicros } from "../money";
-import type { Connection } from "../settings";
+import type { AdDayRow, AdsConnector, ConnectionLike, DateWindow } from "./types";
 
-/** One ad-day of spend, normalized across platforms. Money in minor units. */
-export type AdDayRow = {
-  platform: "meta" | "google";
-  account: { externalId: string; name: string; currency: string; timezone: string | null };
-  campaign: { externalId: string; name: string; status: string | null; objective: string | null };
-  adGroup: { externalId: string; name: string; status: string | null };
-  ad: { externalId: string; name: string; status: string | null };
-  date: string;
-  spendMinor: number;
-  impressions: number;
-  clicks: number;
-  conversions: string;
-};
+type Connection = ConnectionLike;
 
-export type DateWindow = { since: string; until: string };
+export type { AdDayRow, DateWindow } from "./types";
 
 export const META_API_VERSION_DEFAULT = "v26.0";
 export const GOOGLE_ADS_API_VERSION_DEFAULT = "v25";
@@ -123,7 +111,7 @@ async function fetchMetaLive(conn: Connection, window: DateWindow): Promise<AdDa
 
 /** Mock Meta: demo world served in the Graph API's insights format. */
 export function mockMetaInsights(window: DateWindow, currency: string): { account: AdDayRow["account"]; rows: MetaInsightRow[] }[] {
-  const ads = demoAds().filter((a) => a.platform === "meta");
+  const ads = demoAdsFor("meta");
   const byAccount = new Map<string, { account: AdDayRow["account"]; rows: MetaInsightRow[] }>();
   for (const date of dateRange(window.since, window.until)) {
     for (const ad of ads) {
@@ -246,7 +234,7 @@ async function fetchGoogleLive(conn: Connection, window: DateWindow): Promise<Ad
 
 /** Mock Google Ads: demo world served in searchStream format (costMicros as strings). */
 export function mockGoogleStream(window: DateWindow, currency: string): { customerId: string; batches: { results: GoogleAdsResult[] }[] } {
-  const ads = demoAds().filter((a) => a.platform === "google");
+  const ads = demoAdsFor("google");
   const results: GoogleAdsResult[] = [];
   for (const date of dateRange(window.since, window.until)) {
     for (const ad of ads) {
@@ -269,23 +257,61 @@ export function mockGoogleStream(window: DateWindow, currency: string): { custom
   return { customerId: ads[0].account.externalId, batches: [{ results }] };
 }
 
-// ---------------------------------------------------------------- entry point
+// ---------------------------------------------------------------- connectors
 
-export async function fetchAdRows(
-  provider: "meta" | "google_ads",
-  conn: Connection,
-  window: DateWindow,
-  opts: { mock: boolean; currency: string },
-): Promise<AdDayRow[]> {
-  if (provider === "meta") {
-    if (opts.mock) {
-      return mockMetaInsights(window, opts.currency).flatMap((a) => parseMetaInsights(a.rows, a.account));
-    }
-    return fetchMetaLive(conn, window);
-  }
-  if (opts.mock) {
-    const s = mockGoogleStream(window, opts.currency);
+export const metaConnector: AdsConnector = {
+  platform: "meta",
+  meta: {
+    provider: "meta",
+    name: "Meta Ads",
+    category: "ads",
+    description: "Facebook and Instagram spend, impressions and clicks per campaign, ad set and ad.",
+    status: "stable",
+    color: "#0866ff",
+    docsUrl: "https://developers.facebook.com/docs/marketing-api/get-started",
+    fields: [
+      { name: "adAccountIds", label: "Ad account IDs", placeholder: "act_1234567890, act_987…", hint: "Comma-separated. Ads Manager → account dropdown." },
+      { name: "accessToken", label: "Access token", secret: true, placeholder: "EAAB…", hint: "A System User token with ads_read permission (never expires)." },
+      { name: "apiVersion", label: "API version", placeholder: META_API_VERSION_DEFAULT, optional: true },
+    ],
+    steps: [
+      "Business Settings → Users → System users → Add a system user (Admin).",
+      "Add assets → Ad accounts → give it View performance access.",
+      "Generate new token → pick any app → tick `ads_read` → paste the token here.",
+    ],
+  },
+  fetchLive: (conn, window) => fetchMetaLive(conn, window),
+  mock: (window, currency) => mockMetaInsights(window, currency).flatMap((a) => parseMetaInsights(a.rows, a.account)),
+};
+
+export const googleConnector: AdsConnector = {
+  platform: "google",
+  meta: {
+    provider: "google_ads",
+    name: "Google Ads",
+    category: "ads",
+    description: "Search, Performance Max, YouTube and Display cost per campaign, ad group and ad.",
+    status: "stable",
+    color: "#ea4335",
+    docsUrl: "https://developers.google.com/google-ads/api/docs/first-call/overview",
+    fields: [
+      { name: "customerIds", label: "Customer IDs", placeholder: "123-456-7890", hint: "Comma-separated account IDs to import." },
+      { name: "loginCustomerId", label: "Manager (MCC) ID", placeholder: "111-222-3333", optional: true, hint: "Only if you access the accounts through a manager account." },
+      { name: "developerToken", label: "Developer token", secret: true, hint: "Google Ads → Tools → API Center." },
+      { name: "clientId", label: "OAuth client ID", placeholder: "…apps.googleusercontent.com" },
+      { name: "clientSecret", label: "OAuth client secret", secret: true },
+      { name: "refreshToken", label: "OAuth refresh token", secret: true, hint: "From the OAuth Playground with scope https://www.googleapis.com/auth/adwords." },
+      { name: "apiVersion", label: "API version", placeholder: GOOGLE_ADS_API_VERSION_DEFAULT, optional: true },
+    ],
+    steps: [
+      "Apply for a developer token in Google Ads → Tools → API Center (a test account token works immediately).",
+      "Google Cloud Console → enable the Google Ads API → create an OAuth client (Web, redirect https://developers.google.com/oauthplayground).",
+      "OAuth Playground → use your own credentials → authorize the adwords scope → exchange for a refresh token.",
+    ],
+  },
+  fetchLive: (conn, window) => fetchGoogleLive(conn, window),
+  mock: (window, currency) => {
+    const s = mockGoogleStream(window, currency);
     return parseGoogleAdsStream(s.batches, s.customerId);
-  }
-  return fetchGoogleLive(conn, window);
-}
+  },
+};

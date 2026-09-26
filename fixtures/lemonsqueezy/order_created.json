@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "test_mode": false,
+    "event_name": "order_created",
+    "custom_data": { "adledger_vid": "0f1e2d3c-4b5a-4968-8776-655443322110" },
+    "webhook_id": "8b2f6c1e-3d4a-4b5c-9d6e-7f8a9b0c1d2e"
+  },
+  "data": {
+    "type": "orders",
+    "id": "4812339",
+    "attributes": {
+      "store_id": 51234,
+      "customer_id": 3890127,
+      "identifier": "104e18a2-d755-4d4b-80c4-a6c1dcbe1c10",
+      "order_number": 1287,
+      "user_name": "Marcus Lee",
+      "user_email": "marcus.lee@example.com",
+      "currency": "GBP",
+      "currency_rate": "1.33420000",
+      "subtotal": 4900,
+      "setup_fee": 0,
+      "discount_total": 0,
+      "tax": 980,
+      "total": 5880,
+      "subtotal_usd": 6538,
+      "total_usd": 7845,
+      "tax_name": "VAT",
+      "tax_rate": "20.00",
+      "status": "paid",
+      "status_formatted": "Paid",
+      "refunded": false,
+      "refunded_at": null,
+      "refunded_amount": 0,
+      "first_order_item": {
+        "id": 4739812,
+        "order_id": 4812339,
+        "product_id": 301122,
+        "variant_id": 402233,
+        "product_name": "Pro Templates Pack",
+        "variant_name": "Default",
+        "price": 4900,
+        "test_mode": false
+      },
+      "urls": { "receipt": "https://app.lemonsqueezy.com/my-orders/104e18a2-d755-4d4b-80c4-a6c1dcbe1c10?signature=abc" },
+      "created_at": "2026-09-19T08:31:05.000000Z",
+      "updated_at": "2026-09-19T08:31:07.000000Z",
+      "test_mode": false
+    },
+    "relationships": {},
+    "links": { "self": "https://api.lemonsqueezy.com/v1/orders/4812339" }
+  }
+}

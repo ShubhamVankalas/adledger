@@ -1,0 +1,31 @@
+{
+  "adAccount": {
+    "id": "549755885175",
+    "name": "Acme Analytics – Pinterest",
+    "owner": { "username": "acmeanalytics" },
+    "country": "GB",
+    "currency": "GBP",
+    "permissions": ["ADMIN"]
+  },
+  "campaigns": [
+    {
+      "items": [{ "id": "626700000001", "ad_account_id": "549755885175", "name": "Consideration – Pinners who save dashboards", "status": "ACTIVE", "objective_type": "CONSIDERATION" }],
+      "bookmark": null
+    }
+  ],
+  "adGroups": [
+    {
+      "items": [{ "id": "2680000000001", "ad_account_id": "549755885175", "campaign_id": "626700000001", "name": "Interests – Small business", "status": "ACTIVE" }],
+      "bookmark": null
+    }
+  ],
+  "ads": [
+    {
+      "items": [
+        { "id": "687000000001", "ad_account_id": "549755885175", "campaign_id": "626700000001", "ad_group_id": "2680000000001", "pin_id": "1000000000001", "name": "Idea pin – 5 attribution mistakes", "status": "ACTIVE" },
+        { "id": "687000000002", "ad_account_id": "549755885175", "campaign_id": "626700000001", "ad_group_id": "2680000000001", "pin_id": "1000000000002", "name": null, "status": "PAUSED" }
+      ],
+      "bookmark": null
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+"TimePeriod","AccountId","AccountName","CurrencyCode","CampaignId","CampaignName","CampaignStatus","CampaignType","AdGroupId","AdGroupName","AdGroupStatus","AdId","AdTitle","AdStatus","Impressions","Clicks","Spend","ConversionsQualified"
+"2026-09-20","180000001","Acme Analytics – Microsoft Ads","USD","410000010","Microsoft Search – Brand + Category","Active","Search & content","420000100","Brand","Active","430000100","RSA – Official site","Active","1,204","87","1,234.56","6.50"
+"2026-09-21","180000001","Acme Analytics – Microsoft Ads","USD","410000010","Microsoft Search – Brand + Category","Active","Search & content","420000101","Marketing attribution software","Paused","430000110","","Active","12","0","0.05","--"

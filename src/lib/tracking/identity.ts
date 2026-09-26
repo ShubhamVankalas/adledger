@@ -72,7 +72,7 @@ export async function recordLead(
   args: {
     workspaceId: string;
     contactId: string;
-    source: "pixel" | "webhook";
+    source: "pixel" | "webhook" | "api" | "csv";
     formName?: string | null;
     occurredAt: Date;
     raw: unknown;

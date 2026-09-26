@@ -30,7 +30,7 @@ describe("demo world", () => {
     expect(o.leads).toBeGreaterThan(500);
 
     const camps = await performance(db, ws, { ...p, level: "campaign" });
-    expect(camps).toHaveLength(8);
+    expect(camps).toHaveLength(11);
     const byName = Object.fromEntries(camps.map((c) => [c.name, c]));
     expect(byName["Prospecting – Lookalike 1% Purchasers"].roas!).toBeGreaterThan(1.5);
     expect(byName["Search – Brand"].roas!).toBeGreaterThan(4);

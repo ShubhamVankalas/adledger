@@ -7,7 +7,8 @@ describe("schema conventions", () => {
   const tables = (Object.values(schema) as unknown[]).filter((t): t is PgTable => is(t, PgTable));
 
   it("every tenant table has workspace_id", () => {
-    const exempt = new Set(["workspaces", "app_meta"]);
+    // Identity & tenancy tables live above workspaces.
+    const exempt = new Set(["workspaces", "app_meta", "organizations", "memberships", "invitations", "users"]);
     for (const t of tables) {
       if (exempt.has(getTableName(t))) continue;
       const cols = Object.values(getTableColumns(t)).map((c) => c.name);

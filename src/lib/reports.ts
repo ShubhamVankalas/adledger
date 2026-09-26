@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { rows, type DB } from "./db";
 import type { AttributionModel, Platform } from "./db/schema";
+import { AD_PLATFORMS } from "./connectors/types";
 import type { Workspace } from "./settings";
 
 // All numbers are computed in SQL here. The UI, REST API, MCP server and AI facts
@@ -11,7 +12,7 @@ export const reportParams = z.object({
   start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   model: z.enum(["first_touch", "last_touch", "linear"]).default("last_touch"),
-  platform: z.enum(["meta", "google"]).optional(),
+  platform: z.enum(AD_PLATFORMS).optional(),
 });
 export type ReportParams = z.infer<typeof reportParams>;
 
@@ -476,4 +477,40 @@ export async function dataBounds(db: DB, ws: Workspace): Promise<{ min: string |
         (select max((occurred_at at time zone ${ws.timezone})::date) from revenue_events where workspace_id = ${ws.id})), 'YYYY-MM-DD') as max`),
   );
   return r ?? { min: null, max: null };
+}
+
+export type PlatformRow = { platform: Platform; spendMinor: number; revenueMinor: number; leads: number; customers: number; roas: number | null };
+
+/** Spend and attributed results per ad platform. */
+export async function platforms(db: DB, ws: Workspace, p: ReportParams): Promise<PlatformRow[]> {
+  const rc = ws.reportingCurrency;
+  const result = rows<Record<string, string>>(
+    await db.execute(sql`
+      with s as (
+        select platform, sum(spend_minor) spend from ad_insights_daily
+        where workspace_id = ${ws.id} and date between ${p.start}::date and ${p.end}::date and currency = ${rc}
+        group by 1
+      ), c as (
+        select platform,
+          coalesce(sum(revenue_minor) filter (where conversion_type = 'revenue' and currency = ${rc}), 0) revenue,
+          coalesce(sum(credit) filter (where conversion_type = 'lead'), 0) leads,
+          coalesce(sum(credit) filter (where conversion_type = 'customer'), 0) customers
+        from attribution_credits
+        where workspace_id = ${ws.id} and model = ${p.model} and platform is not null and campaign_id is not null
+          and ${tsRange(sql`conversion_at`, ws, p)}
+        group by 1
+      )
+      select coalesce(s.platform, c.platform) platform, coalesce(s.spend, 0) spend, coalesce(c.revenue, 0) revenue,
+        coalesce(c.leads, 0) leads, coalesce(c.customers, 0) customers
+      from s full outer join c on c.platform = s.platform
+      order by 2 desc`),
+  );
+  return result.map((r) => ({
+    platform: r.platform as Platform,
+    spendMinor: n(r.spend),
+    revenueMinor: n(r.revenue),
+    leads: Math.round(n(r.leads) * 10) / 10,
+    customers: Math.round(n(r.customers) * 10) / 10,
+    roas: ratio(n(r.revenue), n(r.spend)),
+  }));
 }

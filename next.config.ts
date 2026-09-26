@@ -3,7 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer"],
+  // CSV uploads in Settings → Import data.
+  experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {
     return [
       {

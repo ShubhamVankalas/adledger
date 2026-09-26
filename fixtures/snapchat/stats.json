@@ -1,0 +1,54 @@
+{
+  "request_status": "SUCCESS",
+  "request_id": "5f3a9c1d00ff0a7b6c2e1d0e3a0001",
+  "timeseries_stats": [
+    {
+      "sub_request_status": "SUCCESS",
+      "timeseries_stat": {
+        "id": "8b1c2d3e-0000-4000-8000-000000000001",
+        "type": "AD_ACCOUNT",
+        "granularity": "DAY",
+        "start_time": "2026-09-20T00:00:00.000-07:00",
+        "end_time": "2026-09-22T00:00:00.000-07:00",
+        "finalized_data_end_time": "2026-09-22T00:00:00.000-07:00",
+        "breakdown_stats": {
+          "ad": [
+            {
+              "id": "a1b2c3d4-0000-4000-8000-00000000a001",
+              "type": "AD",
+              "granularity": "DAY",
+              "start_time": "2026-09-20T00:00:00.000-07:00",
+              "end_time": "2026-09-22T00:00:00.000-07:00",
+              "timeseries": [
+                {
+                  "start_time": "2026-09-20T00:00:00.000-07:00",
+                  "end_time": "2026-09-21T00:00:00.000-07:00",
+                  "stats": { "impressions": 25310, "swipes": 301, "spend": 96420000, "conversion_purchases": 3, "conversion_sign_ups": 11 }
+                },
+                {
+                  "start_time": "2026-09-21T00:00:00.000-07:00",
+                  "end_time": "2026-09-22T00:00:00.000-07:00",
+                  "stats": { "impressions": 0, "swipes": 0, "spend": 0, "conversion_purchases": 0, "conversion_sign_ups": 0 }
+                }
+              ]
+            },
+            {
+              "id": "a1b2c3d4-0000-4000-8000-00000000a002",
+              "type": "AD",
+              "granularity": "DAY",
+              "start_time": "2026-09-20T00:00:00.000-07:00",
+              "end_time": "2026-09-22T00:00:00.000-07:00",
+              "timeseries": [
+                {
+                  "start_time": "2026-09-21T00:00:00.000-07:00",
+                  "end_time": "2026-09-22T00:00:00.000-07:00",
+                  "stats": { "impressions": 410, "swipes": 2, "spend": 1005000, "conversion_purchases": 0, "conversion_sign_ups": 0 }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

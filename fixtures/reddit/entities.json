@@ -1,0 +1,26 @@
+{
+  "adAccount": {
+    "data": { "id": "t2_acme0001", "name": "Acme Analytics – Reddit", "currency": "USD", "time_zone_id": "America/New_York", "business_id": "b_0000001" }
+  },
+  "campaigns": [
+    {
+      "data": [{ "id": "t3_cmp0000001", "ad_account_id": "t2_acme0001", "name": "r/marketing – Conversions", "objective": "CONVERSIONS", "configured_status": "ACTIVE", "effective_status": "ACTIVE" }],
+      "pagination": { "next_url": null }
+    }
+  ],
+  "adGroups": [
+    {
+      "data": [{ "id": "t3_adg0000001", "ad_account_id": "t2_acme0001", "campaign_id": "t3_cmp0000001", "name": "Communities – Marketing & PPC", "configured_status": "ACTIVE", "effective_status": "ACTIVE" }],
+      "pagination": { "next_url": null }
+    }
+  ],
+  "ads": [
+    {
+      "data": [
+        { "id": "t3_ad0000001", "ad_account_id": "t2_acme0001", "campaign_id": "t3_cmp0000001", "ad_group_id": "t3_adg0000001", "name": "Promoted post – Open-source Hyros alternative", "configured_status": "ACTIVE", "effective_status": "ACTIVE" },
+        { "id": "t3_ad0000002", "ad_account_id": "t2_acme0001", "campaign_id": "t3_cmp0000001", "ad_group_id": "t3_adg0000001", "name": "Promoted post – AMA with the founders", "configured_status": "PAUSED" }
+      ],
+      "pagination": { "next_url": null }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "WH-58D329510W468432D-8HN650336L201105X",
+  "create_time": "2026-09-21T19:14:10.102Z",
+  "resource_type": "capture",
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "event_version": "1.0",
+  "resource_version": "2.0",
+  "summary": "Payment completed for $ 129.99 USD",
+  "resource": {
+    "id": "42311647XV020574X",
+    "status": "COMPLETED",
+    "amount": { "currency_code": "USD", "value": "129.99" },
+    "final_capture": true,
+    "custom_id": "adledger_vid=7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9",
+    "invoice_id": "INV-20260921-0042",
+    "seller_protection": { "status": "ELIGIBLE", "dispute_categories": ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"] },
+    "seller_receivable_breakdown": {
+      "gross_amount": { "currency_code": "USD", "value": "129.99" },
+      "paypal_fee": { "currency_code": "USD", "value": "4.84" },
+      "net_amount": { "currency_code": "USD", "value": "125.15" }
+    },
+    "supplementary_data": { "related_ids": { "order_id": "5O190127TN364715T" } },
+    "payer": {
+      "email_address": "jordan.miles@example.com",
+      "payer_id": "QYR5Z8XDVJNXQ",
+      "name": { "given_name": "Jordan", "surname": "Miles" }
+    },
+    "create_time": "2026-09-21T19:14:07Z",
+    "update_time": "2026-09-21T19:14:07Z",
+    "links": [
+      { "href": "https://api.paypal.com/v2/payments/captures/42311647XV020574X", "rel": "self", "method": "GET" },
+      { "href": "https://api.paypal.com/v2/payments/captures/42311647XV020574X/refund", "rel": "refund", "method": "POST" },
+      { "href": "https://api.paypal.com/v2/checkout/orders/5O190127TN364715T", "rel": "up", "method": "GET" }
+    ]
+  },
+  "links": [
+    { "href": "https://api.paypal.com/v1/notifications/webhooks-events/WH-58D329510W468432D-8HN650336L201105X", "rel": "self", "method": "GET" }
+  ]
+}

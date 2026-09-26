@@ -15,14 +15,14 @@ test.describe.configure({ mode: "serial" });
 test("setup wizard creates a demo workspace", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/setup/);
-  await expect(page.getByText("Set up AdLedger")).toBeVisible();
+  await expect(page.getByText("Welcome to AdLedger")).toBeVisible();
   await shot(page, "setup");
   await page.getByPlaceholder("Acme Inc.").fill("Acme Analytics");
   await page.getByPlaceholder("Alex").fill("Demo Admin");
   await page.getByPlaceholder("you@company.com").fill(EMAIL);
   await page.locator('input[name="password"]').fill(PASSWORD);
   await page.locator('select[name="timezone"]').selectOption("UTC");
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  await page.getByRole("button", { name: "Create account & explore" }).click();
   await page.waitForURL((u) => u.pathname === "/", { timeout: 150_000 });
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 });
@@ -71,7 +71,7 @@ test("performance drill-down and model switch", async ({ page }) => {
 
 test("dashboard numbers equal the REST API", async ({ page, request }) => {
   await login(page);
-  await page.goto("/settings?tab=api");
+  await page.goto("/settings/workspace/api");
   await page.getByPlaceholder("Key name, e.g. Claude Desktop").fill("e2e");
   await page.getByRole("button", { name: "Create" }).click();
   const keyText = page.locator("code", { hasText: /^al_/ }).first();
@@ -116,18 +116,34 @@ test("insights: generate a report without an LLM", async ({ page }) => {
   await shot(page, "insights");
 });
 
-test("settings tabs render", async ({ page }) => {
+test("settings pages render", async ({ page }) => {
   await login(page);
-  await page.goto("/settings?tab=tracking");
+  await page.goto("/settings/workspace/tracking");
   await expect(page.getByText("Paste this into the <head> of every page").first()).toBeVisible();
   await shot(page, "settings-tracking");
-  await page.getByRole("tab", { name: "Connections" }).click();
-  await expect(page.getByText("Meta Ads", { exact: true })).toBeVisible();
-  await shot(page, "settings-connections");
-  await page.getByRole("tab", { name: "AI model" }).click();
-  await expect(page.getByText("Bring your own model")).toBeVisible();
-  await page.getByRole("tab", { name: "Workspace" }).click();
-  await expect(page.getByText("Clear demo data & start fresh")).toBeVisible();
+  await page.goto("/settings/workspace/integrations");
+  await expect(page.getByText("TikTok Ads", { exact: true })).toBeVisible();
+  await expect(page.getByText("Shopify", { exact: true })).toBeVisible();
+  await shot(page, "settings-integrations");
+  await page.getByRole("button", { name: /Stripe/ }).click();
+  await expect(page.getByRole("dialog")).toContainText("Secret or restricted key");
+  await page.keyboard.press("Escape");
+  await page.goto("/settings/workspace/notifications");
+  await expect(page.getByText("Microsoft Teams", { exact: true })).toBeVisible();
+  await shot(page, "settings-notifications");
+  await page.goto("/settings/organization/members");
+  await expect(page.getByText("Invite someone")).toBeVisible();
+  await page.getByLabel("Email").fill("analyst@example.com");
+  await page.getByRole("button", { name: "Send invite" }).click();
+  await expect(page.getByText("Invitation link")).toBeVisible();
+  await shot(page, "settings-members");
+  await page.goto("/settings/workspace/import");
+  await expect(page.getByText("Ad spend CSV")).toBeVisible();
+  await page.goto("/settings/organization/audit");
+  await expect(page.getByText("invited").first()).toBeVisible();
+  await page.goto("/onboarding");
+  await expect(page.getByText("Install the tracking pixel").first()).toBeVisible();
+  await shot(page, "onboarding");
 });
 
 test("sign out and back in; protected routes redirect", async ({ page, request }) => {
