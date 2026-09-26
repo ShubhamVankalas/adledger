@@ -54,7 +54,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ workspa
     if (r.leads) await requestAttribution(workspaceId);
     return json({ received: true, leads: r.leads, linked: r.linked });
   } catch (err) {
-    log.error("whatsapp webhook processing failed", err);
+    // Only the error type: query errors echo their parameters (profile name, phone hash).
+    const code = (err as { code?: unknown } | null)?.code;
+    log.error("whatsapp webhook processing failed", `${err instanceof Error ? err.name : "Error"}${typeof code === "string" ? ` (${code})` : ""}`);
     // 500 lets Meta retry; ingestion is idempotent per reference code.
     return json({ error: "processing failed" }, 500);
   }

@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { buildSync } from "esbuild";
 import { beforeAll, describe, expect, it } from "vitest";
 import { POST as collect } from "@/app/api/v1/collect/route";
@@ -190,6 +190,23 @@ describe("pixel WhatsApp / call tracking", () => {
     expect(events.find((e) => e.name === "call_click")?.props).toEqual({ to: "+919876543210" });
   });
 
+  it("leaves share links, short links and look-alike hosts alone", () => {
+    const px = loadPixel("https://shop.test/");
+    const untouched = [
+      "https://wa.me/?text=Check%20this%20out", // share: visitor picks a friend
+      "https://api.whatsapp.com/send?text=Check%20this%20out",
+      "whatsapp://send?text=hello",
+      "https://wa.me/message/IKCN6RQBVUUXE1", // short link: ?text= is ignored by WhatsApp
+      "https://wa.me.example.com/919876543210?text=Hi",
+    ];
+    for (const href of untouched) expect(px.click(href)).toBe(href);
+    expect(px.beacons.flatMap((b) => b.events).filter((e) => e.name === "whatsapp_click")).toHaveLength(0);
+    expect(extractRefCode(new URL(px.click("https://www.whatsapp.com/send?phone=919876543210")).searchParams.get("text"))).not.toBeNull();
+    expect(extractRefCode(new URL(px.click("https://wa.me/+919876543210/")).searchParams.get("text"))).not.toBeNull();
+    const tos = px.beacons.flatMap((b) => b.events).filter((e) => e.name === "whatsapp_click").map((e) => e.props?.to);
+    expect(tos).toEqual(["919876543210", "919876543210"]);
+  });
+
   it("adledger.whatsapp() opens a tagged chat", () => {
     const px = loadPixel("https://shop.test/");
     const url = px.api.whatsapp("+91 98765 43210", "Hi! I saw your ad");
@@ -284,5 +301,45 @@ describe("WhatsApp webhook route", () => {
     other.entry[0].changes[0].value.messages[0].text.body = "Ref: AL-ABCDE";
     expect(await (await post(JSON.stringify(other))).json()).toMatchObject({ leads: 0 });
     expect(await db.select().from(schema.leads)).toHaveLength(1);
+  });
+
+  it("puts the lead on the visitor's existing contact so the ad touchpoint still counts", async () => {
+    // The visitor already left their email, then taps WhatsApp.
+    const px = loadPixel("https://shop.test/?utm_source=google&utm_campaign=brand&gclid=Cj0K");
+    (px.api as unknown as { identify(t: Record<string, string>): void }).identify({ email: "asha@example.com" });
+    const code = extractRefCode(new URL(px.click("https://wa.me/919800000001")).searchParams.get("text"))!;
+    for (const beacon of px.beacons) {
+      const c = await collect(
+        new Request("http://localhost/api/v1/collect", { method: "POST", body: JSON.stringify(beacon), headers: { "content-type": "text/plain", "user-agent": UA, origin: "https://shop.test" } }),
+      );
+      expect(c.status).toBe(204);
+    }
+    const [visitor] = await db.select().from(schema.visitors).where(eq(schema.visitors.anonymousId, px.beacons[0].vid));
+    expect(visitor.contactId).not.toBeNull();
+
+    const payload = JSON.parse(raw("message_with_ref.json"));
+    const msg = payload.entry[0].changes[0].value.messages[0];
+    msg.id = "wamid.second";
+    msg.from = payload.entry[0].changes[0].value.contacts[0].wa_id = "919800000001";
+    msg.text.body = `Hello\n\nRef: ${code}`;
+    msg.timestamp = String(Math.floor(Date.now() / 1000) + 60);
+    expect(await (await post(JSON.stringify(payload))).json()).toEqual({ received: true, leads: 1, linked: 1 });
+
+    const [lead] = await db.select().from(schema.leads).where(sql`${schema.leads.raw}->>'ref' = ${code}`);
+    expect(lead.contactId).toBe(visitor.contactId);
+    const [contact] = await db.select().from(schema.contacts).where(eq(schema.contacts.id, visitor.contactId!));
+    expect(contact).toMatchObject({ email: "asha@example.com", phoneHash: hashPhone("919800000001") });
+  });
+
+  it("does not treat an expired lead with a recycled code as a duplicate", async () => {
+    const [anyContact] = await db.select().from(schema.contacts).where(eq(schema.contacts.workspaceId, ws.id)).limit(1);
+    const old = new Date(Date.now() - 40 * 86_400_000);
+    await db.insert(schema.leads).values({ workspaceId: ws.id, contactId: anyContact.id, source: "webhook", formName: "WhatsApp", occurredAt: old, raw: { channel: "whatsapp", ref: "AL-RECYC" } });
+    const payload = JSON.parse(raw("message_with_ref.json"));
+    const msg = payload.entry[0].changes[0].value.messages[0];
+    msg.id = "wamid.third";
+    msg.text.body = "Ref: AL-RECYC";
+    msg.timestamp = String(Math.floor(Date.now() / 1000));
+    expect(await (await post(JSON.stringify(payload))).json()).toMatchObject({ leads: 1, linked: 0 });
   });
 });

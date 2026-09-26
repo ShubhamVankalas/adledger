@@ -22,7 +22,9 @@ WhatsApp" or "Call us" button instead of a form. AdLedger attributes those too:
    and records a `whatsapp_click` event with that code for this visitor.
 3. The visitor sends the message. WhatsApp calls AdLedger's webhook; AdLedger finds the code,
    creates (or finds) a contact by the sender's phone number (stored hashed), links the visitor
-   and records a lead with form name **WhatsApp**. From there it is attributed like any other lead.
+   and records a lead with form name **WhatsApp**. If the visitor had already identified themselves
+   (for example with an email form), the lead goes on that existing contact instead. From there it
+   is attributed like any other lead.
 
 Codes stay valid for 30 days. One code creates one lead, so follow-up messages and webhook retries
 don't create duplicates. Messages without a code are ignored.
@@ -31,7 +33,9 @@ don't create duplicates. Messages without a code are ignored.
 
 With the pixel installed, nothing else is required: links to `https://wa.me/…`,
 `https://api.whatsapp.com/send?…` and `whatsapp://send?…` are tagged when clicked, and `tel:` links
-are recorded as `call_click`.
+are recorded as `call_click`. Only links that name your number are tagged: share links without a
+number (`https://wa.me/?text=…`) and `wa.me/message/…` short links (which ignore prefilled text)
+are left alone.
 
 ```html
 <a href="https://wa.me/919876543210?text=Hi%2C%20I%27d%20like%20a%20quote">Chat on WhatsApp</a>

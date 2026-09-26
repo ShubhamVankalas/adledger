@@ -147,7 +147,7 @@ type QueueItem = [string, ...unknown[]];
   // WhatsApp click-to-chat: append a reference code to the prefilled text and record it, so the
   // WhatsApp Business webhook can match the conversation to this visitor. Alphabet has no 0/O/1/I
   // (must match src/lib/connectors/leads-whatsapp.ts).
-  const WA = /^(https?:\/\/(wa\.me|api\.whatsapp\.com|(web\.)?whatsapp\.com\/send)|whatsapp:)/i;
+  const WA = /^(https?:\/\/(wa\.me|api\.whatsapp\.com|((www|web)\.)?whatsapp\.com\/send)([/?#]|$)|whatsapp:)/i;
   function waTag(href: string, ref: boolean): string {
     if (!enabled || !vid) return href;
     let u: URL;
@@ -156,7 +156,11 @@ type QueueItem = [string, ...unknown[]];
     } catch {
       return href;
     }
-    const to = (u.searchParams.get("phone") || u.pathname).replace(/\D/g, "");
+    // Only chats with a number are click-to-chat. wa.me/?text= and send?text= without a phone are
+    // "share" links (the visitor picks a friend), and wa.me/message/… short links ignore ?text=.
+    const p = /wa\.me$/i.test(u.hostname) ? u.pathname.replace(/^\/\+?/, "").replace(/\/$/, "") : "";
+    const to = (/^\d*$/.test(p) ? u.searchParams.get("phone") || p : "").replace(/\D/g, "");
+    if (to.length < 6) return href;
     let code: string | undefined;
     if (ref) {
       code = "AL-";

@@ -1,5 +1,6 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { WHATSAPP_CLICK_EVENT, type WhatsAppInbound } from "../connectors/leads-whatsapp";
+import { hashPhone } from "../crypto";
 import { schema, type DB } from "../db";
 import { linkVisitor, recordLead, upsertContact } from "./identity";
 
@@ -34,9 +35,11 @@ export async function findVisitorByRef(db: Q, workspaceId: string, ref: string, 
 export type WhatsAppIngestResult = { leads: number; linked: number; skipped: number };
 
 /**
- * One lead per reference code: upsert the contact by (hashed) phone, link the visitor that
- * generated the code, record a "WhatsApp" lead. Idempotent — webhook retries and follow-up
- * messages quoting the same code don't create duplicates. Messages without a code are ignored.
+ * One lead per reference code: link the conversation to the visitor that generated the code and
+ * record a "WhatsApp" lead. If that visitor already identified themselves (e.g. an email form),
+ * the lead goes on that contact so it keeps the visitor's ad touchpoints; otherwise a contact is
+ * found or created by (hashed) phone. Idempotent — webhook retries and follow-up messages quoting
+ * the same code don't create duplicates. Messages without a code are ignored.
  */
 export async function ingestWhatsAppMessages(db: DB, workspaceId: string, messages: WhatsAppInbound[]): Promise<WhatsAppIngestResult> {
   const result: WhatsAppIngestResult = { leads: 0, linked: 0, skipped: 0 };
@@ -47,28 +50,49 @@ export async function ingestWhatsAppMessages(db: DB, workspaceId: string, messag
       continue;
     }
     await db.transaction(async (tx) => {
+      // Serialize concurrent deliveries of the same code (Meta retries can overlap a slow response).
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`wa:${workspaceId}:${ref}`}))`);
       const [dupe] = await tx
         .select({ id: schema.leads.id })
         .from(schema.leads)
-        .where(and(eq(schema.leads.workspaceId, workspaceId), eq(schema.leads.formName, "WhatsApp"), sql`${schema.leads.raw}->>'ref' = ${ref}`))
+        .where(
+          and(
+            eq(schema.leads.workspaceId, workspaceId),
+            eq(schema.leads.formName, "WhatsApp"),
+            // Codes are only unique within the TTL; an old lead with a recycled code isn't a duplicate.
+            gte(schema.leads.occurredAt, new Date(m.occurredAt.getTime() - REF_TTL_MS)),
+            sql`${schema.leads.raw}->>'ref' = ${ref}`,
+          ),
+        )
         .limit(1);
       if (dupe) {
         result.skipped++;
         return;
       }
-      const contact = await upsertContact(tx, workspaceId, { phone: m.from, name: m.name }, m.occurredAt);
-      if (!contact) {
-        result.skipped++;
-        return;
-      }
       const visitorId = await findVisitorByRef(tx, workspaceId, ref, m.occurredAt);
-      if (visitorId) {
-        await linkVisitor(tx, visitorId, contact.id);
-        result.linked++;
+      const [visitor] = visitorId
+        ? await tx.select({ contactId: schema.visitors.contactId }).from(schema.visitors).where(eq(schema.visitors.id, visitorId))
+        : [];
+      let contactId = visitor?.contactId ?? null;
+      if (contactId) {
+        // The visitor is already a known contact: keep the lead (and its touchpoints) on it.
+        await tx
+          .update(schema.contacts)
+          .set({ phoneHash: hashPhone(m.from) })
+          .where(and(eq(schema.contacts.id, contactId), isNull(schema.contacts.phoneHash)));
+      } else {
+        const contact = await upsertContact(tx, workspaceId, { phone: m.from, name: m.name }, m.occurredAt);
+        if (!contact) {
+          result.skipped++;
+          return;
+        }
+        contactId = contact.id;
+        if (visitorId) await linkVisitor(tx, visitorId, contactId);
       }
+      if (visitorId) result.linked++;
       await recordLead(tx, {
         workspaceId,
-        contactId: contact.id,
+        contactId,
         source: "webhook",
         formName: "WhatsApp",
         occurredAt: m.occurredAt,
