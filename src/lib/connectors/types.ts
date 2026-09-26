@@ -45,6 +45,8 @@ export type FieldDef = {
   placeholder?: string;
   hint?: string;
   optional?: boolean;
+  /** "toggle" renders an on/off switch; the stored config value is "on" or "". */
+  type?: "text" | "toggle";
 };
 
 /**

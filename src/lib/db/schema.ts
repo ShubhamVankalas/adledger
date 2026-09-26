@@ -562,3 +562,38 @@ export const aiReports = pgTable(
   (t) => [index().on(t.workspaceId, t.createdAt)],
 );
 
+// ---------------------------------------------------------------- conversion uploads (CAPI)
+
+/**
+ * Server-side conversions sent back to ad platforms (Meta Conversions API, Google Ads
+ * click conversions). One row per platform × conversion, so uploads are idempotent;
+ * pending rows are retried with backoff by the scheduled job.
+ */
+export const conversionUploads = pgTable(
+  "conversion_uploads",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    platform: text("platform").$type<UploadPlatform>().notNull(),
+    conversionType: text("conversion_type").$type<UploadConversionType>().notNull(),
+    // leads.id or revenue_events.id, depending on conversion_type
+    conversionId: uuid("conversion_id").notNull(),
+    conversionAt: tstz("conversion_at").notNull(),
+    status: text("status").$type<UploadStatus>().notNull().default("pending"),
+    error: text("error"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: tstz("next_attempt_at").notNull().defaultNow(),
+    // true when mock mode recorded the upload as sent without a network call
+    mock: boolean("mock").notNull().default(false),
+    sentAt: tstz("sent_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("conversion_uploads_uq").on(t.workspaceId, t.platform, t.conversionType, t.conversionId),
+    index().on(t.workspaceId, t.status, t.nextAttemptAt),
+  ],
+);
+export type UploadPlatform = "meta" | "google";
+export type UploadConversionType = "lead" | "purchase";
+export type UploadStatus = "pending" | "sent" | "failed" | "skipped";
+

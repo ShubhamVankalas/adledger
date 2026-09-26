@@ -47,7 +47,6 @@ so Claude/Codex can answer "which ads made money?"
 
 ## Explicitly NOT in v0.1 (later)
 - Writing back to ad platforms (pause campaigns, change budgets)
-- Meta Conversions API / Google offline conversions upload (v0.2 — big value, do next)
 - TikTok, LinkedIn, Shopify, Razorpay, HubSpot/Twenty sync (v0.2+)
 - Full CRM (deal pipelines, tasks, email sending)
 - Multi-user auth/roles beyond a single admin (v0.2)

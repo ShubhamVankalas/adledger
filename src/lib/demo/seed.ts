@@ -149,6 +149,7 @@ export async function clearWorkspaceData(db: DB, workspaceId: string) {
       schema.campaigns,
       schema.adAccounts,
       schema.syncRuns,
+      schema.conversionUploads,
     ]) {
       await tx.delete(t).where(eq(t.workspaceId, workspaceId));
     }

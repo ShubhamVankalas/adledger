@@ -188,7 +188,7 @@ FROM ad_group_ad
 WHERE segments.date BETWEEN '${window.since}' AND '${window.until}'`;
 }
 
-async function googleAccessToken(conn: Connection): Promise<string> {
+export async function googleAccessToken(conn: Connection): Promise<string> {
   const clientId = conn.config.clientId;
   const { clientSecret, refreshToken } = conn.secrets;
   if (!clientId || !clientSecret || !refreshToken) throw new Error("Google OAuth client ID, secret and refresh token are required");
@@ -274,11 +274,16 @@ export const metaConnector: AdsConnector = {
       { name: "adAccountIds", label: "Ad account IDs", placeholder: "act_1234567890, act_987…", hint: "Comma-separated. Ads Manager → account dropdown." },
       { name: "accessToken", label: "Access token", secret: true, placeholder: "EAAB…", hint: "A System User token with ads_read permission (never expires)." },
       { name: "apiVersion", label: "API version", placeholder: META_API_VERSION_DEFAULT, optional: true },
+      { name: "capiEnabled", label: "Send leads & purchases to Meta (Conversions API)", type: "toggle", optional: true, hint: "Server-side events with hashed email/phone and click IDs improve Meta's optimization." },
+      { name: "pixelId", label: "Pixel (dataset) ID", placeholder: "1234567890", optional: true, hint: "Events Manager → Data sources → your pixel." },
+      { name: "capiAccessToken", label: "Conversions API token", secret: true, optional: true, hint: "Events Manager → Settings → Generate access token. Defaults to the access token above." },
+      { name: "testEventCode", label: "Test event code", placeholder: "TEST12345", optional: true, hint: "Events Manager → Test events. Clear it once events show up." },
     ],
     steps: [
       "Business Settings → Users → System users → Add a system user (Admin).",
       "Add assets → Ad accounts → give it View performance access.",
       "Generate new token → pick any app → tick `ads_read` → paste the token here.",
+      "Optional: switch on the Conversions API and add your pixel ID to send leads and purchases back to Meta. If the browser pixel already sends the same Lead/Purchase events, use another dataset or Meta counts them twice.",
     ],
   },
   fetchLive: (conn, window) => fetchMetaLive(conn, window),
@@ -308,11 +313,16 @@ export const googleConnector: AdsConnector = {
       { name: "clientSecret", label: "OAuth client secret", secret: true },
       { name: "refreshToken", label: "OAuth refresh token", secret: true, hint: "From the OAuth Playground with scope https://www.googleapis.com/auth/adwords." },
       { name: "apiVersion", label: "API version", placeholder: GOOGLE_ADS_API_VERSION_DEFAULT, optional: true },
+      { name: "conversionUploads", label: "Upload conversions to Google Ads", type: "toggle", optional: true, hint: "Offline click conversions (gclid/gbraid/wbraid) and enhanced conversions for leads." },
+      { name: "leadConversionActionId", label: "Lead conversion action ID", placeholder: "987654321", optional: true, hint: "Goals → Conversions → an Import (clicks) action → its ctId." },
+      { name: "purchaseConversionActionId", label: "Purchase conversion action ID", placeholder: "987654322", optional: true },
+      { name: "uploadCustomerId", label: "Conversion account ID", placeholder: "123-456-7890", optional: true, hint: "Account that owns the conversion actions. Defaults to the first customer ID." },
     ],
     steps: [
       "Apply for a developer token in Google Ads → Tools → API Center (a test account token works immediately).",
       "Google Cloud Console → enable the Google Ads API → create an OAuth client (Web, redirect https://developers.google.com/oauthplayground).",
       "OAuth Playground → use your own credentials → authorize the adwords scope → exchange for a refresh token.",
+      "Optional: create Import → Clicks conversion actions for leads and purchases, switch on uploads and paste their IDs to send conversions back to Google Ads.",
     ],
   },
   fetchLive: (conn, window) => fetchGoogleLive(conn, window),

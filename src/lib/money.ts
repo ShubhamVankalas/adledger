@@ -41,6 +41,19 @@ export function fromDecimalString(value: string | number, currency: string): num
 }
 
 /**
+ * Minor units -> exact decimal string in major units (12345 USD -> "123.45", 500 JPY -> "500").
+ * The inverse of `fromDecimalString`; built with integer math so no float rounding is involved.
+ */
+export function toDecimalString(minor: number, currency: string): string {
+  if (!Number.isSafeInteger(minor)) throw new Error("minor must be a safe integer");
+  const exp = currencyExponent(currency);
+  const abs = String(Math.abs(minor)).padStart(exp + 1, "0");
+  const whole = exp ? abs.slice(0, -exp) : abs;
+  const out = exp ? `${whole}.${abs.slice(-exp)}` : whole;
+  return minor < 0 ? `-${out}` : out;
+}
+
+/**
  * Split `totalMinor` across `weights` so the parts sum exactly to the total
  * (largest-remainder method). Ties go to the earliest index. Negative totals
  * (refunds) are split by magnitude and re-signed.

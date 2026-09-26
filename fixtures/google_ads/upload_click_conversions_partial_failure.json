@@ -1,0 +1,45 @@
+{
+  "partialFailureError": {
+    "code": 3,
+    "message": "The click identifier could not be parsed., at conversions[1].gclid",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure",
+        "errors": [
+          {
+            "errorCode": { "conversionUploadError": "UNPARSEABLE_GCLID" },
+            "message": "The click identifier could not be parsed.",
+            "trigger": { "stringValue": "not-a-gclid" },
+            "location": {
+              "fieldPathElements": [
+                { "fieldName": "conversions", "index": 1 },
+                { "fieldName": "gclid" }
+              ]
+            }
+          },
+          {
+            "errorCode": { "conversionUploadError": "CLICK_NOT_FOUND" },
+            "message": "The click associated with the given identifier isn't found in the specified date range.",
+            "location": {
+              "fieldPathElements": [
+                { "fieldName": "conversions", "index": 2 },
+                { "fieldName": "gclid" }
+              ]
+            }
+          }
+        ],
+        "requestId": "Xy1Zabc2Def3Ghi4"
+      }
+    ]
+  },
+  "results": [
+    {
+      "gclid": "Cj0KCQjw-valid-gclid",
+      "conversionAction": "customers/1234567890/conversionActions/987654322",
+      "conversionDateTime": "2026-09-26 10:00:00+00:00"
+    },
+    {},
+    {}
+  ],
+  "jobId": "1234567890123"
+}

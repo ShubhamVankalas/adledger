@@ -1,0 +1,12 @@
+{
+  "error": {
+    "message": "Invalid parameter",
+    "type": "OAuthException",
+    "code": 100,
+    "error_subcode": 2804003,
+    "is_transient": false,
+    "error_user_title": "Event Timestamp Too Old",
+    "error_user_msg": "The timestamp for this event is too far in the past.",
+    "fbtrace_id": "A1b2C3d4E5f6G7h8I9j0"
+  }
+}

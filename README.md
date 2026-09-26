@@ -91,7 +91,7 @@ pnpm install && pnpm dev
 | Payment sources | 7 native + CSV/API | Many | Shopify-first | Many |
 | Teams, roles, client access | **Yes, unlimited seats** | Paid tiers | Paid tiers | Paid tiers |
 | Multi-touch models | First, last, linear | Many | Many | Many |
-| Conversions API upload to ad platforms | Roadmap | Yes | Yes | Yes |
+| Conversions API upload to ad platforms | Beta (Meta CAPI, Google Ads) | Yes | Yes | Yes |
 | AI with your own model | **Yes (incl. local)** | No | Proprietary | Proprietary |
 | MCP server for AI agents | **Yes** | No | No | No |
 
