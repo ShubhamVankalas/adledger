@@ -38,7 +38,7 @@ for (const [net, prefix] of [
   blocked.addSubnet(net, prefix, "ipv4");
 }
 for (const [net, prefix] of [
-  ["::", 128], // unspecified
+  ["::", 96], // unspecified and IPv4-compatible (::a.b.c.d, deprecated)
   ["::1", 128], // loopback
   ["fc00::", 7], // unique local (incl. fd00:ec2::254 AWS metadata)
   ["fe80::", 10], // link-local
@@ -57,7 +57,8 @@ loopback.addAddress("::1", "ipv6");
 function embeddedV4(ip: string): string | null {
   const m = /^(?:::ffff:|::|64:ff9b::)(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
   if (m) return m[1];
-  const hex = /^(?:::ffff:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(ip);
+  // Hex forms (how the URL parser normalizes them), plus 6to4: 2002:AABB:CCDD::/48 carries a.b.c.d.
+  const hex = /^(?:::ffff:|64:ff9b::|::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(ip) ?? /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4})(?::|$)/i.exec(ip);
   if (hex) {
     const a = parseInt(hex[1], 16);
     const b = parseInt(hex[2], 16);
@@ -190,9 +191,21 @@ export async function safeFetch(input: string | URL, init: RequestInit = {}, pol
     const res = await fetch(url, { ...init, redirect: "manual" });
     const location = res.headers.get("location");
     if (res.status < 300 || res.status >= 400 || !location || (method !== "GET" && method !== "HEAD")) return res;
+    await res.body?.cancel().catch(() => undefined);
     if (hop >= MAX_REDIRECTS) throw new BlockedUrlError("Too many redirects");
-    url = new URL(location, url).toString();
+    const next = new URL(location, url);
+    // Like fetch's own redirect handling: never forward credentials to another origin.
+    if (next.origin !== new URL(url).origin) init = { ...init, headers: withoutCredentials(init.headers) };
+    url = next.toString();
   }
+}
+
+const CREDENTIAL_HEADERS = ["authorization", "proxy-authorization", "cookie", "access-token", "x-api-key"];
+
+function withoutCredentials(headers: HeadersInit | undefined): Headers {
+  const h = new Headers(headers);
+  for (const name of CREDENTIAL_HEADERS) h.delete(name);
+  return h;
 }
 
 /** A fetch implementation (for SDKs that accept one) that applies `safeFetch` to every call. */

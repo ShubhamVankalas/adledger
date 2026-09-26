@@ -29,6 +29,8 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export function isSameOriginRequest(req: Request): boolean {
   const site = req.headers.get("sec-fetch-site");
   if (site && site !== "same-origin" && site !== "none") return false;
+  // The browser itself vouches for it; don't second-guess with Host, which a reverse proxy may rewrite.
+  if (site === "same-origin") return true;
   const origin = req.headers.get("origin");
   if (!origin) return Boolean(site); // browsers send at least one of the two on unsafe requests
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host;

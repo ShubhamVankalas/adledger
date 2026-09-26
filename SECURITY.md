@@ -30,7 +30,7 @@ Supported versions: the latest release and `main`. Self-hosters should update re
   `CF-Connecting-IP`). Per-IP rate limits trust these headers; per-account login lockouts do not
   depend on them.
 - **Private-network URLs are blocked** for everything configured in the dashboard: notification
-  webhooks, Slack/Discord/Teams URLs, SMTP host, store URLs and AI base URLs cannot point at
+  webhooks, Slack/Discord/Teams URLs, SMTP host, store URLs, ad API hosts and AI base URLs cannot point at
   loopback, private (RFC 1918 / ULA), link-local or cloud-metadata addresses, and redirects are
   re-checked. AI base URLs may use `localhost` and `host.docker.internal` so a local Ollama or
   LM Studio works out of the box. To reach services elsewhere on your LAN (an n8n webhook, an

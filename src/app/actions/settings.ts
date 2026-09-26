@@ -157,8 +157,8 @@ async function checkIntegrationUrls(fields: { name: string; label: string }[], c
     if (!v) continue;
     const err = /(^url$|Url$)/.test(f.name)
       ? await checkOutboundUrl(/^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`)
-      : f.name === "host"
-        ? await checkOutboundUrl(`https://${v}`)
+      : /(^host$|Host$)/.test(f.name)
+        ? await checkOutboundUrl(`https://${v.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "")}`)
         : null;
     if (err) return `${f.label}: ${err}`;
   }

@@ -160,6 +160,10 @@ export async function postOrThrow(
     const why = e?.name === "TimeoutError" ? `timed out after ${HTTP_TIMEOUT_MS / 1000}s` : (e?.message ?? String(err));
     throw new Error(`${channel} request failed: ${redact(why, [url, ...secrets])}`);
   }
+  if (res.status >= 300 && res.status < 400) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new Error(`${channel} returned a redirect (HTTP ${res.status}). Paste the final URL it redirects to.`);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     const snippet = truncate(redact(body.replace(/\s+/g, " ").trim(), [url, ...secrets]), 200);

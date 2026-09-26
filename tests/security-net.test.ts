@@ -33,7 +33,32 @@ describe("SSRF guard", () => {
     for (const ip of ["10.0.0.1", "127.0.0.1", "169.254.169.254", "172.17.0.1", "192.168.1.10", "100.64.0.1", "0.0.0.0", "::1", "fd00:ec2::254", "fe80::1", "::ffff:127.0.0.1", "::ffff:a9fe:a9fe"]) {
       expect(isPrivateIp(ip), ip).toBe(true);
     }
-    for (const ip of ["8.8.8.8", PUBLIC_IP, "2606:4700:4700::1111"]) expect(isPrivateIp(ip), ip).toBe(false);
+    for (const ip of ["8.8.8.8", PUBLIC_IP, "2606:4700:4700::1111", "2002:808:808::1"]) expect(isPrivateIp(ip), ip).toBe(false);
+  });
+
+  it("sees through IPv4-compatible and 6to4 IPv6 forms", async () => {
+    // new URL() normalizes [::127.0.0.1] to [::7f00:1] and [::ffff:10.0.0.1] to [::ffff:a00:1].
+    for (const ip of ["::7f00:1", "::a9fe:a9fe", "2002:7f00:1::", "2002:a9fe:a9fe::1", "2002:c0a8:101::"]) expect(isPrivateIp(ip), ip).toBe(true);
+    await expect(assertSafeUrl("http://[::127.0.0.1]/")).rejects.toBeInstanceOf(BlockedUrlError);
+    await expect(assertSafeUrl("http://[2002:a9fe:a9fe::]/latest")).rejects.toBeInstanceOf(BlockedUrlError);
+  });
+
+  it("drops credentials when a redirect leaves the origin", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes("/start")
+        ? new Response(null, { status: 302, headers: { location: String(url).includes("same") ? "/next" : "https://other.example.net/next" } })
+        : new Response("ok"),
+    );
+    const auth = { Authorization: "Basic c2VjcmV0", "Access-Token": "t0k", Accept: "application/json" };
+    await safeFetch("https://shop.example.com/start", { headers: auth });
+    const cross = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(cross.get("authorization")).toBeNull();
+    expect(cross.get("access-token")).toBeNull();
+    expect(cross.get("accept")).toBe("application/json");
+
+    fetchMock.mockClear();
+    await safeFetch("https://shop.example.com/start?same=1", { headers: auth });
+    expect(new Headers(fetchMock.mock.calls[1][1].headers).get("authorization")).toBe("Basic c2VjcmV0");
   });
 
   it("blocks private targets for notification/store URLs, including via DNS", async () => {
@@ -94,6 +119,10 @@ describe("SSRF guard", () => {
     ).rejects.toThrow(/private or internal/);
     await webhookDriver.send({ config: { url: "https://example.com/hook" }, secrets: {} }, msg);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    // POSTs are never redirected; say so instead of a bare "HTTP 308".
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 308, headers: { location: "http://10.0.0.8/hook" } }));
+    await expect(webhookDriver.send({ config: { url: "https://example.com/hook" }, secrets: {} }, msg)).rejects.toThrow(/redirect \(HTTP 308\)/);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("guards the fetch used for dashboard-configured LLMs; env-configured ones are trusted", async () => {
@@ -152,6 +181,14 @@ describe("CSRF check for cookie-authenticated writes", () => {
     expect(isSameOriginRequest(req({ origin: "https://evil.test" }))).toBe(false);
     expect(isSameOriginRequest(req({ origin: "https://app.example.com", "sec-fetch-site": "cross-site" }))).toBe(false);
     expect(isSameOriginRequest(req({}))).toBe(false);
+  });
+
+  it("trusts the browser's same-origin verdict when a reverse proxy rewrites Host", () => {
+    const proxied = (h: Record<string, string>) =>
+      new Request("http://adledger:3000/api/v1/spend", { method: "POST", headers: { host: "adledger:3000", origin: "https://ads.example.com", ...h } });
+    expect(isSameOriginRequest(proxied({ "sec-fetch-site": "same-origin" }))).toBe(true);
+    expect(isSameOriginRequest(proxied({ "sec-fetch-site": "same-site" }))).toBe(false);
+    expect(isSameOriginRequest(proxied({}))).toBe(false);
   });
 });
 

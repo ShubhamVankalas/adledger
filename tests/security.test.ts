@@ -284,6 +284,9 @@ describe("settings actions", () => {
     expect(await getConnection(ws.id, "notify_webhook", db)).toBeUndefined();
     const slack = await saveIntegrationAction("notify_slack", form({ webhookUrl: "http://localhost:9000/services/x" }));
     expect(slack.ok).toBe(false);
+    // Host-only fields (TikTok's configurable API host) are checked too.
+    const tiktok = await saveIntegrationAction("tiktok_ads", form({ advertiserIds: "1", accessToken: "t", apiHost: "https://169.254.169.254" }));
+    expect(tiktok).toMatchObject({ ok: false, message: expect.stringMatching(/API host/) });
     expect((await saveIntegrationAction("notify_webhook", form({ url: "https://hooks.example.com/adledger" }))).ok).toBe(true);
   });
 
