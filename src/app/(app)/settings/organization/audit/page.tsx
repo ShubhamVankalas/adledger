@@ -32,6 +32,11 @@ const LABELS: Record<string, string> = {
   "import.spend_csv": "imported a spend CSV",
   "import.revenue_csv": "imported a payments CSV",
   "account.password_changed": "changed their password",
+  "contact.erased": "deleted a contact (erasure request)",
+  "contact.exported": "exported a contact's data",
+  "contacts.exported": "exported contacts as CSV",
+  "workspace.exported": "exported all data from",
+  "retention.updated": "set raw event retention to",
 };
 
 export default async function AuditPage() {

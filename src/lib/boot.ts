@@ -7,6 +7,7 @@ import { hashPassword } from "./crypto";
 import { seedDemo } from "./demo/seed";
 import { log } from "./log";
 import { notify, runScheduledNotifications } from "./notify";
+import { applyRetentionAll } from "./privacy";
 import { getAppSecret } from "./settings";
 import { syncAll } from "./sync";
 
@@ -62,6 +63,15 @@ export async function boot() {
       everyMs: HOUR,
       run: async () => {
         for (const ws of await db.select().from(schema.workspaces)) await runScheduledNotifications(db, ws);
+      },
+    },
+    {
+      // Settings → Workspace → Data retention: delete raw events older than N days (touchpoints are kept).
+      name: "data-retention",
+      everyMs: 24 * HOUR,
+      run: async () => {
+        const deleted = await applyRetentionAll(db);
+        if (deleted) log.info(`data retention removed ${deleted} raw events`);
       },
     },
   ]);
