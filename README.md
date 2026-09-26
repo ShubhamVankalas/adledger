@@ -160,6 +160,7 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 - IPs are truncated before storage. The pixel honors `adledger.consent(false)` and optional Do-Not-Track.
 - Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
 - API keys and sessions are stored hashed. The MCP server is read-only.
+- Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.
 
 ## Development
 
