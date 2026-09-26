@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileNav } from "@/components/mobile-nav";
 import { getSetupStatus } from "@/components/onboarding";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireUser } from "@/lib/auth";
@@ -24,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage") }}
         setupLeft={setup ? setup.steps.length - setup.done : 0}
       />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-x-clip pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
         {user.workspace.isDemo ? (
           <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-t-xl border-b bg-primary/10 px-4 py-2 text-center text-xs text-foreground/80">
             <span>You&apos;re exploring demo data.</span>
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         ) : null}
         {children}
+        <MobileNav />
       </SidebarInset>
     </SidebarProvider>
   );

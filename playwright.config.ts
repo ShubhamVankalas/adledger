@@ -17,7 +17,11 @@ export default defineConfig({
     colorScheme: "light",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    { name: "chromium", testIgnore: /mobile\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // Phone layout; runs after the desktop journey, which creates the demo workspace.
+    { name: "mobile", testMatch: /mobile\.spec\.ts/, dependencies: ["chromium"], use: { ...devices["Desktop Chrome"] } },
+  ],
   webServer: {
     command: "node scripts/e2e-server.mjs",
     url: `http://localhost:${PORT}/api/v1/health`,
