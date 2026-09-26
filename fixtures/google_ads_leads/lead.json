@@ -1,0 +1,20 @@
+{
+  "lead_id": "TeSter-123-ABCDEFGHIJKLMNOPQRSTUVWXYZ-abcdefghijklmnopqrstuvwxyz-0123456789-AaBbCcDdEe",
+  "user_column_data": [
+    { "column_name": "Full Name", "string_value": "Arjun Mehta", "column_id": "FULL_NAME" },
+    { "column_name": "User Phone", "string_value": "+919812345678", "column_id": "PHONE_NUMBER" },
+    { "column_name": "User Email", "string_value": "arjun.mehta@example.in", "column_id": "EMAIL" },
+    { "column_name": "City", "string_value": "Pune", "column_id": "CITY" }
+  ],
+  "api_version": "1.0",
+  "form_id": 40000000001,
+  "campaign_id": 21000000123,
+  "adgroup_id": 150000000456,
+  "creative_id": 690000000789,
+  "google_key": "gk_9f2c4e7a1b3d5f60",
+  "is_test": false,
+  "gcl_id": "EAIaIQobChMI8pWz1b-test-gclid",
+  "lead_stage": "ACTIVE",
+  "lead_submit_time": "2026-09-24T08:42:10Z",
+  "lead_source": "LEAD_FORM"
+}

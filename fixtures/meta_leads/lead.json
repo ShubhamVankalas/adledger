@@ -1,0 +1,19 @@
+{
+  "created_time": "2026-09-24T10:15:27+0000",
+  "id": "1234567890123456",
+  "ad_id": "120210000000000301",
+  "ad_name": "Free audit - video 1",
+  "adset_id": "120210000000000201",
+  "adset_name": "Founders - US - 25-54",
+  "campaign_id": "120210000000000101",
+  "campaign_name": "Lead gen - Free audit",
+  "form_id": "987654321012345",
+  "is_organic": false,
+  "platform": "ig",
+  "field_data": [
+    { "name": "full_name", "values": ["Maya Fernandes"] },
+    { "name": "email", "values": ["Maya.Fernandes@Example.com"] },
+    { "name": "phone_number", "values": ["+14155550199"] },
+    { "name": "what_is_your_monthly_ad_budget?", "values": ["$5k-$20k"] }
+  ]
+}

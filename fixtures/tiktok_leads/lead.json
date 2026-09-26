@@ -1,0 +1,24 @@
+{
+  "subscription_id": "7419876543210987654",
+  "subscribe_entity": "LEAD",
+  "advertiser_id": "7012345678901234567",
+  "lead": {
+    "lead_id": "7420001112223334445",
+    "create_time": "1790150400",
+    "advertiser_id": "7012345678901234567",
+    "page_id": "7415550001112223334",
+    "page_name": "Spring demo request",
+    "campaign_id": "1810000000000001",
+    "campaign_name": "Leads - Spring demo",
+    "adgroup_id": "1810000000000101",
+    "adgroup_name": "Broad - 18+",
+    "ad_id": "1810000000001001",
+    "ad_name": "UGC hook v3",
+    "user_info": [
+      { "field_name": "name", "field_value": "Lena Hoffmann" },
+      { "field_name": "email", "field_value": "lena.hoffmann@example.de" },
+      { "field_name": "phone_number", "field_value": "+4915112345678" },
+      { "field_name": "Company size", "field_value": "11-50" }
+    ]
+  }
+}
