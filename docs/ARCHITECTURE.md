@@ -82,7 +82,7 @@ Rules:
 | App | `node server.js` (Next.js standalone output) on port 3000 |
 | Database | PostgreSQL 16 via `DATABASE_URL`; if unset, embedded PGlite in `DATA_DIR` (dev, single-container trials) |
 | Migrations | Applied automatically at startup (`src/lib/db/index.ts`) |
-| Background jobs | `src/lib/jobs.ts`: ad sync every `SYNC_INTERVAL_HOURS` (6), weekly insights check hourly, debounced attribution recompute after webhooks/leads/syncs. Scheduled jobs take a Postgres advisory lock, so running several replicas is safe. |
+| Background jobs | `src/lib/jobs.ts`: ad sync every `SYNC_INTERVAL_HOURS` (6), weekly insights check hourly, conversion uploads hourly, debounced attribution recompute after webhooks/leads/syncs. Scheduled jobs take a Postgres advisory lock, so running several replicas is safe. |
 | HTTPS | Optional Caddy container (`docker compose --profile https`) or any reverse proxy |
 
 ## 4. Data model (PostgreSQL)
@@ -114,7 +114,9 @@ payments and refunds; unique `(workspace_id, source, external_id)`).
 
 **Derived** — `attribution_credits` (model, conversion type/id/time, touchpoint or null for
 unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), revenue_minor),
-`ai_reports` (period, model name, facts, markdown, unverified numbers).
+`ai_reports` (period, model name, facts, markdown, unverified numbers), `conversion_uploads` (platform ×
+conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
+error, mock, sent_at).
 
 ## 5. Key flows
 
@@ -182,6 +184,20 @@ setup steps, docs link) that drives the Settings catalog and connect forms — a
 file plus one registry line. Revenue webhooks for every non-Stripe source share
 `/api/v1/webhooks/{provider}/{workspaceId}`; all revenue goes through `ingestRevenue` (idempotent on
 source + external id; contact matched by visitor id → email → customer id → phone).
+
+**Conversion upload (CAPI).** `src/lib/capi/` sends leads and payments back to the ad platforms so
+their bidding learns from real revenue. Switched on per connection (Meta: `capiEnabled` + `pixelId`
+[+ `capiAccessToken`, `testEventCode`]; Google Ads: `conversionUploads` + lead/purchase conversion action
+IDs). An hourly job enqueues recent conversions (Meta: 7 days, its limit; Google: 30 days) into
+`conversion_uploads` (`on conflict do nothing`, so re-runs are idempotent) and sends due rows in batches.
+Meta events carry `event_id = {lead|purchase}_{id}` for de-duplication, SHA-256 `em`/`ph`/`external_id`,
+fbc/fbp, the stored (truncated) IP and user agent, and `value` in exact major units; without a user agent
+the `action_source` is `system_generated`. Google gets `uploadClickConversions` with the latest
+gclid/gbraid/wbraid within 90 days, or for leads without a click id an enhanced conversion with the
+Google-normalized hashed email; `orderId` = our id; `partialFailure` errors map back per conversion.
+Failures retry with backoff (15 min, 1 h, 4 h, 16 h) and are marked failed after 5 attempts; permanent
+errors fail at once; a Meta batch rejected permanently is re-sent event by event. Mock mode marks rows
+sent (`mock = true`) without network calls. The Meta / Google Ads dialogs show 7-day upload counts.
 
 **Imports.** The Spend API (`POST /api/v1/spend`), Conversions API (`POST /api/v1/conversions`) and
 CSV uploads share `src/lib/imports.ts`, so any ad network or checkout without a native connector can be

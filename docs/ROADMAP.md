@@ -40,6 +40,7 @@ end to end in that form. Status below.
 | Revenue: Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal | 🟡 Beta | Signed webhooks + tests; backfill for Shopify and WooCommerce |
 | Stripe one-key setup | ✅ | Webhook created automatically on public https installs |
 | CSV import, Spend API, Conversions API | ✅ | Covers any other ad network or checkout |
+| Conversion upload: Meta Conversions API, Google Ads click conversions + enhanced conversions for leads | 🟡 Beta | Hourly, idempotent, retried with backoff; hashed PII only; not yet verified on live accounts |
 | Notifications: email, Slack, Discord, Teams, SMS, webhook | ✅ | Weekly report, daily digest, wasted spend, sync failed, new customer, large payment |
 | WordPress/WooCommerce plugin, Shopify pixel, GTM tag, site-builder guides | ✅ | `integrations/`, `docs/integrations/` |
 | First-run choice + guided setup checklist with live checks | ✅ | |
@@ -47,11 +48,10 @@ end to end in that form. Status below.
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
-- Meta Conversions API + Google offline/enhanced conversions upload (hashed PII) — biggest value add.
+- Verify conversion uploads (Meta CAPI, Google Ads) on live accounts; browser/server event-id sharing for Meta dedup.
 - Verify beta connectors against live accounts; publish the WordPress plugin to wordpress.org.
 
 ## Backlog
-- Meta Conversions API + Google offline/enhanced conversions upload (hashed PII) — biggest value add.
 - OAuth “Connect” buttons for Meta/Google instead of pasted tokens.
 - WhatsApp click-to-chat attribution, Razorpay, Shopify, TikTok, LinkedIn.
 - Meta Lead Ads webhook; sync to Twenty / HubSpot.

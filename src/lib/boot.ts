@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { generateReport } from "./ai/report";
+import { runConversionUploads } from "./capi";
 import { getDb, isEmbeddedDb, schema } from "./db";
 import { requestAttribution, startScheduler } from "./jobs";
 import { createOrganizationWithOwner, hasUsers } from "./auth";
@@ -55,6 +56,14 @@ export async function boot() {
             url: process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL.replace(/\/$/, "")}/insights` : undefined,
           }), db);
         }
+      },
+    },
+    {
+      // Conversions API uploads (Meta CAPI, Google Ads click conversions): pending + retries.
+      name: "conversion-uploads",
+      everyMs: HOUR,
+      run: async () => {
+        for (const ws of await db.select({ id: schema.workspaces.id }).from(schema.workspaces)) await runConversionUploads(db, ws.id);
       },
     },
     {

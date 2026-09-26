@@ -23,6 +23,8 @@ export type IntegrationState = {
   lastError: string | null;
   lastRun: { status: string; rows: number; at: string } | null;
   webhookUrl: string | null;
+  /** Conversions API uploads in the last 7 days (Meta, Google Ads only). */
+  uploads?: { sent: number; failed: number; pending: number; skipped: number } | null;
 };
 
 /** Renders `code` spans in plain-text setup steps. */
@@ -116,6 +118,24 @@ export function IntegrationDialog({
 
         <form action={save.submit} className="grid gap-3 sm:grid-cols-2">
           {meta.fields.map((f) => {
+            if (f.type === "toggle") {
+              const checked = ["on", "true"].includes(state.config[f.name] ?? "");
+              return (
+                <div key={f.name} className="grid gap-1 sm:col-span-2">
+                  <Label htmlFor={`${meta.provider}-${f.name}`} className="flex items-center gap-2 font-medium">
+                    <input
+                      id={`${meta.provider}-${f.name}`}
+                      name={f.name}
+                      type="checkbox"
+                      defaultChecked={checked}
+                      className="size-4 accent-primary"
+                    />
+                    {f.label}
+                  </Label>
+                  {f.hint ? <p className="text-[11px] text-muted-foreground">{f.hint}</p> : null}
+                </div>
+              );
+            }
             const saved = f.secret && state.secretKeys.includes(f.name);
             return (
               <div key={f.name} className="grid gap-1.5">
@@ -147,6 +167,8 @@ export function IntegrationDialog({
           </div>
         </form>
 
+        {state.connected && state.uploads ? <UploadStats stats={state.uploads} /> : null}
+
         {state.connected ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
             <span>
@@ -172,5 +194,24 @@ export function IntegrationDialog({
         ) : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function UploadStats({ stats }: { stats: NonNullable<IntegrationState["uploads"]> }) {
+  const items = [
+    { label: "sent", value: stats.sent, className: "text-success" },
+    { label: "pending", value: stats.pending, className: "" },
+    { label: "failed", value: stats.failed, className: stats.failed ? "text-destructive" : "" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+      <span className="font-medium text-foreground">Conversion uploads · last 7 days</span>
+      {items.map((i) => (
+        <span key={i.label}>
+          <span className={`font-semibold tabular-nums ${i.className}`}>{i.value.toLocaleString()}</span> {i.label}
+        </span>
+      ))}
+      {stats.skipped ? <span>{stats.skipped.toLocaleString()} skipped (nothing to match on)</span> : null}
+    </div>
   );
 }
