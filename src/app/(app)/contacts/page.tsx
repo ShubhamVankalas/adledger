@@ -35,12 +35,12 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
       <PageHeader title="Contacts" description="Every lead and customer, with the journey that brought them in" />
       <PageBody>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <form className="relative w-full max-w-sm" action="/contacts">
-            <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input name="q" defaultValue={q} placeholder="Search by email or name…" className="pl-8" />
+          <form role="search" className="relative w-full sm:max-w-sm" action="/contacts">
+            <SearchIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input name="q" type="search" defaultValue={q} placeholder="Search by email or name…" aria-label="Search contacts" className="pl-8" />
             {lifecycle ? <input type="hidden" name="lifecycle" value={lifecycle} /> : null}
           </form>
-          <nav className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5 text-sm">
+          <nav aria-label="Filter by status" className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5 text-sm">
             {[
               [undefined, "All"],
               ["lead", "Leads"],
@@ -49,7 +49,8 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
               <Link
                 key={label}
                 href={link({ lifecycle: v, page: undefined })}
-                className={cn("rounded-md px-3 py-1 font-medium text-muted-foreground hover:text-foreground", lifecycle === v && "bg-background text-foreground shadow-sm")}
+                aria-current={lifecycle === v ? "page" : undefined}
+                className={cn("rounded-md px-3 py-2 font-medium text-muted-foreground hover:text-foreground md:py-1", lifecycle === v && "bg-background text-foreground shadow-sm")}
               >
                 {label}
               </Link>
@@ -78,7 +79,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead>Contact</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden sm:table-cell">Status</TableHead>
                   <TableHead className="hidden md:table-cell">First touch</TableHead>
                   <TableHead className="hidden lg:table-cell">Became a lead</TableHead>
                   <TableHead className="hidden sm:table-cell text-right">Touchpoints</TableHead>
@@ -88,18 +89,23 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
               <TableBody>
                 {rows.map((c) => (
                   <TableRow key={c.id} className="cursor-pointer">
-                    <TableCell>
-                      <Link href={`/contacts/${c.id}`} className="flex items-center gap-3">
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                    <TableCell className="max-w-[14rem] sm:max-w-none">
+                      <Link href={`/contacts/${c.id}`} className="flex min-h-9 items-center gap-3">
+                        <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
                           {(c.name || c.email || "?").slice(0, 1).toUpperCase()}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{c.name || c.email || "Anonymous"}</span>
                           <span className="block truncate text-xs text-muted-foreground">{c.name ? c.email : ""}</span>
+                          {c.lifecycle === "customer" ? (
+                            <Badge className="mt-1 sm:hidden" variant="default">
+                              customer
+                            </Badge>
+                          ) : null}
                         </span>
                       </Link>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant={c.lifecycle === "customer" ? "default" : "secondary"}>{c.lifecycle}</Badge>
                     </TableCell>
                     <TableCell className="hidden max-w-64 md:table-cell">
@@ -117,7 +123,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
         )}
 
         {pages > 1 ? (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
             <span className="tabular">
               {total.toLocaleString()} contacts · page {page} of {pages}
             </span>

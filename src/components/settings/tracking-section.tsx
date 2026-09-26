@@ -28,7 +28,7 @@ export function snippetFor(origin: string, key: string) {
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[2rem_1fr] gap-3">
+    <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3">
       <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{n}</span>
       <div className="min-w-0 space-y-2">
         <div className="text-sm font-medium">{title}</div>
@@ -96,7 +96,7 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
   const addSite = useFormAction(createPixelSiteAction);
   const addHook = useFormAction(createLeadWebhookAction);
   return (
-    <div className="grid gap-6 xl:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
       <div className="space-y-6 xl:col-span-3">
         {sites.map((s) => (
           <SiteCard key={s.id} site={s} origin={origin} />

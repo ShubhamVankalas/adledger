@@ -90,7 +90,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
           />
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 2xl:grid-cols-4">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Spend vs revenue</CardTitle>
@@ -165,7 +165,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
           </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-3">
             <CardHeader>
               <CardTitle>Top campaigns by revenue</CardTitle>

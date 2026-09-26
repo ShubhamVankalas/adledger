@@ -100,7 +100,7 @@ export function MembersPanel({
   const label = (r: Role) => roles.find((x) => x.role === r)?.label ?? r;
 
   return (
-    <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       <div className="space-y-6">
         <Card>
           <CardHeader>

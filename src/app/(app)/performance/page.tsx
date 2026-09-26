@@ -55,13 +55,14 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
       </PageHeader>
       <PageBody>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <nav className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
+          <nav aria-label="Report level" className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border bg-muted/40 p-0.5">
             {LEVELS.map((l) => (
               <Link
                 key={l.key}
                 href={href({ level: l.key })}
+                aria-current={level === l.key && !parent ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                  "rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground md:py-1",
                   level === l.key && !parent && "bg-background text-foreground shadow-sm",
                   level === l.key && parent && "bg-background/60 text-foreground",
                 )}
@@ -71,7 +72,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
             ))}
           </nav>
           {crumbs.length ? (
-            <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
+            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
               <Link href={href({ level: "campaign" })} className="hover:text-foreground">
                 All campaigns
               </Link>
@@ -83,7 +84,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
                   </Link>
                 </span>
               ))}
-            </div>
+            </nav>
           ) : null}
         </div>
         <PerformanceTable

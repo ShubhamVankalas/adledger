@@ -29,7 +29,7 @@ export function AiSection({ current }: { current: { provider: string; model: str
   const needsBase = provider === "ollama" || provider === "lmstudio" || provider === "custom" || provider === "openrouter" || provider === "deepseek";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
       <Card className="lg:col-span-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

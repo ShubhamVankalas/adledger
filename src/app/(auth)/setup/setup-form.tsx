@@ -54,7 +54,9 @@ export function SetupForm() {
   return (
     <Card className="shadow-xl shadow-primary/5">
       <CardHeader>
-        <CardTitle className="text-xl">Welcome to AdLedger</CardTitle>
+        <CardTitle className="text-xl">
+          <h1>Welcome to AdLedger</h1>
+        </CardTitle>
         <CardDescription>Create your account. It takes 30 seconds, and nothing leaves your server.</CardDescription>
       </CardHeader>
       <CardContent>

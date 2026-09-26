@@ -70,7 +70,7 @@ export function ReportControls({
           else update({ range: String(v), from: null, to: null });
         }}
       >
-        <SelectTrigger size="sm" className="min-w-36">
+        <SelectTrigger size="sm" className="min-w-36" aria-label="Date range">
           <CalendarIcon className="text-muted-foreground" />
           <SelectValue />
         </SelectTrigger>
@@ -117,7 +117,7 @@ export function ReportControls({
 
       {showPlatform ? (
         <Select items={PLATFORMS} value={platform ?? "all"} onValueChange={(v) => update({ platform: v === "all" ? null : String(v) })}>
-          <SelectTrigger size="sm" className="min-w-32">
+          <SelectTrigger size="sm" className="min-w-32" aria-label="Ad platform">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -134,11 +134,12 @@ export function ReportControls({
         {Object.entries(MODELS).map(([k, v]) => (
           <button
             key={k}
+            type="button"
             role="radio"
             aria-checked={model === k}
             onClick={() => update({ model: k })}
             className={cn(
-              "h-6 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
+              "h-9 rounded-md px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 md:h-6 md:px-2.5",
               model === k && "bg-background text-foreground shadow-sm",
             )}
           >

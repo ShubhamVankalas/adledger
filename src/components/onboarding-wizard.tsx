@@ -115,7 +115,7 @@ export function OnboardingWizard({
   const optional = status.steps.filter((s) => s.optional);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -138,7 +138,7 @@ export function OnboardingWizard({
                       aria-pressed={picked.includes(it.key)}
                       onClick={() => toggle(it.key)}
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors hover:border-primary/40",
+                        "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors outline-none hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-0",
                         picked.includes(it.key) ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground",
                       )}
                     >
@@ -185,7 +185,7 @@ export function OnboardingWizard({
         </StepCard>
 
         <StepCard id="leads" n={2} title="Capture leads" done={step("leads").done} detail="So AdLedger knows who signed up, and from which ad.">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="space-y-1.5">
               <div className="text-xs font-medium text-muted-foreground">Forms on your site: add one attribute</div>
               <CodeBlock code={`<form data-adledger-lead="Book a demo"> … </form>`} />
@@ -229,11 +229,11 @@ export function OnboardingWizard({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Progress value={(status.done / status.steps.length) * 100} />
-            <ul className="space-y-2 text-sm">
+            <Progress aria-label="Setup progress" value={(status.done / status.steps.length) * 100} />
+            <ul className="space-y-0.5 text-sm md:space-y-2">
               {status.steps.map((s) => (
                 <li key={s.key}>
-                  <Link href={s.href} className="flex items-center gap-2 hover:text-primary">
+                  <Link href={s.href} className="flex min-h-9 items-center gap-2 hover:text-primary md:min-h-0">
                     {s.done ? <CheckCircle2Icon className="size-4 text-success" /> : <CircleDashedIcon className="size-4 text-muted-foreground" />}
                     <span className={cn(s.done && "text-muted-foreground line-through")}>{s.label}</span>
                     {s.optional ? <span className="ml-auto text-[10px] text-muted-foreground uppercase">optional</span> : null}

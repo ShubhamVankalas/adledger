@@ -167,7 +167,7 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 pnpm install
 pnpm dev          # http://localhost:3000 (embedded database in ./.data, no Docker needed)
 pnpm test         # 65 tests against an embedded Postgres, all connectors mocked
-pnpm build && pnpm e2e   # browser tests (Playwright); SCREENSHOTS=1 refreshes docs/screenshots
+pnpm build && pnpm e2e   # browser tests + axe accessibility checks (Playwright); SCREENSHOTS=1 refreshes docs/screenshots
 pnpm lint && pnpm typecheck
 pnpm build
 ```

@@ -222,6 +222,13 @@ timezone-correct filters, route handlers, schema conventions, AI number checks, 
 guarantees, and the seeded demo story. CI also runs the suite against a real PostgreSQL 16 and
 smoke-tests the Docker image with `docker compose up`.
 
+`pnpm e2e` (Playwright, against a production build) runs the user journey in `e2e/smoke.spec.ts`,
+then `e2e/a11y.spec.ts`: every main page at 375px and 1440px in light and dark mode must have no
+serious/critical axe-core violations (WCAG 2.1 AA + best practices) and no sideways scroll on a phone.
+UI conventions that keep it green: grids start from `grid-cols-1` (implicit columns grow to fit
+nowrap content), wide tables become card lists below `sm`, icon-only controls and select triggers
+get an `aria-label`, and phones/touch screens get >= 36px tap targets (see `globals.css`).
+
 ## Decisions
 
 - **2026-09-26 — single app instead of 7 services.** FastAPI + Celery + Redis + Next.js + a
