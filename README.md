@@ -8,7 +8,7 @@
 
 Self-hosted ad attribution that joins **Meta & Google Ads spend**, **first-party website tracking**, **leads** and **Stripe revenue** — with AI insights you bring yourself and a built-in **MCP server** so Claude can answer *“which ads made money?”*
 
-[Website](https://shubhamvankalas.github.io/adledger/) · [Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [Docs](docs/)
+[Website](https://shubhamvankalas.github.io/adledger/) · [Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [FAQ](docs/FAQ.md) · [Docs](docs/)
 
 <img src="docs/screenshots/overview.png" alt="AdLedger overview dashboard" width="900" />
 
@@ -166,12 +166,17 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 - Erasure and access requests (GDPR/CCPA): **Delete contact** / **Export data** on a contact, or `DELETE /api/v1/contacts/{id}` and `GET /api/v1/contacts/{id}/export` with an API key. Erasure removes the email everywhere and keeps the revenue anonymously, so totals don't change.
 - Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.
 
+## FAQ
+
+Privacy, iOS tracking, accuracy limits, what self-hosting costs and whether you need developer
+accounts: see [docs/FAQ.md](docs/FAQ.md).
+
 ## Development
 
 ```bash
 pnpm install
 pnpm dev          # http://localhost:3000 (embedded database in ./.data, no Docker needed)
-pnpm test         # 65 tests against an embedded Postgres, all connectors mocked
+pnpm test         # vitest against an embedded Postgres, all connectors mocked
 pnpm build && pnpm e2e   # browser tests + axe accessibility checks (Playwright); SCREENSHOTS=1 refreshes docs/screenshots
 pnpm lint && pnpm typecheck
 pnpm build
