@@ -1,3 +1,4 @@
+import { CRM_CONNECTORS } from "../crm/index";
 import type { RevenueConnector } from "../types";
 import { chargebeeConnector } from "./chargebee";
 import { gumroadConnector } from "./gumroad";
@@ -26,4 +27,5 @@ export const REVENUE_CONNECTORS: RevenueConnector[] = [
   cashfreeConnector,
   instamojoConnector,
   phonepeConnector,
+  ...CRM_CONNECTORS,
 ];

@@ -1,0 +1,53 @@
+{
+  "status": "COMPLETE",
+  "results": [
+    {
+      "id": "51001",
+      "properties": {
+        "createdate": "2026-08-30T10:00:00.000Z",
+        "email": null,
+        "firstname": "Accounts",
+        "hs_object_id": "51001",
+        "lastmodifieddate": "2026-09-18T15:31:02.118Z",
+        "lastname": "Payable",
+        "phone": null
+      },
+      "createdAt": "2026-08-30T10:00:00.000Z",
+      "updatedAt": "2026-09-18T15:31:02.118Z",
+      "archived": false
+    },
+    {
+      "id": "51002",
+      "properties": {
+        "adledger_vid": "9b2f4c1e-7a3d-4e8b-9c6f-1d2e3f4a5b6c",
+        "createdate": "2026-08-28T16:20:11.000Z",
+        "email": "dana.ortiz@acmecorp.example",
+        "firstname": "Dana",
+        "hs_object_id": "51002",
+        "lastmodifieddate": "2026-09-18T15:31:02.118Z",
+        "lastname": "Ortiz",
+        "phone": "+1 415 555 0199"
+      },
+      "createdAt": "2026-08-28T16:20:11.000Z",
+      "updatedAt": "2026-09-18T15:31:02.118Z",
+      "archived": false
+    },
+    {
+      "id": "51003",
+      "properties": {
+        "createdate": "2026-09-09T07:45:00.000Z",
+        "email": "m.keller@brightwave.example",
+        "firstname": "Mia",
+        "hs_object_id": "51003",
+        "lastmodifieddate": "2026-09-20T11:00:41.771Z",
+        "lastname": "Keller",
+        "phone": null
+      },
+      "createdAt": "2026-09-09T07:45:00.000Z",
+      "updatedAt": "2026-09-20T11:00:41.771Z",
+      "archived": false
+    }
+  ],
+  "startedAt": "2026-09-27T06:00:01.201Z",
+  "completedAt": "2026-09-27T06:00:01.244Z"
+}

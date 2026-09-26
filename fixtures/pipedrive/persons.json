@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": 301,
+      "name": "Grace Hopper",
+      "first_name": "Grace",
+      "last_name": "Hopper",
+      "owner_id": 13540546,
+      "org_id": 88,
+      "add_time": "2026-08-29T13:10:00Z",
+      "update_time": "2026-09-19T16:20:05Z",
+      "emails": [
+        { "value": "g.hopper@home.example", "primary": false, "label": "home" },
+        { "value": "grace@northwind.example", "primary": true, "label": "work" }
+      ],
+      "phones": [{ "value": "+44 20 7946 0958", "primary": true, "label": "work" }],
+      "is_deleted": false,
+      "visible_to": 3,
+      "label_ids": [],
+      "picture_id": null,
+      "custom_fields": {}
+    },
+    {
+      "id": 302,
+      "name": "Lars Ek",
+      "first_name": "Lars",
+      "last_name": "Ek",
+      "owner_id": 13540546,
+      "org_id": 91,
+      "add_time": "2026-09-04T09:00:00Z",
+      "update_time": "2026-09-21T09:15:00Z",
+      "emails": [{ "value": "lars@fjord.example", "primary": true, "label": "work" }],
+      "phones": [],
+      "is_deleted": false,
+      "visible_to": 3,
+      "label_ids": [],
+      "picture_id": null,
+      "custom_fields": {}
+    }
+  ],
+  "additional_data": { "next_cursor": null }
+}
