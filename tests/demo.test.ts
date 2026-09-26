@@ -4,6 +4,7 @@ import { rows } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
 import { buildDemoWorld } from "@/lib/demo/world";
 import { overview, performance } from "@/lib/reports";
+import { ltv, modelComparison } from "@/lib/reports-advanced";
 import { setupWorkspace } from "./helpers";
 
 describe("demo world", () => {
@@ -44,5 +45,18 @@ describe("demo world", () => {
         group by r.id, c.model, r.amount_minor having sum(c.revenue_minor) <> r.amount_minor`),
     );
     expect(bad).toHaveLength(0);
+
+    // Model comparison and LTV agree with the ledger (same seeded workspace, no second seed).
+    const mc = await modelComparison(db, ws, p);
+    expect(mc.rows).toHaveLength(11);
+    const lt = await performance(db, ws, { ...p, model: "last_touch", level: "campaign" });
+    const ltById = new Map(lt.map((r) => [r.id, r.revenueMinor]));
+    for (const r of mc.rows) expect(r.lastTouch.revenueMinor).toBe(ltById.get(r.id));
+    expect(mc.rows.some((r) => r.role !== "balanced")).toBe(true);
+    const l = await ltv(db, ws, p);
+    expect(l.customers).toBeGreaterThan(50);
+    expect(l.channels.reduce((s, r) => s + r.revenueMinor, 0)).toBe(l.revenueMinor);
+    expect(l.channels.reduce((s, r) => s + r.customers, 0)).toBeCloseTo(l.customers, 1);
+    expect(l.channels.reduce((s, r) => s + r.spendMinor, 0)).toBe(o.spendMinor);
   });
 });

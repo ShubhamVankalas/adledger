@@ -62,5 +62,5 @@ last week”*, *“Show me the journey of our biggest customer this month”*.
 
 ## REST API
 
-The same data is available at `/api/v1/reports/{overview|performance|timeseries|channels|wasted-spend|compare}`,
+The same data is available at `/api/v1/reports/{overview|performance|timeseries|channels|wasted-spend|compare|model-comparison|ltv}`,
 `/api/v1/contacts` and `/api/v1/contacts/{id}/journey` with the same bearer key.

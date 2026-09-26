@@ -35,6 +35,7 @@ export function ReportControls({
   model,
   platform,
   showPlatform = true,
+  showModel = true,
 }: {
   start: string;
   end: string;
@@ -42,6 +43,7 @@ export function ReportControls({
   model: string;
   platform?: string;
   showPlatform?: boolean;
+  showModel?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -130,22 +132,24 @@ export function ReportControls({
         </Select>
       ) : null}
 
-      <div className="flex items-center rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label="Attribution model">
-        {Object.entries(MODELS).map(([k, v]) => (
-          <button
-            key={k}
-            role="radio"
-            aria-checked={model === k}
-            onClick={() => update({ model: k })}
-            className={cn(
-              "h-6 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
-              model === k && "bg-background text-foreground shadow-sm",
-            )}
-          >
-            {v}
-          </button>
-        ))}
-      </div>
+      {showModel ? (
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label="Attribution model">
+          {Object.entries(MODELS).map(([k, v]) => (
+            <button
+              key={k}
+              role="radio"
+              aria-checked={model === k}
+              onClick={() => update({ model: k })}
+              className={cn(
+                "h-6 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground",
+                model === k && "bg-background text-foreground shadow-sm",
+              )}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
