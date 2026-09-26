@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getCrmConnector } from "@/lib/connectors/crm/index";
 import { ingestRevenue } from "@/lib/connectors/revenue/ingest";
 import { getDb, schema } from "@/lib/db";
-import { clientIp, json, rateLimit } from "@/lib/http";
+import { BodyTooLargeError, clientIp, json, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
 import { log } from "@/lib/log";
 import { getConnection } from "@/lib/settings";
@@ -10,6 +10,8 @@ import { getConnection } from "@/lib/settings";
 // CRM deal webhooks: /api/v1/webhooks/crm/{hubspot|pipedrive}/{workspaceId}
 // CRM webhooks only carry deal ids, so after verifying the call we re-read those deals through
 // the CRM's API and ingest the won ones (idempotent on deal id). Non-won deals are ignored.
+
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string; workspaceId: string }> }) {
   const { provider, workspaceId } = await params;
@@ -23,7 +25,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   const conn = await getConnection(ws.id, provider, db);
   if (!conn || !conn.enabled) return json({ error: `${connector.meta.name} is not connected in this workspace` }, 400);
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextLimited(req, MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) return json({ error: "payload too large" }, 413);
+    throw err;
+  }
   const request = { rawBody, headers: req.headers, url: req.url };
   const c = { config: conn.config, secrets: conn.secrets };
   let valid = false;

@@ -90,6 +90,13 @@ describe("notifications", () => {
     ]);
     await new Promise((r) => setTimeout(r, 50));
     expect(calls).toHaveLength(0);
+
+    // A replayed webhook for the big payment updates the row but never notifies again.
+    await ingestRevenue(db, ws.id, "api", [
+      { type: "payment", externalId: "big-1", amountMinor: 150000, currency: "USD", occurredAt: new Date(), customer: { email: "whale@example.com", name: "Whale Co" } },
+    ]);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toHaveLength(0);
   });
 
   it("never throws when a channel is broken", async () => {

@@ -294,6 +294,11 @@ describe("native lead webhook route", () => {
     expect(await db.select().from(schema.leads)).toHaveLength(0);
   });
 
+  it("refuses bodies over 1 MB before verifying them", async () => {
+    const res = await post(JSON.stringify({ pad: "x".repeat(1024 * 1024) }), { "x-hub-signature-256": `sha256=${"0".repeat(64)}` });
+    expect(res.status).toBe(413);
+  });
+
   it("a Meta lead creates contact + lead + touchpoint credited to the right campaign (idempotent)", async () => {
     vi.stubEnv("CONNECTOR_MODE", "live");
     const fetchMock = vi.fn(async () => new Response(raw("meta_leads/lead.json"), { status: 200 }));

@@ -6,7 +6,7 @@ import {
   verifyWhatsAppSignature,
 } from "@/lib/connectors/leads-whatsapp";
 import { getDb, schema } from "@/lib/db";
-import { clientIp, json, rateLimit } from "@/lib/http";
+import { BodyTooLargeError, clientIp, json, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
 import { log } from "@/lib/log";
 import { getConnection } from "@/lib/settings";
@@ -14,6 +14,8 @@ import { ingestWhatsAppMessages } from "@/lib/tracking/whatsapp";
 
 // WhatsApp Business Cloud API webhook: /api/v1/webhooks/whatsapp/{workspaceId}
 // GET = subscription handshake (hub.verify_token), POST = signed message notifications.
+
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 async function connectionFor(workspaceId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(workspaceId)) return null;
@@ -41,7 +43,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ workspa
   if (!found) return json({ error: "not found" }, 404);
   const { db, conn } = found;
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextLimited(req, MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) return json({ error: "payload too large" }, 413);
+    throw err;
+  }
   if (!verifyWhatsAppSignature(rawBody, conn.secrets.appSecret, req.headers.get("x-hub-signature-256"))) {
     return json({ error: "invalid signature" }, 401);
   }

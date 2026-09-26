@@ -63,7 +63,7 @@ export async function markCustomer(tx: Q, contactId: string, source: string, ext
 
 /**
  * Store a payment or refund from any source. Idempotent on (workspace, source, externalId):
- * replays update the amount and fill in a missing contact, never duplicate.
+ * replays update the amount and fill in a missing contact, never duplicate, and never re-notify.
  */
 export async function ingestRevenue(db: DB, workspaceId: string, source: string, events: RevenueEventInput[]) {
   let stored = 0;
@@ -74,7 +74,8 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
       const contactId = await resolveRevenueContact(tx, workspaceId, source, { ...e.customer, at: e.occurredAt });
       const amount = e.type === "refund" ? -e.amountMinor : e.amountMinor;
       const currency = e.currency.toUpperCase();
-      await tx
+      // `xmax = 0` only for a freshly inserted row: a replayed webhook updates it instead, and must not re-notify.
+      const [row] = await tx
         .insert(schema.revenueEvents)
         .values({
           workspaceId,
@@ -95,16 +96,18 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
             occurredAt: e.occurredAt,
             contactId: sql`coalesce(${schema.revenueEvents.contactId}, excluded.contact_id)`,
           },
-        });
+        })
+        .returning({ inserted: sql<boolean>`(xmax = 0)` });
+      const isNew = row?.inserted === true;
       if (e.type === "payment") {
         let name: string | null = null;
         if (contactId) {
           const [before] = await tx.select({ lifecycle: schema.contacts.lifecycle, name: schema.contacts.name, email: schema.contacts.email }).from(schema.contacts).where(eq(schema.contacts.id, contactId));
           name = before?.name ?? before?.email ?? null;
-          if (before?.lifecycle !== "customer") alerts.push({ kind: "new_customer", e, contactId, name });
+          if (isNew && before?.lifecycle !== "customer") alerts.push({ kind: "new_customer", e, contactId, name });
           await markCustomer(tx, contactId, source, e.customer.externalCustomerId);
         }
-        alerts.push({ kind: "big_payment", e, contactId, name });
+        if (isNew) alerts.push({ kind: "big_payment", e, contactId, name });
       }
     });
     stored++;

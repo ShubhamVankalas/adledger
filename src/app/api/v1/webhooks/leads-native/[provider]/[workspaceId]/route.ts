@@ -3,13 +3,15 @@ import { getLeadConnector } from "@/lib/connectors/leads/index";
 import { ingestNativeLeads } from "@/lib/connectors/leads/ingest";
 import { parseJsonLossless } from "@/lib/connectors/leads/shared";
 import { getDb, schema } from "@/lib/db";
-import { clientIp, json, rateLimit } from "@/lib/http";
+import { BodyTooLargeError, clientIp, json, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
 import { log } from "@/lib/log";
 import { forcedMockMode, getConnection } from "@/lib/settings";
 
 // Native ad-platform lead forms: /api/v1/webhooks/leads-native/{meta_leads|google_ads_leads|tiktok_leads}/{workspaceId}
 // Each lead becomes a contact + lead + a touchpoint on the ad that collected it.
+
+const MAX_BODY_BYTES = 1024 * 1024;
 
 type Ctx = { params: Promise<{ provider: string; workspaceId: string }> };
 
@@ -43,7 +45,13 @@ export async function POST(req: Request, { params }: Ctx) {
   if (r.error) return r.error;
   const { db, ws, connector, conn } = r;
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextLimited(req, MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) return json({ error: "payload too large" }, 413);
+    throw err;
+  }
   const request = { rawBody, headers: req.headers, url: req.url };
   const like = { config: conn.config, secrets: conn.secrets };
   let valid = false;
