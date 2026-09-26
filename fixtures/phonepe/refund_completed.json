@@ -3,32 +3,27 @@
   "payload": {
     "merchantId": "M22ADLEDGERUAT",
     "merchantRefundId": "AL-RFD-20260920-0007",
-    "refundId": "OMR2609201304271234567890",
     "originalMerchantOrderId": "AL-ORD-20260917-0042",
     "amount": 50000,
     "state": "COMPLETED",
-    "paymentDetails": [
+    "timestamp": 1790409867000,
+    "refundId": "OMR2609201304271234567890",
+    "errorCode": "",
+    "detailedErrorCode": "",
+    "splitInstruments": [
       {
-        "paymentMode": "UPI_QR",
-        "timestamp": 1790409867000,
         "amount": 50000,
-        "transactionId": "OMR2609201304271234",
-        "state": "COMPLETED",
-        "splitInstruments": [
-          {
-            "amount": 50000,
-            "rail": {
-              "type": "UPI",
-              "upiTransactionId": "upi626087654321",
-              "vpa": "98****70@ybl"
-            },
-            "instrument": {
-              "type": "ACCOUNT",
-              "accountType": "SAVINGS",
-              "accountNumber": "******4321"
-            }
-          }
-        ]
+        "rail": {
+          "type": "UPI",
+          "utr": "626087654321",
+          "upiTransactionId": "YBL5bc011fa9f8644763b52b96a29a9655",
+          "vpa": "98****70@ybl"
+        },
+        "instrument": {
+          "type": "ACCOUNT",
+          "maskedAccountNumber": "******4321",
+          "accountType": "SAVINGS"
+        }
       }
     ]
   }

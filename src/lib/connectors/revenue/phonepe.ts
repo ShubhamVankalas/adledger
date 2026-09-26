@@ -7,7 +7,7 @@ import { arr, intMinor, obj, safeEqual, str } from "./shared";
 // built from the username/password set on the webhook in the PhonePe dashboard (this is how the
 // official SDKs' validateCallback checks it). It authenticates the sender but, unlike an HMAC, does
 // not cover the body. Amounts are integers in paise; timestamps are epoch milliseconds.
-// https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/webhook-handling
+// https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/webhook
 
 export function phonepeAuthorization(username: string, password: string): string {
   return createHash("sha256").update(`${username}:${password}`, "utf8").digest("hex");
@@ -20,12 +20,16 @@ export function verifyPhonepeAuthorization(header: string | null, username: stri
   return safeEqual(Buffer.from(phonepeAuthorization(username, password), "hex"), Buffer.from(provided, "hex"));
 }
 
+function epochMs(v: unknown): Date | null {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? new Date(v) : null;
+}
+
 /** Timestamp of the completed payment attempt (epoch ms), else now. */
 function completedAt(details: unknown): Date {
   for (const d of arr(details)) {
     const detail = obj(d);
-    const ts = detail?.timestamp;
-    if (str(detail?.state) === "COMPLETED" && typeof ts === "number" && Number.isFinite(ts)) return new Date(ts);
+    const at = str(detail?.state) === "COMPLETED" ? epochMs(detail?.timestamp) : null;
+    if (at) return at;
   }
   return new Date();
 }
@@ -54,18 +58,20 @@ export function phonepeEventToEvents(payload: unknown): RevenueEventInput[] {
   }
 
   if (event === "pg.refund.completed") {
-    const refundId = str(body.merchantRefundId) ?? str(body.refundId);
+    // PhonePe's own refundId (always sent, globally unique); merchantRefundId only in some payloads.
+    const refundId = str(body.refundId) ?? str(body.merchantRefundId);
     const orderId = str(body.originalMerchantOrderId);
     if (!refundId || !orderId) return [];
     return [
       {
         type: "refund",
-        // Merchant-chosen refund ids share a namespace with order ids, so prefix them.
+        // Prefixed so a refund id can never collide with a merchant order id.
         externalId: `refund:${refundId}`,
         relatedExternalId: orderId,
         amountMinor,
         currency: "INR",
-        occurredAt: completedAt(body.paymentDetails),
+        // Refund payloads carry a top-level `timestamp` (epoch ms), not paymentDetails.
+        occurredAt: epochMs(body.timestamp) ?? completedAt(body.paymentDetails),
         customer: {},
       },
     ];
@@ -82,7 +88,7 @@ export const phonepeConnector: RevenueConnector = {
     description: "Completed orders and refunds from PhonePe Payment Gateway (Standard Checkout) via webhooks.",
     status: "beta",
     color: "#5f259f",
-    docsUrl: "https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/webhook-handling",
+    docsUrl: "https://developer.phonepe.com/payment-gateway/website-integration/standard-checkout/api-integration/api-reference/webhook",
     fields: [
       { name: "webhookUsername", label: "Webhook username", hint: "The username you set on the webhook in the PhonePe dashboard." },
       { name: "webhookPassword", label: "Webhook password", secret: true, hint: "The password you set on the same webhook." },

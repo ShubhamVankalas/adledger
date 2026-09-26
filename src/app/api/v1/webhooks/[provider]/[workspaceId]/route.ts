@@ -35,7 +35,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
 
   try {
     // Form-encoded sources (Instamojo) get their fields as an object; everything else is JSON.
-    const form = /application\/x-www-form-urlencoded/i.test(req.headers.get("content-type") ?? "");
+    // Body sniffing too: a form post with a missing or generic content-type must not 500 forever.
+    const form = /application\/x-www-form-urlencoded/i.test(req.headers.get("content-type") ?? "") || !/^\s*[[{]/.test(rawBody);
     const payload = !rawBody ? {} : form ? Object.fromEntries(new URLSearchParams(rawBody)) : JSON.parse(rawBody);
     const events = connector.parseWebhook(payload, request);
     const stored = events.length ? await ingestRevenue(db, ws.id, connector.source, events) : 0;

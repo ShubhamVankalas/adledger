@@ -6,22 +6,15 @@ import { obj, str, toDate, verifyHmac } from "./shared";
 // PAYMENT_SUCCESS_WEBHOOK -> payment; REFUND_STATUS_WEBHOOK with refund_status SUCCESS -> refund.
 // x-webhook-signature = base64(HMAC-SHA256(x-webhook-timestamp + rawBody, client secret key)).
 // Amounts are decimal rupees (e.g. 2499.00), so they are read as decimal strings from the raw body.
-// https://www.cashfree.com/docs/payments/webhooks
+// https://www.cashfree.com/docs/payments/online/webhooks/overview
+//
+// No freshness window on x-webhook-timestamp: Cashfree documents none, retries (custom retry policy,
+// possibly hours later) may resend the original timestamp, and a replayed event is harmless because
+// ingestion is idempotent on the order / refund id. The timestamp is still covered by the HMAC.
 
-export const CASHFREE_MAX_AGE_SECONDS = 300;
-
-export function verifyCashfreeSignature(
-  rawBody: string,
-  timestamp: string | null,
-  signature: string | null,
-  secret: string | undefined,
-  nowMs = Date.now(),
-): boolean {
+export function verifyCashfreeSignature(rawBody: string, timestamp: string | null, signature: string | null, secret: string | undefined): boolean {
   const ts = timestamp?.trim();
   if (!ts || !/^\d+$/.test(ts)) return false;
-  const n = Number(ts);
-  const tsMs = n < 1e12 ? n * 1000 : n; // Cashfree sends milliseconds; tolerate seconds
-  if (Math.abs(nowMs - tsMs) > CASHFREE_MAX_AGE_SECONDS * 1000) return false; // replay protection
   return verifyHmac(ts + rawBody, secret, signature, "base64");
 }
 
@@ -89,8 +82,9 @@ export function cashfreeEventToEvents(payload: unknown, rawBody: string): Revenu
     return [
       {
         type: "refund",
-        // Merchant-chosen refund ids share a namespace with order ids, so prefix them.
-        externalId: `refund:${refundId}`,
+        // refund_id is merchant-chosen and only unique within its order (often "refund_1"), so
+        // scope it by order and prefix it so it can never collide with an order id.
+        externalId: `refund:${orderId}:${refundId}`,
         relatedExternalId: orderId,
         amountMinor: amount,
         currency,
@@ -111,7 +105,7 @@ export const cashfreeConnector: RevenueConnector = {
     description: "Successful payments and refunds from Cashfree Payment Gateway via webhooks (INR and international).",
     status: "beta",
     color: "#6933d3",
-    docsUrl: "https://www.cashfree.com/docs/payments/webhooks",
+    docsUrl: "https://www.cashfree.com/docs/payments/online/webhooks/overview",
     fields: [
       {
         name: "clientSecret",

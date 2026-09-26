@@ -49,12 +49,14 @@ describe("Cashfree", () => {
   const signed = (body: string, ts = String(Date.now()), secret = SECRET) =>
     req(body, { "x-webhook-signature": sign(body, ts, secret), "x-webhook-timestamp": ts });
 
-  it("verifies base64 HMAC-SHA256 of timestamp + raw body and rejects tampering / wrong secret / stale / missing", () => {
+  it("verifies base64 HMAC-SHA256 of timestamp + raw body and rejects tampering / wrong secret / missing", () => {
     const body = raw("cashfree/payment_success.json");
     expect(cashfreeConnector.verifyWebhook(signed(body), cfConn)).toBe(true);
     expect(cashfreeConnector.verifyWebhook({ ...signed(body), rawBody: body.replace("2499.00", "9499.00") }, cfConn)).toBe(false);
     expect(cashfreeConnector.verifyWebhook(signed(body, undefined, "wrong"), cfConn)).toBe(false);
-    expect(cashfreeConnector.verifyWebhook(signed(body, String(Date.now() - 10 * 60_000)), cfConn)).toBe(false);
+    // retries may carry the original timestamp; replays are idempotent, so old-but-signed is accepted
+    expect(cashfreeConnector.verifyWebhook(signed(body, String(Date.now() - 6 * 3600_000)), cfConn)).toBe(true);
+    expect(cashfreeConnector.verifyWebhook({ ...signed(body), headers: new Headers({ "x-webhook-signature": sign(body, "1"), "x-webhook-timestamp": "abc" }) }, cfConn)).toBe(false);
     expect(cashfreeConnector.verifyWebhook(req(body, {}), cfConn)).toBe(false);
     expect(cashfreeConnector.verifyWebhook(signed(body), conn({}))).toBe(false);
   });
@@ -63,10 +65,8 @@ describe("Cashfree", () => {
     const body = raw("cashfree/payment_success.json");
     const now = 1790158649000;
     const sig = sign(body, String(now - 60 * 60_000));
-    expect(verifyCashfreeSignature(body, String(now), sig, SECRET, now)).toBe(false);
-    expect(verifyCashfreeSignature(body, String(now), sign(body, String(now)), SECRET, now)).toBe(true);
-    // seconds-precision timestamps are tolerated too
-    expect(verifyCashfreeSignature(body, String(now / 1000), sign(body, String(now / 1000)), SECRET, now)).toBe(true);
+    expect(verifyCashfreeSignature(body, String(now), sig, SECRET)).toBe(false);
+    expect(verifyCashfreeSignature(body, String(now), sign(body, String(now)), SECRET)).toBe(true);
   });
 
   it("PAYMENT_SUCCESS_WEBHOOK -> payment in paise from the decimal rupee amount", () => {
@@ -93,7 +93,7 @@ describe("Cashfree", () => {
     expect(parse(cashfreeConnector, signed(body))).toEqual([
       {
         type: "refund",
-        externalId: "refund:refund_al_20260920_01",
+        externalId: "refund:order_al_20260917_4f2a:refund_al_20260920_01",
         relatedExternalId: "order_al_20260917_4f2a",
         amountMinor: 50050,
         currency: "INR",
@@ -193,7 +193,7 @@ describe("PhonePe", () => {
     expect(parse(phonepeConnector, signed(body))).toEqual([
       {
         type: "refund",
-        externalId: "refund:AL-RFD-20260920-0007",
+        externalId: "refund:OMR2609201304271234567890",
         relatedExternalId: "AL-ORD-20260917-0042",
         amountMinor: 50000,
         currency: "INR",
@@ -202,6 +202,9 @@ describe("PhonePe", () => {
       },
     ]);
     const p = JSON.parse(body);
+    // merchantRefundId is used only when PhonePe's refundId is absent
+    const noId = { ...p, payload: { ...p.payload, refundId: undefined } };
+    expect(phonepeConnector.parseWebhook(noId, signed(body))[0].externalId).toBe("refund:AL-RFD-20260920-0007");
     expect(phonepeConnector.parseWebhook({ ...p, event: "pg.refund.failed", payload: { ...p.payload, state: "FAILED" } }, signed(body))).toEqual([]);
     const order = JSON.parse(raw("phonepe/order_completed.json"));
     expect(phonepeConnector.parseWebhook({ ...order, event: "checkout.order.failed", payload: { ...order.payload, state: "FAILED" } }, signed(body))).toEqual([]);
@@ -229,5 +232,34 @@ describe("revenue webhook route with form-encoded bodies", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ externalId: "MOJO6917W05A12345678", type: "payment", currency: "INR" });
     expect(Number(rows[0].amountMinor)).toBe(149900);
+
+    // a form post without the form content-type is still parsed (no 500 retry loop)
+    const bare = await revenueHook(new Request("http://localhost/x", { method: "POST", body }), { params });
+    expect(bare.status).toBe(200);
+  });
+
+  it("stores a signed Cashfree payment and a refund that references it; unconnected workspaces are refused", async () => {
+    const { db, ws } = await setupWorkspace({ reportingCurrency: "INR" });
+    const params = Promise.resolve({ provider: "cashfree", workspaceId: ws.id });
+    const post = (b: string) => {
+      const ts = String(Date.now());
+      const sig = createHmac("sha256", SECRET).update(ts + b, "utf8").digest("base64");
+      const headers = { "content-type": "application/json", "x-webhook-timestamp": ts, "x-webhook-signature": sig };
+      return revenueHook(new Request("http://localhost/x", { method: "POST", body: b, headers }), { params });
+    };
+    expect((await post(raw("cashfree/payment_success.json"))).status).toBe(400);
+
+    await saveConnection(ws.id, "cashfree", { mode: "live", secrets: { clientSecret: SECRET } }, db);
+    expect((await post(raw("cashfree/payment_success.json"))).status).toBe(200);
+    expect((await post(raw("cashfree/refund_success.json"))).status).toBe(200);
+    const rows = await db
+      .select()
+      .from(schema.revenueEvents)
+      .where(and(eq(schema.revenueEvents.workspaceId, ws.id), eq(schema.revenueEvents.source, "cashfree")));
+    const payment = rows.find((r) => r.type === "payment");
+    const refund = rows.find((r) => r.type === "refund");
+    expect(Number(payment?.amountMinor)).toBe(249900);
+    expect(Number(refund?.amountMinor)).toBe(-50050);
+    expect(refund?.relatedExternalId).toBe(payment?.externalId);
   });
 });
