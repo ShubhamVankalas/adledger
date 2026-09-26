@@ -4,6 +4,8 @@ import { SECURITY_HEADERS } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Lets phones/tablets on the same Wi-Fi open the dev server (pnpm dev) by LAN IP.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*", "172.*.*.*"],
   serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer"],
   // CSV uploads in Settings → Import data.
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
