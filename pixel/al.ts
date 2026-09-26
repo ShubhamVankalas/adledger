@@ -237,7 +237,7 @@ type QueueItem = [string, ...unknown[]];
       const t = e.target as Element | null;
       const a = t && t.closest ? (t.closest("a[href]") as HTMLAnchorElement | null) : null;
       if (!a) return;
-      if (/^tel:/i.test(a.href)) push({ t: "custom", name: "call_click", props: { to: decodeURIComponent(a.href.slice(4)).replace(/[^\d+]/g, "") } }, true);
+      if (/^tel:/i.test(a.href)) push({ t: "custom", name: "call_click", props: { to: a.href.slice(4).replace(/%2B/gi, "+").replace(/%../g, "").replace(/[^\d+]/g, "") } }, true);
       else if (WA.test(a.href)) a.href = waTag(a.href, !a.hasAttribute("data-adledger-noref"));
     },
     true,
