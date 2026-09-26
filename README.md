@@ -62,6 +62,14 @@ pnpm install && pnpm dev
 | **Teams, roles and client access** | **Alerts by email, Slack, Discord, Teams, SMS** |
 | <img src="docs/screenshots/settings-members.png" alt="Members and roles" /> | <img src="docs/screenshots/settings-notifications.png" alt="Notifications" /> |
 
+**On your phone** — installable as an app, with a bottom tab bar and a one-tap filter sheet:
+
+<p>
+  <img src="docs/screenshots/mobile-overview.png" alt="Overview on a phone" width="250" />
+  <img src="docs/screenshots/mobile-performance.png" alt="Performance on a phone" width="250" />
+  <img src="docs/screenshots/mobile-settings.png" alt="Integrations settings on a phone" width="250" />
+</p>
+
 ## Features
 
 | | |
