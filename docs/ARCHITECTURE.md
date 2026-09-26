@@ -183,6 +183,12 @@ file plus one registry line. Revenue webhooks for every non-Stripe source share
 `/api/v1/webhooks/{provider}/{workspaceId}`; all revenue goes through `ingestRevenue` (idempotent on
 source + external id; contact matched by visitor id → email → customer id → phone).
 
+**One-click connect.** `src/lib/oauth` runs the OAuth authorization-code flow (PKCE where the
+platform supports it) for connectors whose `IntegrationMeta.oauth` env vars are set:
+`/api/v1/oauth/{provider}/start` → platform consent → `/callback` (signed state cookie, code exchange,
+tokens held in an encrypted 15-minute cookie) → account picker → `saveConnection` with the connector's
+usual config/secret keys → background sync.
+
 **Imports.** The Spend API (`POST /api/v1/spend`), Conversions API (`POST /api/v1/conversions`) and
 CSV uploads share `src/lib/imports.ts`, so any ad network or checkout without a native connector can be
 brought in (Zapier, Make, n8n, scripts, spreadsheets).

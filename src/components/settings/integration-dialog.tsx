@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlertIcon, ExternalLinkIcon, RefreshCwIcon, SendIcon } from "lucide-react";
+import { CircleAlertIcon, ExternalLinkIcon, LogInIcon, RefreshCwIcon, SendIcon } from "lucide-react";
 import { disconnectAction, saveIntegrationAction, syncNowAction } from "@/app/actions/settings";
 import { sendTestNotificationAction } from "@/app/actions/notifications";
 import { ActionButton, useFormAction } from "@/components/action-button";
@@ -23,6 +23,8 @@ export type IntegrationState = {
   lastError: string | null;
   lastRun: { status: string; rows: number; at: string } | null;
   webhookUrl: string | null;
+  /** One-click connect is available (the admin set the OAuth app env vars). */
+  oauthReady?: boolean;
 };
 
 /** Renders `code` spans in plain-text setup steps. */
@@ -65,6 +67,64 @@ export function IntegrationDialog({
   const isDemo = state.mode === "mock";
   const syncable = meta.category === "ads" || meta.category === "revenue";
   const isNotify = meta.category === "notifications";
+  const oauthReady = Boolean(meta.oauth && state.oauthReady);
+
+  const manual = (
+    <>
+      {meta.steps.length ? (
+        <ol className="space-y-1.5 text-xs text-muted-foreground">
+          {meta.steps.map((s, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="font-semibold text-foreground">{i + 1}.</span>
+              <span>
+                <Step text={s} />
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {state.webhookUrl ? (
+        <div className="grid gap-1.5">
+          <Label>Webhook URL</Label>
+          <CopyField value={state.webhookUrl} />
+        </div>
+      ) : null}
+
+      <form action={save.submit} className="grid gap-3 sm:grid-cols-2">
+        {meta.fields.map((f) => {
+          const saved = f.secret && state.secretKeys.includes(f.name);
+          return (
+            <div key={f.name} className="grid gap-1.5">
+              <Label htmlFor={`${meta.provider}-${f.name}`}>
+                {f.label}
+                {f.optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : null}
+              </Label>
+              <Input
+                id={`${meta.provider}-${f.name}`}
+                name={f.name}
+                type={f.secret ? "password" : "text"}
+                autoComplete="off"
+                defaultValue={f.secret ? "" : (state.config[f.name] ?? "")}
+                placeholder={saved ? "•••••••• saved — leave blank to keep" : f.placeholder}
+              />
+              {f.hint ? <p className="text-[11px] text-muted-foreground">{f.hint}</p> : null}
+            </div>
+          );
+        })}
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+          <Button type="submit" disabled={save.pending}>
+            {state.connected && !isDemo ? "Save changes" : "Connect"}
+          </Button>
+          {meta.docsUrl.startsWith("http") ? (
+            <Button variant="ghost" size="sm" render={<a href={meta.docsUrl} target="_blank" rel="noreferrer" />}>
+              Official docs <ExternalLinkIcon />
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,58 +154,33 @@ export function IntegrationDialog({
           </p>
         ) : null}
 
-        {meta.steps.length ? (
-          <ol className="space-y-1.5 text-xs text-muted-foreground">
-            {meta.steps.map((s, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="font-semibold text-foreground">{i + 1}.</span>
-                <span>
-                  <Step text={s} />
-                </span>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-
-        {state.webhookUrl ? (
-          <div className="grid gap-1.5">
-            <Label>Webhook URL</Label>
-            <CopyField value={state.webhookUrl} />
-          </div>
-        ) : null}
-
-        <form action={save.submit} className="grid gap-3 sm:grid-cols-2">
-          {meta.fields.map((f) => {
-            const saved = f.secret && state.secretKeys.includes(f.name);
-            return (
-              <div key={f.name} className="grid gap-1.5">
-                <Label htmlFor={`${meta.provider}-${f.name}`}>
-                  {f.label}
-                  {f.optional ? <span className="font-normal text-muted-foreground"> (optional)</span> : null}
-                </Label>
-                <Input
-                  id={`${meta.provider}-${f.name}`}
-                  name={f.name}
-                  type={f.secret ? "password" : "text"}
-                  autoComplete="off"
-                  defaultValue={f.secret ? "" : (state.config[f.name] ?? "")}
-                  placeholder={saved ? "•••••••• saved — leave blank to keep" : f.placeholder}
-                />
-                {f.hint ? <p className="text-[11px] text-muted-foreground">{f.hint}</p> : null}
-              </div>
-            );
-          })}
-          <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
-            <Button type="submit" disabled={save.pending}>
-              {state.connected && !isDemo ? "Save changes" : "Connect"}
+        {oauthReady ? (
+          <div className="grid gap-2 rounded-lg border bg-muted/30 p-3">
+            <Button className="w-full sm:w-fit" render={<a href={`/api/v1/oauth/${meta.provider}/start`} />}>
+              <LogInIcon /> {state.connected && !isDemo ? "Reconnect" : "Connect"} with {meta.oauth!.label}
             </Button>
-            {meta.docsUrl.startsWith("http") ? (
-              <Button variant="ghost" size="sm" render={<a href={meta.docsUrl} target="_blank" rel="noreferrer" />}>
-                Official docs <ExternalLinkIcon />
-              </Button>
-            ) : null}
+            <p className="text-xs text-muted-foreground">
+              Sign in with {meta.oauth!.label} and pick the ad accounts to import — no tokens to copy. Access is read-only and stored encrypted.
+            </p>
           </div>
-        </form>
+        ) : null}
+
+        {oauthReady ? (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Or enter credentials manually</summary>
+            <div className="mt-3 grid gap-3">{manual}</div>
+          </details>
+        ) : (
+          manual
+        )}
+
+        {meta.oauth && !oauthReady ? (
+          <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Want one-click “Connect with {meta.oauth.label}”?</span> An admin can enable it by
+            creating a {meta.oauth.label} app and setting <Step text={meta.oauth.env.map((e) => `\`${e}\``).join(", ")} /> on the server — see
+            docs/CONNECTORS.md → Enable one-click connect.
+          </p>
+        ) : null}
 
         {state.connected ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">

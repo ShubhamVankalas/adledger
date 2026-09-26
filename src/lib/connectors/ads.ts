@@ -269,6 +269,7 @@ export const metaConnector: AdsConnector = {
     status: "stable",
     color: "#0866ff",
     docsUrl: "https://developers.facebook.com/docs/marketing-api/get-started",
+    oauth: { label: "Meta", env: ["META_APP_ID", "META_APP_SECRET"], scopes: ["ads_read"] },
     fields: [
       { name: "adAccountIds", label: "Ad account IDs", placeholder: "act_1234567890, act_987…", hint: "Comma-separated. Ads Manager → account dropdown." },
       { name: "accessToken", label: "Access token", secret: true, placeholder: "EAAB…", hint: "A System User token with ads_read permission (never expires)." },
@@ -294,6 +295,11 @@ export const googleConnector: AdsConnector = {
     status: "stable",
     color: "#ea4335",
     docsUrl: "https://developers.google.com/google-ads/api/docs/first-call/overview",
+    oauth: {
+      label: "Google",
+      env: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_ADS_DEVELOPER_TOKEN"],
+      scopes: ["https://www.googleapis.com/auth/adwords"],
+    },
     fields: [
       { name: "customerIds", label: "Customer IDs", placeholder: "123-456-7890", hint: "Comma-separated account IDs to import." },
       { name: "loginCustomerId", label: "Manager (MCC) ID", placeholder: "111-222-3333", optional: true, hint: "Only if you access the accounts through a manager account." },

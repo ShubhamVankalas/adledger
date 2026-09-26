@@ -170,6 +170,8 @@ export const tiktokConnector: AdsConnector = {
     status: "beta",
     color: "#ff0050",
     docsUrl: "https://business-api.tiktok.com/portal/docs",
+    // TikTok grants the scopes chosen on the developer app; none are passed at sign-in.
+    oauth: { label: "TikTok", env: ["TIKTOK_APP_ID", "TIKTOK_APP_SECRET"], scopes: [] },
     fields: [
       { name: "advertiserIds", label: "Advertiser IDs", placeholder: "7300000000000000001", hint: "Comma-separated. TikTok Ads Manager → account menu → copy the ID under the account name." },
       { name: "accessToken", label: "Access token", secret: true, hint: "Long-term token from your TikTok for Business developer app (doesn't expire)." },
