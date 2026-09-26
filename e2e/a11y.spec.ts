@@ -70,6 +70,8 @@ async function audit(page: Page, label: string, width: number) {
 const APP_PAGES: [string, () => string][] = [
   ["overview", () => "/"],
   ["performance", () => "/performance?range=90d"],
+  ["model comparison", () => "/reports/models?range=90d"],
+  ["customer LTV", () => "/reports/ltv"],
   ["contacts", () => "/contacts?lifecycle=customer"],
   ["contact journey", () => contactPath],
   ["insights", () => "/insights"],
@@ -135,7 +137,7 @@ test("responsive: performance shows sortable cards on a phone and the table on a
   const sortBy = page.getByRole("combobox", { name: "Sort by" });
   await expect(sortBy).toHaveValue("spendMinor:-1");
 
-  const names = () => cards.locator("a > span > span:first-child").allInnerTexts();
+  const names = () => cards.locator("[data-slot=row-name]").allInnerTexts();
   await sortBy.selectOption({ label: "Name (A–Z)" });
   const byName = await names();
   expect(byName.length).toBeGreaterThan(1);
