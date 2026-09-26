@@ -95,7 +95,7 @@ export const recurlyConnector: RevenueConnector = {
     ],
     steps: [
       "In Recurly go to Integrations → Webhooks → Configure → New Endpoint and paste the webhook URL shown in AdLedger. Choose the XML format.",
-      "Set an HTTP Auth username and a long random password on the endpoint and paste both here. If your site currency is not USD, add `?currency=EUR` (your code) to the end of the URL, because Recurly's XML omits it.",
+      "Set an HTTP Auth username and a long random password on the endpoint and paste both here. The URL ends in `?currency=` with your reporting currency; change it to your Recurly site's currency code if that differs, because Recurly's XML omits it.",
       "Make sure the `Successful Payment`, `Successful Refund` and `Void Payment` notifications are enabled, then save.",
       "Buyers are matched to ad clicks by the account email, so use the same email in Recurly as in your signup form. Try it on your free Recurly sandbox site first.",
     ],

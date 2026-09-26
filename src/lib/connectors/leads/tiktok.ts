@@ -93,7 +93,7 @@ export const tiktokLeadsConnector: LeadConnector = {
     ],
     steps: [
       "Create an app at business-api.tiktok.com (My apps) with the Lead Generation / Ads Management scope and authorize your advertiser account.",
-      "Subscribe to leads: POST /open_api/v1.3/subscription/subscribe/ with `subscribe_entity` LEAD, your advertiser id and callback URL `/api/v1/webhooks/leads-native/tiktok_leads/<workspace id>` on your AdLedger address.",
+      "Subscribe to leads: POST /open_api/v1.3/subscription/subscribe/ with `subscribe_entity` LEAD, your advertiser id and the webhook URL shown in AdLedger (`/api/v1/webhooks/leads-native/tiktok_leads/<workspace id>`) as callback URL.",
       "Paste the app secret here and save.",
       "Test for free: in TikTok Ads Manager → Tools → Instant Form, use Preview → submit a test lead (or the Lead Generation sandbox) and check Contacts.",
     ],

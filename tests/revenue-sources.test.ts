@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webhookPathFor } from "@/lib/connectors/registry";
 import { REVENUE_CONNECTORS } from "@/lib/connectors/revenue/index";
 import { lemonSqueezyConnector } from "@/lib/connectors/revenue/lemonsqueezy";
 import { paddleConnector, verifyPaddleSignature } from "@/lib/connectors/revenue/paddle";
@@ -452,5 +453,23 @@ describe("PayPal", () => {
     expect(paypalVisitorId("7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9")).toBe("7e6d5c4b-3a29-4817-9605-f4e3d2c1b0a9");
     expect(paypalVisitorId('{"order":"42"}')).toBeNull();
     expect(paypalVisitorId(undefined)).toBeNull();
+  });
+});
+
+describe("webhook URLs shown in Settings", () => {
+  it("points each webhook source at its own route, with the query parameters it reads", () => {
+    const ws = "0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d";
+    expect(webhookPathFor("stripe", ws)).toBe(`/api/v1/webhooks/stripe/${ws}`);
+    expect(webhookPathFor("shopify", ws)).toBe(`/api/v1/webhooks/shopify/${ws}`);
+    expect(webhookPathFor("instamojo", ws)).toBe(`/api/v1/webhooks/instamojo/${ws}`);
+    expect(webhookPathFor("gumroad", ws)).toBe(`/api/v1/webhooks/gumroad/${ws}?token=YOUR_PING_TOKEN`);
+    expect(webhookPathFor("recurly", ws, { currency: "eur" })).toBe(`/api/v1/webhooks/recurly/${ws}?currency=EUR`);
+    expect(webhookPathFor("meta_leads", ws)).toBe(`/api/v1/webhooks/leads-native/meta_leads/${ws}`);
+    expect(webhookPathFor("tiktok_leads", ws)).toBe(`/api/v1/webhooks/leads-native/tiktok_leads/${ws}`);
+    expect(webhookPathFor("whatsapp", ws)).toBe(`/api/v1/webhooks/whatsapp/${ws}`);
+    expect(webhookPathFor("hubspot", ws)).toBe(`/api/v1/webhooks/crm/hubspot/${ws}`);
+    expect(webhookPathFor("pipedrive", ws)).toBe(`/api/v1/webhooks/crm/pipedrive/${ws}`);
+    expect(webhookPathFor("meta", ws)).toBeNull();
+    expect(webhookPathFor("lead_webhook", ws)).toBeNull();
   });
 });

@@ -79,7 +79,7 @@ export const gumroadConnector: RevenueConnector = {
       { name: "sellerId", label: "Seller ID", optional: true, hint: "Optional: your Gumroad seller_id; pings for any other seller are rejected." },
     ],
     steps: [
-      "Choose a long random Ping token and paste it here. Your ping URL is the webhook URL shown in AdLedger followed by `?token=<your token>`.",
+      "Choose a long random Ping token and paste it here. Your ping URL is the webhook URL shown in AdLedger with `YOUR_PING_TOKEN` replaced by that token.",
       "In Gumroad go to Settings → Advanced → Ping, paste that ping URL, save, and click `Send test ping to URL` to check it (it re-sends your latest sale).",
       "To also receive refunds, subscribe the same URL to the `refund` resource: `curl -X PUT https://api.gumroad.com/v2/resource_subscriptions -d access_token=… -d resource_name=refund -d post_url=<ping URL>`.",
       "To link buyers to ad clicks, add `?adledger_vid=<visitor id>` (from `adledger.getVisitorId()`) to your Gumroad product links; Gumroad passes it back in `url_params`.",

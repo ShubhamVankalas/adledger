@@ -143,6 +143,8 @@ export async function saveIntegrationAction(provider: string, form: FormData): P
     await audit(user, "integration.saved", provider);
     revalidatePath("/settings", "layout");
     if (meta.category === "notifications") return ok("Saved. Send a test message to check it.");
+    // Lead forms and WhatsApp are webhook-only: there is nothing to import.
+    if (meta.category === "leads") return ok("Saved. Send a test lead to check it.");
     // Import right away in the background; the status appears on the card.
     const wsId = user.workspace.id;
     void syncProvider(db, wsId, provider).then(() => undefined, () => undefined);

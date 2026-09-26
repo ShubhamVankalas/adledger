@@ -1,8 +1,9 @@
 import { NOTIFICATION_DRIVERS } from "../notify/channels";
 import { googleConnector, metaConnector } from "./ads";
 import { EXTRA_ADS_CONNECTORS } from "./ads/index";
-import { LEAD_CONNECTORS } from "./leads/index";
-import { whatsappIntegration } from "./leads-whatsapp";
+import { getCrmConnector } from "./crm/index";
+import { LEAD_CONNECTORS, getLeadConnector } from "./leads/index";
+import { WHATSAPP_PROVIDER, whatsappIntegration } from "./leads-whatsapp";
 import { REVENUE_CONNECTORS } from "./revenue/index";
 import { stripeIntegration } from "./stripe";
 import type { AdsConnector, IntegrationMeta, NotificationChannelDriver, RevenueConnector } from "./types";
@@ -18,6 +19,22 @@ export function getAdsConnector(provider: string): AdsConnector | undefined {
 
 export function getRevenueConnector(provider: string): RevenueConnector | undefined {
   return REVENUE_CONNECTORS.find((c) => c.meta.provider === provider);
+}
+
+/**
+ * Where a provider's webhooks arrive (path after the public origin), or null when it has none.
+ * Gumroad and Recurly read a query parameter (`token` / `currency`), so it is part of the URL shown.
+ */
+export function webhookPathFor(provider: string, workspaceId: string, opts: { currency?: string } = {}): string | null {
+  if (provider === "stripe") return `/api/v1/webhooks/stripe/${workspaceId}`;
+  if (provider === WHATSAPP_PROVIDER) return `/api/v1/webhooks/whatsapp/${workspaceId}`;
+  if (getLeadConnector(provider)) return `/api/v1/webhooks/leads-native/${provider}/${workspaceId}`;
+  if (getCrmConnector(provider)) return `/api/v1/webhooks/crm/${provider}/${workspaceId}`;
+  if (!getRevenueConnector(provider)) return null;
+  const path = `/api/v1/webhooks/${provider}/${workspaceId}`;
+  if (provider === "gumroad") return `${path}?token=YOUR_PING_TOKEN`;
+  if (provider === "recurly") return `${path}?currency=${(opts.currency || "USD").toUpperCase()}`;
+  return path;
 }
 
 export function getNotificationDriver(type: string): NotificationChannelDriver | undefined {

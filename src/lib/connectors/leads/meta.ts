@@ -145,7 +145,7 @@ export const metaLeadsConnector: LeadConnector = {
       { name: "apiVersion", label: "API version", placeholder: META_API_VERSION_DEFAULT, optional: true },
     ],
     steps: [
-      "In developers.facebook.com open (or create) your Business app → Webhooks → Page → Subscribe, with callback URL `/api/v1/webhooks/leads-native/meta_leads/<workspace id>` on your AdLedger address and the verify token you enter here; then subscribe to the `leadgen` field.",
+      "In developers.facebook.com open (or create) your Business app → Webhooks → Page → Subscribe, with the webhook URL shown in AdLedger (`/api/v1/webhooks/leads-native/meta_leads/<workspace id>`) as callback URL and the verify token you enter here; then subscribe to the `leadgen` field.",
       "Business Settings → System users → generate a token for your Page with `leads_retrieval`, `pages_manage_metadata` and `pages_show_list`, and subscribe the app to the Page (POST /{page-id}/subscribed_apps?subscribed_fields=leadgen).",
       "Paste the app secret, verify token and Page token here. In Meta Business Suite → Integrations → Leads access, make sure the app is allowed to read leads.",
       "Test for free with Meta's Lead Ads Testing Tool (developers.facebook.com/tools/lead-ads-testing): submit a test lead and it appears in Contacts within seconds.",

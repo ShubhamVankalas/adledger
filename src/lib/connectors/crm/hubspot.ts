@@ -249,7 +249,7 @@ export const hubspotConnector: CrmConnector = {
     steps: [
       "In HubSpot open Settings → Integrations → Private Apps (Development → Legacy apps on newer accounts), create an app with the scopes `crm.objects.deals.read` and `crm.objects.contacts.read`, and paste its access token here.",
       "Click Sync: deals marked Closed won in any pipeline from the last 90 days become revenue (amount, close date), linked to ad clicks through the associated contact's email. Deals later moved out of Closed won are not removed.",
-      "Optional, for instant updates: in the app's Webhooks tab set the target URL to the webhook URL shown in AdLedger with `crm/` added after `/webhooks/` (…/api/v1/webhooks/crm/hubspot/<workspace id>), subscribe to deal creation and `dealstage`/`amount`/`closedate` changes, and paste the app's client secret here.",
+      "Optional, for instant updates: in the app's Webhooks tab set the target URL to the webhook URL shown in AdLedger (…/api/v1/webhooks/crm/hubspot/<workspace id>), subscribe to deal creation and `dealstage`/`amount`/`closedate` changes, and paste the app's client secret here.",
       "To try it for free, use a free HubSpot CRM or developer test account: mark a test deal with a contact as Closed won, then sync.",
     ],
   },

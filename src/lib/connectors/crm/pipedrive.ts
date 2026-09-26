@@ -173,7 +173,7 @@ export const pipedriveConnector: CrmConnector = {
     steps: [
       "In Pipedrive open your profile → Personal preferences → API, copy your personal API token and paste it here with your company domain (the `yourcompany` in yourcompany.pipedrive.com).",
       "Click Sync: deals marked Won in the last 90 days become revenue (value, currency, won time), linked to ad clicks through the deal's person email. Deals later reopened or lost are not removed.",
-      "Optional, for instant updates: Tools and apps → Webhooks → Create new webhook for object `deal`, endpoint = the webhook URL shown in AdLedger with `crm/` added after `/webhooks/` (…/api/v1/webhooks/crm/pipedrive/<workspace id>), and an HTTP auth username and password that you also enter here.",
+      "Optional, for instant updates: Tools and apps → Webhooks → Create new webhook for object `deal`, endpoint = the webhook URL shown in AdLedger (…/api/v1/webhooks/crm/pipedrive/<workspace id>), and an HTTP auth username and password that you also enter here.",
       "To try it for free, use a Pipedrive free trial or a free developer sandbox account (developers.pipedrive.com): mark a test deal with a person as Won, then sync.",
     ],
   },

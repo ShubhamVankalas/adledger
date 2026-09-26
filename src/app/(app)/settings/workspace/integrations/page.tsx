@@ -3,7 +3,7 @@ import { IntegrationsCatalog, type IntegrationState } from "@/components/setting
 import { SettingsHeader } from "@/components/settings/section";
 import { requireUser } from "@/lib/auth";
 import { uploadStats } from "@/lib/capi";
-import { allIntegrations } from "@/lib/connectors/registry";
+import { allIntegrations, webhookPathFor } from "@/lib/connectors/registry";
 import { getDb, schema } from "@/lib/db";
 import { oauthConfigured } from "@/lib/oauth/flow";
 import { getConnection, secretKeysOf } from "@/lib/settings";
@@ -36,8 +36,7 @@ export default async function IntegrationsPage() {
       lastError: c?.lastError ?? null,
       lastRun: last ? { status: last.status, rows: last.rowsUpserted, at: last.startedAt.toISOString() } : null,
       uploads: uploadsFor(i.provider, c?.config ?? {}, uploads),
-      webhookUrl:
-        i.category === "revenue" ? (i.provider === "stripe" ? `${origin}/api/v1/webhooks/stripe/${ws.id}` : `${origin}/api/v1/webhooks/${i.provider}/${ws.id}`) : null,
+      webhookUrl: webhookUrl(origin, webhookPathFor(i.provider, ws.id, { currency: ws.reportingCurrency })),
       oauthReady: i.oauth ? oauthConfigured(i.provider) : false,
     };
   }
@@ -53,6 +52,8 @@ export default async function IntegrationsPage() {
     </>
   );
 }
+
+const webhookUrl = (origin: string, path: string | null) => (path ? `${origin}${path}` : null);
 
 /** Upload stats for the Meta / Google Ads dialogs, once uploads were switched on (or have history). */
 function uploadsFor(provider: string, config: Record<string, string>, stats: Awaited<ReturnType<typeof uploadStats>>): IntegrationState["uploads"] {

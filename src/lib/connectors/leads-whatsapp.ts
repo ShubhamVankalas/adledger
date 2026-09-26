@@ -139,7 +139,7 @@ export const whatsappIntegration: IntegrationMeta & { category: "leads" } = {
   steps: [
     "Create a Meta app with the WhatsApp product (developers.facebook.com → My Apps → Create App → Business). The free test number and up to 5 test recipients work without verification.",
     "Paste the app's App secret and a verify token of your choice here and save.",
-    "In the app go to WhatsApp → Configuration → Webhook → Edit: Callback URL `https://YOUR-ADLEDGER/api/v1/webhooks/whatsapp/<workspace id>` and the same verify token, then subscribe to the `messages` field.",
+    "In the app go to WhatsApp → Configuration → Webhook → Edit: Callback URL = the webhook URL shown in AdLedger (`/api/v1/webhooks/whatsapp/<workspace id>`) and the same verify token, then subscribe to the `messages` field.",
     "On your site, link chat buttons to `https://wa.me/<number>` (tagged automatically by the pixel) or call `adledger.whatsapp(\"<number>\", \"Hi!\")`. Each chat carries a code like `Ref: AL-7F3K9` that links it to the ad click.",
   ],
 };

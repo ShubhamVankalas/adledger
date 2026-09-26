@@ -82,7 +82,7 @@ export const googleLeadsConnector: LeadConnector = {
     steps: [
       "Choose a long random key, paste it here and save.",
       "In Google Ads open the lead form asset → Export leads from Google Ads → Other data integration options → Webhook integration.",
-      "Webhook URL: `/api/v1/webhooks/leads-native/google_ads_leads/<workspace id>` on your AdLedger address; Key: the same key as here.",
+      "Webhook URL: the webhook URL shown in AdLedger (`/api/v1/webhooks/leads-native/google_ads_leads/<workspace id>`); Key: the same key as here.",
       "Click Send test data — Google should report success (test leads are checked but not stored). Real leads then appear in Contacts, credited to the campaign.",
     ],
   },
