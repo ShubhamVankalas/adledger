@@ -1,0 +1,41 @@
+{
+  "total": 4,
+  "results": [
+    {
+      "id": "18234567003",
+      "properties": {
+        "amount": "999.99",
+        "closedate": "2026-09-22T08:45:00Z",
+        "createdate": "2026-09-15T08:00:00.000Z",
+        "deal_currency_code": null,
+        "dealname": "Solo consultant - Setup",
+        "dealstage": "closedwon",
+        "hs_is_closed_won": "true",
+        "hs_lastmodifieddate": "2026-09-22T08:45:12.302Z",
+        "hs_object_id": "18234567003",
+        "pipeline": "default"
+      },
+      "createdAt": "2026-09-15T08:00:00.000Z",
+      "updatedAt": "2026-09-22T08:45:12.302Z",
+      "archived": false
+    },
+    {
+      "id": "18234567004",
+      "properties": {
+        "amount": null,
+        "closedate": "2026-09-23T10:00:00Z",
+        "createdate": "2026-09-16T12:30:00.000Z",
+        "deal_currency_code": "USD",
+        "dealname": "Pilot (no amount yet)",
+        "dealstage": "closedwon",
+        "hs_is_closed_won": "true",
+        "hs_lastmodifieddate": "2026-09-23T10:00:05.000Z",
+        "hs_object_id": "18234567004",
+        "pipeline": "default"
+      },
+      "createdAt": "2026-09-16T12:30:00.000Z",
+      "updatedAt": "2026-09-23T10:00:05.000Z",
+      "archived": false
+    }
+  ]
+}

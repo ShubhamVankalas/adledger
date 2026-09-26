@@ -1,0 +1,43 @@
+{
+  "status": "COMPLETE",
+  "results": [
+    {
+      "id": "18234567001",
+      "properties": {
+        "amount": "4800",
+        "closedate": "2026-09-18T15:30:00Z",
+        "createdate": "2026-09-02T09:12:44.512Z",
+        "deal_currency_code": "USD",
+        "dealname": "Acme Corp - Annual plan",
+        "dealstage": "closedwon",
+        "hs_is_closed_won": "true",
+        "hs_lastmodifieddate": "2026-09-18T15:31:02.118Z",
+        "hs_object_id": "18234567001",
+        "pipeline": "default"
+      },
+      "createdAt": "2026-09-02T09:12:44.512Z",
+      "updatedAt": "2026-09-18T15:31:02.118Z",
+      "archived": false
+    },
+    {
+      "id": "18234567005",
+      "properties": {
+        "amount": "3000",
+        "closedate": "2026-10-15T00:00:00Z",
+        "createdate": "2026-09-18T15:32:00.000Z",
+        "deal_currency_code": "USD",
+        "dealname": "Acme Corp - Add-on seats",
+        "dealstage": "appointmentscheduled",
+        "hs_is_closed_won": "false",
+        "hs_lastmodifieddate": "2026-09-18T15:32:00.000Z",
+        "hs_object_id": "18234567005",
+        "pipeline": "default"
+      },
+      "createdAt": "2026-09-18T15:32:00.000Z",
+      "updatedAt": "2026-09-18T15:32:00.000Z",
+      "archived": false
+    }
+  ],
+  "startedAt": "2026-09-18T15:31:05.001Z",
+  "completedAt": "2026-09-18T15:31:05.040Z"
+}

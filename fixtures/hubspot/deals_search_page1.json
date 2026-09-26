@@ -1,0 +1,42 @@
+{
+  "total": 4,
+  "results": [
+    {
+      "id": "18234567001",
+      "properties": {
+        "amount": "4800",
+        "closedate": "2026-09-18T15:30:00Z",
+        "createdate": "2026-09-02T09:12:44.512Z",
+        "deal_currency_code": "USD",
+        "dealname": "Acme Corp - Annual plan",
+        "dealstage": "closedwon",
+        "hs_is_closed_won": "true",
+        "hs_lastmodifieddate": "2026-09-18T15:31:02.118Z",
+        "hs_object_id": "18234567001",
+        "pipeline": "default"
+      },
+      "createdAt": "2026-09-02T09:12:44.512Z",
+      "updatedAt": "2026-09-18T15:31:02.118Z",
+      "archived": false
+    },
+    {
+      "id": "18234567002",
+      "properties": {
+        "amount": "1250.50",
+        "closedate": "2026-09-20T11:00:00.000Z",
+        "createdate": "2026-09-10T14:03:10.004Z",
+        "deal_currency_code": "EUR",
+        "dealname": "Brightwave GmbH - Onboarding package",
+        "dealstage": "184512377",
+        "hs_is_closed_won": "true",
+        "hs_lastmodifieddate": "2026-09-20T11:00:41.771Z",
+        "hs_object_id": "18234567002",
+        "pipeline": "73421905"
+      },
+      "createdAt": "2026-09-10T14:03:10.004Z",
+      "updatedAt": "2026-09-20T11:00:41.771Z",
+      "archived": false
+    }
+  ],
+  "paging": { "next": { "after": "2", "link": "?after=2" } }
+}

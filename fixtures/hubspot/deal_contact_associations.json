@@ -1,0 +1,28 @@
+{
+  "status": "COMPLETE",
+  "results": [
+    {
+      "from": { "id": "18234567001" },
+      "to": [
+        { "toObjectId": 51001, "associationTypes": [{ "category": "HUBSPOT_DEFINED", "typeId": 3, "label": null }] },
+        { "toObjectId": 51002, "associationTypes": [{ "category": "HUBSPOT_DEFINED", "typeId": 3, "label": null }] }
+      ]
+    },
+    {
+      "from": { "id": "18234567002" },
+      "to": [{ "toObjectId": 51003, "associationTypes": [{ "category": "HUBSPOT_DEFINED", "typeId": 3, "label": null }] }]
+    }
+  ],
+  "numErrors": 1,
+  "errors": [
+    {
+      "status": "error",
+      "category": "OBJECT_NOT_FOUND",
+      "subCategory": "crm.associations.NO_ASSOCIATIONS_FOUND",
+      "message": "No contact is associated with deal 18234567003.",
+      "context": { "fromObjectId": ["18234567003"], "toObjectType": ["contact"] }
+    }
+  ],
+  "startedAt": "2026-09-27T06:00:01.102Z",
+  "completedAt": "2026-09-27T06:00:01.187Z"
+}

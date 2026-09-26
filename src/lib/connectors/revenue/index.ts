@@ -1,3 +1,4 @@
+import { CRM_CONNECTORS } from "../crm/index";
 import type { RevenueConnector } from "../types";
 import { lemonSqueezyConnector } from "./lemonsqueezy";
 import { paddleConnector } from "./paddle";
@@ -14,4 +15,5 @@ export const REVENUE_CONNECTORS: RevenueConnector[] = [
   lemonSqueezyConnector,
   razorpayConnector,
   paypalConnector,
+  ...CRM_CONNECTORS,
 ];

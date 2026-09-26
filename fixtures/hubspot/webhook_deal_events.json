@@ -1,0 +1,56 @@
+[
+  {
+    "eventId": 3912056781,
+    "subscriptionId": 2881234,
+    "portalId": 44561234,
+    "appId": 3345678,
+    "occurredAt": 1790350262118,
+    "subscriptionType": "deal.propertyChange",
+    "attemptNumber": 0,
+    "objectId": 18234567001,
+    "propertyName": "dealstage",
+    "propertyValue": "closedwon",
+    "changeSource": "CRM_UI",
+    "sourceId": "userId:81234567"
+  },
+  {
+    "eventId": 3912056782,
+    "subscriptionId": 2881230,
+    "portalId": 44561234,
+    "appId": 3345678,
+    "occurredAt": 1790350320000,
+    "subscriptionType": "deal.creation",
+    "attemptNumber": 0,
+    "objectId": 18234567005,
+    "changeFlag": "CREATED",
+    "changeSource": "CRM_UI",
+    "sourceId": "userId:81234567"
+  },
+  {
+    "eventId": 3912056783,
+    "subscriptionId": 2881240,
+    "portalId": 44561234,
+    "appId": 3345678,
+    "occurredAt": 1790350262200,
+    "subscriptionType": "contact.propertyChange",
+    "attemptNumber": 0,
+    "objectId": 51002,
+    "propertyName": "lifecyclestage",
+    "propertyValue": "customer",
+    "changeSource": "CRM_UI",
+    "sourceId": "userId:81234567"
+  },
+  {
+    "eventId": 3912056784,
+    "subscriptionId": 2881250,
+    "portalId": 44561234,
+    "appId": 3345678,
+    "occurredAt": 1790350400000,
+    "subscriptionType": "deal.deletion",
+    "attemptNumber": 0,
+    "objectId": 18234567009,
+    "changeFlag": "DELETED",
+    "changeSource": "CRM_UI",
+    "sourceId": "userId:81234567"
+  }
+]
