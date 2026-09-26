@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     // Plain browser/PHP-plugin scripts for other platforms (ES5-style on purpose).
     "integrations/**",
     ".data/**",
+    // Agent worktrees (full checkouts of other branches).
+    ".claude/**",
   ]),
 ]);
 

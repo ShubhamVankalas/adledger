@@ -128,7 +128,7 @@ describe("OpenAPI contract", () => {
   });
 
   it("/api/mcp rejects anonymous calls and answers GET/DELETE with 405 (stateless)", async () => {
-    const anon = await mcpRoute(new Request("http://localhost/api/mcp", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }));
+    const anon = await mcpRoute(new Request("http://localhost/api/mcp", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }), {});
     expect(anon.status).toBe(401);
     const ws = { id: "00000000-0000-0000-0000-000000000000", reportingCurrency: "USD", timezone: "UTC" } as Workspace;
     for (const method of ["GET", "DELETE"]) {
