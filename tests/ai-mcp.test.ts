@@ -170,6 +170,23 @@ describe("MCP server", () => {
     expect(text).not.toContain("SUPERSECRETVALUE");
     expect(text).not.toContain("demoAnchor");
   });
+
+  it("masks tokens and emails in sync errors shown to agents", async () => {
+    const leaky = "GET https://graph.facebook.com/v21.0/act_1/insights?fields=spend&access_token=EAAGleaky123 failed for ops@acme.io (Authorization: Bearer sk_live_abc)";
+    await db.execute(sql`update connections set last_error = ${leaky} where workspace_id = ${ws.id} and provider = 'stripe'`);
+    try {
+      for (const tool of ["list_integrations", "get_sync_status"]) {
+        const out = (await callTool(ws, tool)).result.content[0].text as string;
+        expect(out, tool).toContain("access_token=***");
+        expect(out, tool).not.toContain("EAAGleaky123");
+        expect(out, tool).not.toContain("ops@acme.io");
+        expect(out, tool).not.toContain("sk_live_abc");
+      }
+      expect((await callTool(ws, "list_integrations")).result.content[0].text).toMatch(/\(stripe, revenue\) · \w+ · health error/);
+    } finally {
+      await db.execute(sql`update connections set last_error = null where workspace_id = ${ws.id} and provider = 'stripe'`);
+    }
+  });
 });
 
 describe("fuzzyScore", () => {
@@ -187,5 +204,19 @@ describe("fuzzyScore", () => {
     expect(typo).toBeLessThan(prefix);
     expect(fuzzyScore("winter", name)).toBe(0);
     expect(fuzzyScore("", name)).toBe(0);
+  });
+
+  it("does not match every name on one or two letters", () => {
+    expect(fuzzyScore("a", "Brand Awareness – Video Views")).toBeGreaterThan(0); // word start
+    expect(fuzzyScore("a", "Search – Brand")).toBe(0);
+    expect(fuzzyScore("ar", "Search – Brand")).toBe(0);
+    expect(fuzzyScore("arch", "Search – Brand")).toBe(80);
+  });
+
+  it("works for non-Latin campaign names and ignores accents", () => {
+    expect(fuzzyScore("दिवाली", "दिवाली सेल 2026")).toBe(90);
+    expect(fuzzyScore("сейл", "Осенний Сейл")).toBe(80);
+    expect(fuzzyScore("xyz", "दिवाली सेल")).toBe(0);
+    expect(fuzzyScore("cafe", "Café Crème – Retargeting")).toBe(90);
   });
 });

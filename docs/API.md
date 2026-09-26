@@ -29,7 +29,9 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | POST | [`/api/v1/webhooks/leads/{token}`](#post-apiv1webhooksleadstoken) | Form lead webhook | public |
 | POST | [`/api/v1/webhooks/stripe/{workspaceId}`](#post-apiv1webhooksstripeworkspaceid) | Stripe webhook | public |
 | POST | [`/api/v1/webhooks/{provider}/{workspaceId}`](#post-apiv1webhooksproviderworkspaceid) | Revenue platform webhook | public |
+| GET | [`/api/mcp`](#get-apimcp) | MCP event stream (not supported) | API key |
 | POST | [`/api/mcp`](#post-apimcp) | MCP endpoint (Streamable HTTP) | API key |
+| DELETE | [`/api/mcp`](#delete-apimcp) | End an MCP session (not supported) | API key |
 
 ## Reports
 
@@ -264,9 +266,20 @@ Request body: `application/json`: object
 
 Model Context Protocol endpoint for AI agents (read-only tools).
 
+### GET /api/mcp
+
+**MCP event stream (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Status | Response |
+|---|---|
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 405 | The server is stateless, so there is no server-initiated event stream (GET) or session to end (DELETE). — `application/json`: object |
+
 ### POST /api/mcp
 
-**MCP endpoint (Streamable HTTP).** Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. `GET` and `DELETE` are also accepted per the transport spec.
+**MCP endpoint (Streamable HTTP).** Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -276,6 +289,17 @@ Request body: `application/json`: object
 |---|---|
 | 200 | JSON-RPC response (JSON or a single server-sent event). — `application/json`: object · `text/event-stream`: string |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+
+### DELETE /api/mcp
+
+**End an MCP session (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Status | Response |
+|---|---|
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 405 | The server is stateless, so there is no server-initiated event stream (GET) or session to end (DELETE). — `application/json`: object |
 
 ## System
 

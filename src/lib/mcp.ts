@@ -65,13 +65,24 @@ const DAY_MS = 86_400_000;
 const MAX_SERIES_DAYS = 400;
 const STALE_AFTER_MS = 48 * 3_600_000;
 
+// Strips Latin accents (é → e) but keeps letters of every script, so names like
+// "दिवाली सेल" or "Распродажа" stay searchable.
 const normalize = (s: string) =>
   s
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, " ")
     .trim();
+
+/** Error text safe to show an agent: credentials in URLs/headers and emails are masked. */
+function scrubError(message: string): string {
+  const masked = message
+    .replace(/\b(access_token|refresh_token|token|api_?key|key|secret|client_secret|password|signature|sig)=([^&\s"']+)/gi, "$1=***")
+    .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/g, "$1 ***")
+    .replace(/[^\s@<>()[\]\\,;:"']+@[^\s@<>()[\]\\,;:"']+\.[a-z]{2,}/gi, "[email]");
+  return masked.replace(/\s+/g, " ").slice(0, 160);
+}
 
 /** Levenshtein distance, giving up (returns max + 1) once it exceeds `max`. */
 function editDistance(a: string, b: string, max: number): number {
@@ -100,7 +111,10 @@ export function fuzzyScore(query: string, name: string): number {
   const n = normalize(name);
   if (!q || !n) return 0;
   if (q === n) return 100;
-  if (n.includes(q)) return n.startsWith(q) ? 90 : 80;
+  // Whole-phrase hit: at a word start, or mid-word only for 4+ characters (so "a" or "me"
+  // don't match every name containing those letters).
+  if (n.startsWith(q)) return 90;
+  if (` ${n}`.includes(` ${q}`) || (q.length >= 4 && n.includes(q))) return 80;
   const words = n.split(" ");
   const tokens = q.split(" ");
   let points = 0;
@@ -324,7 +338,18 @@ export function buildMcpHandler(ws: Workspace) {
         async () => {
           const db = await getDb();
           const s = await syncStatus(db, ws);
-          return text(JSON.stringify(s, null, 2));
+          const scrub = (v: unknown) => (typeof v === "string" && v ? scrubError(v) : v);
+          return text(
+            JSON.stringify(
+              {
+                ...s,
+                connections: s.connections.map((c) => ({ ...c, last_error: scrub(c.last_error) })),
+                recentRuns: s.recentRuns.map((r) => ({ ...r, error: scrub(r.error) })),
+              },
+              null,
+              2,
+            ),
+          );
         },
       );
 
@@ -402,7 +427,7 @@ export function buildMcpHandler(ws: Workspace) {
               `health ${connectionHealth(c, syncs, now)}`,
               ...(syncs ? [`last synced ${iso(c.lastSyncedAt)}`] : []),
               ...(run ? [`last run ${run.status} at ${iso(run.started_at)} (${Number(run.rows_upserted ?? 0)} rows)`] : []),
-              ...(c.lastError ? [`last error: ${c.lastError.replace(/\s+/g, " ").slice(0, 160)}`] : []),
+              ...(c.lastError ? [`last error: ${scrubError(c.lastError)}`] : []),
             ].join(" · ");
           });
           return text(

@@ -942,13 +942,29 @@
       }
     },
     "/api/mcp": {
+      "get": {
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpGet",
+        "summary": "MCP event stream (not supported)",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/McpMethodNotAllowed"
+          }
+        }
+      },
       "post": {
         "tags": [
           "MCP"
         ],
         "operationId": "mcp",
         "summary": "MCP endpoint (Streamable HTTP)",
-        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. `GET` and `DELETE` are also accepted per the transport spec.",
+        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.",
         "requestBody": {
           "required": true,
           "content": {
@@ -978,6 +994,22 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "MCP"
+        ],
+        "operationId": "mcpDelete",
+        "summary": "End an MCP session (not supported)",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "responses": {
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "405": {
+            "$ref": "#/components/responses/McpMethodNotAllowed"
           }
         }
       }
@@ -1065,6 +1097,17 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "McpMethodNotAllowed": {
+        "description": "The server is stateless, so there is no server-initiated event stream (GET) or session to end (DELETE).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "description": "JSON-RPC 2.0 error, code -32000 \"Method not allowed.\""
             }
           }
         }

@@ -1,14 +1,20 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { POST as mcpRoute } from "@/app/api/mcp/route";
 import { GET as openapiRoute } from "@/app/api/v1/openapi.json/route";
+import { AD_PLATFORMS } from "@/lib/connectors/types";
+import { REVENUE_CONNECTORS } from "@/lib/connectors/revenue";
+import { buildMcpHandler } from "@/lib/mcp";
+import type { Workspace } from "@/lib/settings";
 import { loadSpec, renderApiDocs } from "../scripts/api-docs";
 
-// Contract: public/openapi.json documents exactly the routes under src/app/api/v1,
-// with the same HTTP methods, and docs/API.md covers every operation.
+// Contract: public/openapi.json documents exactly the routes under src/app/api/v1 and
+// /api/mcp, with the same HTTP methods, and docs/API.md covers every operation.
 
 const ROOT = path.resolve(__dirname, "..");
 const API_DIR = path.join(ROOT, "src/app/api/v1");
+const MCP_ROUTE = path.join(ROOT, "src/app/api/mcp/route.ts");
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"] as const;
 
 type Spec = {
@@ -44,7 +50,16 @@ function exportedMethods(file: string): string[] {
   return [...found].filter((m) => (METHODS as readonly string[]).includes(m)).map((m) => m.toLowerCase()).sort();
 }
 
-const routes = routeFiles(API_DIR).map((f) => ({ file: f, path: toOpenApiPath(f), methods: exportedMethods(f) }));
+const routes = [
+  ...routeFiles(API_DIR).map((f) => ({ file: f, path: toOpenApiPath(f), methods: exportedMethods(f) })),
+  { file: MCP_ROUTE, path: "/api/mcp", methods: exportedMethods(MCP_ROUTE) },
+];
+
+/** Enum of a path parameter as documented in the spec. */
+function pathEnum(p: string, method: string, name: string): unknown[] | undefined {
+  const param = spec.paths[p]?.[method]?.parameters?.find((x) => x.name === name && x.in === "path") as { schema?: { enum?: unknown[] } } | undefined;
+  return param?.schema?.enum;
+}
 
 describe("OpenAPI contract", () => {
   it("is an OpenAPI 3.1 document with bearer auth", () => {
@@ -63,9 +78,9 @@ describe("OpenAPI contract", () => {
     expect(Object.keys(spec.paths[p]).sort()).toEqual(r.methods);
   });
 
-  it("documents no /api/v1 path that doesn't exist", () => {
+  it("documents no path that doesn't exist", () => {
     const real = new Set(routes.map((r) => r.path));
-    const documented = Object.keys(spec.paths).filter((p) => p.startsWith("/api/v1/"));
+    const documented = Object.keys(spec.paths);
     expect(documented.filter((p) => !real.has(p))).toEqual([]);
   });
 
@@ -98,6 +113,30 @@ describe("OpenAPI contract", () => {
     expect(md).toBe(renderApiDocs(loadSpec(ROOT)));
     for (const [p, ops] of Object.entries(spec.paths)) {
       for (const method of Object.keys(ops)) expect(md, `${method.toUpperCase()} ${p}`).toContain(`### ${method.toUpperCase()} ${p}`);
+    }
+  });
+
+  it("keeps its enums in sync with the code", () => {
+    const schemas = spec.components.schemas as Record<string, { enum?: unknown[] }>;
+    expect(schemas.Platform.enum).toEqual([...AD_PLATFORMS]);
+    expect(pathEnum("/api/v1/webhooks/{provider}/{workspaceId}", "post", "provider")).toEqual(REVENUE_CONNECTORS.map((c) => c.meta.provider));
+    // The sync route hard-codes its providers; keep this list and the spec in step with it.
+    const syncSrc = readFileSync(path.join(API_DIR, "sync/[provider]/route.ts"), "utf8");
+    const accepted = [...syncSrc.matchAll(/provider !== "([a-z_]+)"/g)].map((m) => m[1]);
+    expect(accepted.length).toBeGreaterThan(0);
+    expect(pathEnum("/api/v1/sync/{provider}", "post", "provider")).toEqual(accepted);
+  });
+
+  it("/api/mcp rejects anonymous calls and answers GET/DELETE with 405 (stateless)", async () => {
+    const anon = await mcpRoute(new Request("http://localhost/api/mcp", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }));
+    expect(anon.status).toBe(401);
+    const ws = { id: "00000000-0000-0000-0000-000000000000", reportingCurrency: "USD", timezone: "UTC" } as Workspace;
+    for (const method of ["GET", "DELETE"]) {
+      const res = await buildMcpHandler(ws)(
+        new Request("http://localhost/api/mcp", { method, headers: { accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" } }),
+      );
+      expect(res.status, method).toBe(405);
+      expect(Object.keys(spec.paths["/api/mcp"][method.toLowerCase()].responses)).toContain("405");
     }
   });
 
