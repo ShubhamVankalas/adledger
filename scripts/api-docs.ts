@@ -88,9 +88,10 @@ export function renderApiDocs(spec: Spec): string {
     "| Method | Path | Summary | Auth |",
     "|---|---|---|---|",
   ];
+  const sessionOnly = (op: { security?: unknown[] }) => JSON.stringify(op.security ?? []).includes("sessionCookie") && !JSON.stringify(op.security).includes("bearerAuth");
   const ops = Object.entries(spec.paths).flatMap(([p, methods]) => Object.entries(methods).map(([m, op]) => ({ p, m: m.toUpperCase(), op })));
   for (const { p, m, op } of ops) {
-    out.push(`| ${m} | [\`${p}\`](#${anchor(`${m} ${p}`)}) | ${cell(op.summary)} | ${op.security?.length === 0 ? "public" : "API key"} |`);
+    out.push(`| ${m} | [\`${p}\`](#${anchor(`${m} ${p}`)}) | ${cell(op.summary)} | ${op.security?.length === 0 ? "public" : sessionOnly(op) ? "session" : "API key"} |`);
   }
 
   for (const tag of spec.tags) {
@@ -99,7 +100,13 @@ export function renderApiDocs(spec: Spec): string {
     out.push("", `## ${tag.name}`, "", tag.description);
     for (const { p, m, op } of tagged) {
       out.push("", `### ${m} ${p}`, "", `**${op.summary}.** ${op.description ?? ""}`.trim(), "");
-      out.push(op.security?.length === 0 ? "Auth: none (public endpoint)." : "Auth: `Authorization: Bearer al_...` (or a dashboard session).");
+      out.push(
+        op.security?.length === 0
+          ? "Auth: none (public endpoint)."
+          : sessionOnly(op)
+            ? "Auth: dashboard session only (API keys are refused)."
+            : "Auth: `Authorization: Bearer al_...` (or a dashboard session).",
+      );
       if (op.parameters?.length) {
         out.push("", "| Parameter | In | Type | Required | Description |", "|---|---|---|---|---|");
         for (const x of op.parameters) out.push(`| \`${x.name}\` | ${x.in} | ${cell(typeOf(x.schema))} | ${x.required ? "yes" : "no"} | ${cell(notes({ ...x.schema, description: x.description }))} |`);

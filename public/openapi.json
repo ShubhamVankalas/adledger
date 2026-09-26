@@ -34,6 +34,10 @@
       "description": "Leads, customers and their journeys (read-only)."
     },
     {
+      "name": "Privacy",
+      "description": "Erasure and data exports (GDPR / CCPA)."
+    },
+    {
       "name": "Ingestion",
       "description": "Push spend, conversions and pixel events into AdLedger."
     },
@@ -52,6 +56,10 @@
     {
       "name": "System",
       "description": "Health and API description."
+    },
+    {
+      "name": "Connect",
+      "description": "One-click OAuth connect for ad platforms (browser flow, dashboard session)."
     }
   ],
   "paths": {
@@ -118,7 +126,7 @@
         ],
         "operationId": "getReport",
         "summary": "Run a report",
-        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length.",
+        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform.",
         "parameters": [
           {
             "name": "report",
@@ -133,7 +141,9 @@
                 "timeseries",
                 "channels",
                 "wasted-spend",
-                "compare"
+                "compare",
+                "model-comparison",
+                "ltv"
               ]
             }
           },
@@ -350,6 +360,220 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/{id}": {
+      "delete": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "eraseContact",
+        "summary": "Erase a contact",
+        "description": "Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key, or a dashboard session with `workspace.data` (owners and admins).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Contact id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What was removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "leads": {
+                      "type": "integer"
+                    },
+                    "visitors": {
+                      "type": "integer"
+                    },
+                    "revenueEvents": {
+                      "type": "integer"
+                    },
+                    "eventsScrubbed": {
+                      "type": "integer"
+                    },
+                    "touchpointsScrubbed": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "deleted",
+                    "id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/contacts/{id}/export": {
+      "get": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "exportContact",
+        "summary": "Export a contact",
+        "description": "Subject-access request: everything stored about one contact, as a JSON download. API key, or a dashboard session with `reports.export`.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Contact id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON document (attachment).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/contacts": {
+      "get": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "exportContactsCsv",
+        "summary": "Export contacts as CSV",
+        "description": "The Contacts list (optionally filtered) as a streamed CSV download. API key, or a dashboard session with `reports.export`.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Search text (name, email, company).",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "lifecycle",
+            "in": "query",
+            "required": false,
+            "description": "Only leads or only customers.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lead",
+                "customer"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/workspace": {
+      "get": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "exportWorkspace",
+        "summary": "Export the whole workspace",
+        "description": "Every row this workspace owns as one streamed JSON document (credentials omitted). Dashboard session only, with `workspace.data` (owners and admins); API keys get 403.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON document (attachment).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -1013,6 +1237,113 @@
           }
         }
       }
+    },
+    "/api/v1/oauth/{provider}/start": {
+      "get": {
+        "tags": [
+          "Connect"
+        ],
+        "operationId": "startOAuth",
+        "summary": "Start one-click connect",
+        "description": "Browser only. Needs a dashboard session with `workspace.settings` and the platform OAuth app env vars; sets a signed state cookie and redirects to the platform consent screen.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Ad platform.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta",
+                "google_ads",
+                "tiktok_ads",
+                "linkedin_ads"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the platform consent screen, the account picker or the connect page with an error."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/{provider}/callback": {
+      "get": {
+        "tags": [
+          "Connect"
+        ],
+        "operationId": "oauthCallback",
+        "summary": "One-click connect callback",
+        "description": "The platform redirects here after consent. Verifies the state cookie, exchanges the code for tokens (kept in an encrypted short-lived cookie, never in URLs) and redirects to the account picker.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Ad platform.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta",
+                "google_ads",
+                "tiktok_ads",
+                "linkedin_ads"
+              ]
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "description": "Authorization code (TikTok: `auth_code`).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "State echoed by the platform.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "description": "Set when the user declined.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the platform consent screen, the account picker or the connect page with an error."
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1108,6 +1439,16 @@
             "schema": {
               "type": "object",
               "description": "JSON-RPC 2.0 error, code -32000 \"Method not allowed.\""
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The session role lacks the permission, or the request is cross-site.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
             }
           }
         }
@@ -1268,6 +1609,11 @@
               },
               {
                 "$ref": "#/components/schemas/Comparison"
+              },
+              {
+                "type": "object",
+                "description": "`model-comparison` and `ltv` reports.",
+                "additionalProperties": true
               }
             ]
           }

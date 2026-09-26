@@ -20,6 +20,10 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/reports/{report}`](#get-apiv1reportsreport) | Run a report | API key |
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
+| DELETE | [`/api/v1/contacts/{id}`](#delete-apiv1contactsid) | Erase a contact | API key |
+| GET | [`/api/v1/contacts/{id}/export`](#get-apiv1contactsidexport) | Export a contact | API key |
+| GET | [`/api/v1/exports/contacts`](#get-apiv1exportscontacts) | Export contacts as CSV | API key |
+| GET | [`/api/v1/exports/workspace`](#get-apiv1exportsworkspace) | Export the whole workspace | session |
 | POST | [`/api/v1/sync/{provider}`](#post-apiv1syncprovider) | Sync a connector now | API key |
 | POST | [`/api/v1/spend`](#post-apiv1spend) | Push ad spend | API key |
 | POST | [`/api/v1/conversions`](#post-apiv1conversions) | Push payments, refunds and leads | API key |
@@ -32,6 +36,8 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/mcp`](#get-apimcp) | MCP event stream (not supported) | API key |
 | POST | [`/api/mcp`](#post-apimcp) | MCP endpoint (Streamable HTTP) | API key |
 | DELETE | [`/api/mcp`](#delete-apimcp) | End an MCP session (not supported) | API key |
+| GET | [`/api/v1/oauth/{provider}/start`](#get-apiv1oauthproviderstart) | Start one-click connect | session |
+| GET | [`/api/v1/oauth/{provider}/callback`](#get-apiv1oauthprovidercallback) | One-click connect callback | session |
 
 ## Reports
 
@@ -39,13 +45,13 @@ Attribution reports (read-only).
 
 ### GET /api/v1/reports/{report}
 
-**Run a report.** `overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length.
+**Run a report.** `overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 | Parameter | In | Type | Required | Description |
 |---|---|---|---|---|
-| `report` | path | `overview`, `performance`, `timeseries`, `channels`, `wasted-spend`, `compare` | yes | Which report. |
+| `report` | path | `overview`, `performance`, `timeseries`, `channels`, `wasted-spend`, `compare`, `model-comparison`, `ltv` | yes | Which report. |
 | `start` | query | [Date](#date) | yes | First day, YYYY-MM-DD (workspace timezone). |
 | `end` | query | [Date](#date) | yes | Last day, inclusive, YYYY-MM-DD. |
 | `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"last_touch"`) |
@@ -98,6 +104,77 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 200 | The journey. — `application/json`: [Journey](#journey) |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+
+## Privacy
+
+Erasure and data exports (GDPR / CCPA).
+
+### DELETE /api/v1/contacts/{id}
+
+**Erase a contact.** Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key, or a dashboard session with `workspace.data` (owners and admins).
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `id` | path | string (uuid) | yes | Contact id. |
+
+| Status | Response |
+|---|---|
+| 200 | What was removed. — `application/json`: object |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### GET /api/v1/contacts/{id}/export
+
+**Export a contact.** Subject-access request: everything stored about one contact, as a JSON download. API key, or a dashboard session with `reports.export`.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `id` | path | string (uuid) | yes | Contact id. |
+
+| Status | Response |
+|---|---|
+| 200 | JSON document (attachment). — `application/json`: object |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### GET /api/v1/exports/contacts
+
+**Export contacts as CSV.** The Contacts list (optionally filtered) as a streamed CSV download. API key, or a dashboard session with `reports.export`.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `q` | query | string | no | Search text (name, email, company). (max length 200) |
+| `lifecycle` | query | `lead`, `customer` | no | Only leads or only customers. |
+
+| Status | Response |
+|---|---|
+| 200 | CSV file. — `text/csv`: string |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### GET /api/v1/exports/workspace
+
+**Export the whole workspace.** Every row this workspace owns as one streamed JSON document (credentials omitted). Dashboard session only, with `workspace.data` (owners and admins); API keys get 403.
+
+Auth: dashboard session only (API keys are refused).
+
+| Status | Response |
+|---|---|
+| 200 | JSON document (attachment). — `application/json`: object |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
 ## Ingestion
 
@@ -326,6 +403,43 @@ Auth: none (public endpoint).
 |---|---|
 | 200 | The API description. — `application/json`: object |
 
+## Connect
+
+One-click OAuth connect for ad platforms (browser flow, dashboard session).
+
+### GET /api/v1/oauth/{provider}/start
+
+**Start one-click connect.** Browser only. Needs a dashboard session with `workspace.settings` and the platform OAuth app env vars; sets a signed state cookie and redirects to the platform consent screen.
+
+Auth: dashboard session only (API keys are refused).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `provider` | path | `meta`, `google_ads`, `tiktok_ads`, `linkedin_ads` | yes | Ad platform. |
+
+| Status | Response |
+|---|---|
+| 302 | Redirect to the platform consent screen, the account picker or the connect page with an error. |
+| 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/oauth/{provider}/callback
+
+**One-click connect callback.** The platform redirects here after consent. Verifies the state cookie, exchanges the code for tokens (kept in an encrypted short-lived cookie, never in URLs) and redirects to the account picker.
+
+Auth: dashboard session only (API keys are refused).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `provider` | path | `meta`, `google_ads`, `tiktok_ads`, `linkedin_ads` | yes | Ad platform. |
+| `code` | query | string | no | Authorization code (TikTok: `auth_code`). |
+| `state` | query | string | no | State echoed by the platform. |
+| `error` | query | string | no | Set when the user declined. |
+
+| Status | Response |
+|---|---|
+| 302 | Redirect to the platform consent screen, the account picker or the connect page with an error. |
+| 404 | Not found. — `application/json`: [Error](#error) |
+
 ## Schemas
 
 Fields ending in `Minor` are integers in minor currency units (e.g. cents).
@@ -374,7 +488,7 @@ string — Calendar date.
 | `model` | [AttributionModel](#attributionmodel) | yes |  |
 | `currency` | string | yes | ISO 4217 reporting currency; every *Minor value is in this currency. |
 | `timezone` | string | yes | Workspace IANA timezone the dates refer to. |
-| `data` | [Overview](#overview) or [PerformanceRow](#performancerow)[] or [SeriesPoint](#seriespoint)[] or [ChannelRow](#channelrow)[] or [Comparison](#comparison) | yes | Shape depends on `report`. |
+| `data` | [Overview](#overview) or [PerformanceRow](#performancerow)[] or [SeriesPoint](#seriespoint)[] or [ChannelRow](#channelrow)[] or [Comparison](#comparison) or object | yes | Shape depends on `report`. |
 
 ### Overview
 
