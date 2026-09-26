@@ -136,6 +136,9 @@ export const ICON_FOR: Record<string, string> = {
   openrouter: "openrouter",
   deepseek: "deepseek",
   phonepe: "phonepe",
+  meta_leads: "meta",
+  google_ads_leads: "googleads",
+  tiktok_leads: "tiktok",
 };
 
 function luminance(hex: string) {
