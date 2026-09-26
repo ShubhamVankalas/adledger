@@ -45,12 +45,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   if (!valid) return json({ error: "invalid signature" }, 401);
 
   try {
-    // Most sources post JSON; Gumroad (form) and Recurly (XML) parse `request.rawBody` themselves.
+    // JSON bodies are parsed; a urlencoded body (Instamojo, Gumroad) becomes a field object, even when
+    // the content-type is missing or generic. Non-JSON sources (Instamojo, Gumroad, Recurly XML) read
+    // `request.rawBody` themselves, so a body that fails to parse is passed through as-is.
+    const ct = req.headers.get("content-type") ?? "";
+    const trimmed = rawBody.trimStart();
     let payload: unknown = {};
-    try {
-      payload = rawBody ? JSON.parse(rawBody) : {};
-    } catch {
-      payload = rawBody;
+    if (!trimmed) {
+      // Empty body: nothing to parse.
+    } else if (/application\/x-www-form-urlencoded/i.test(ct) || !/^[[{<]/.test(trimmed)) {
+      payload = Object.fromEntries(new URLSearchParams(rawBody));
+    } else {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        payload = rawBody;
+      }
     }
     const events = connector.parseWebhook(payload, request);
     const stored = events.length ? await ingestRevenue(db, ws.id, connector.source, events) : 0;
