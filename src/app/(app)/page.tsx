@@ -182,7 +182,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                 <Link
                   key={t.id}
                   href={`/performance?level=ad_group&parent=${t.id}&range=${p.range}&model=${p.model}${p.range === "custom" ? `&from=${p.start}&to=${p.end}` : ""}`}
-                  className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem]"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_9rem]"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <PlatformBadge platform={t.platform} />

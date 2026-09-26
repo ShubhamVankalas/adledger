@@ -18,9 +18,11 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", testIgnore: /a11y\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    { name: "chromium", testIgnore: /(a11y|mobile)\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
     // Runs after the smoke journey (which creates the account) and reuses its database.
     { name: "a11y", testMatch: /a11y\.spec\.ts/, dependencies: ["chromium"], use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // Phone layout; runs after the desktop journey, which creates the demo workspace.
+    { name: "mobile", testMatch: /mobile\.spec\.ts/, dependencies: ["chromium"], use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {
     command: "node scripts/e2e-server.mjs",

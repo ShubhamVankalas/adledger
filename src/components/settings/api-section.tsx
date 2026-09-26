@@ -78,7 +78,7 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
             <CopyField value={mcpUrl} />
           </div>
           <Tabs defaultValue="code">
-            <TabsList>
+            <TabsList className="max-w-full justify-start overflow-x-auto">
               <TabsTrigger value="code">Claude Code</TabsTrigger>
               <TabsTrigger value="desktop">Claude Desktop</TabsTrigger>
               <TabsTrigger value="cursor">Cursor</TabsTrigger>
