@@ -65,8 +65,8 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
         ))}
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          <KpiCard label="Ad spend" value={moneyKpi(cur.spendMinor, c)} delta={delta(cur.spendMinor, prev.spendMinor)} goodWhenUp={null} icon={MegaphoneIcon} sub="vs previous period" />
-          <KpiCard label="Revenue" value={moneyKpi(cur.revenueMinor, c)} delta={delta(cur.revenueMinor, prev.revenueMinor)} icon={CoinsIcon} sub={`${money(cur.attributedRevenueMinor, c, true)} from ads`} />
+          <KpiCard label="Ad spend" value={moneyKpi(cur.spendMinor, c)} delta={delta(cur.spendMinor, prev.spendMinor)} goodWhenUp={null} icon={MegaphoneIcon} sub="vs prev. period" />
+          <KpiCard label="Revenue" value={moneyKpi(cur.revenueMinor, c)} delta={delta(cur.revenueMinor, prev.revenueMinor)} icon={CoinsIcon} sub={`${money(cur.attributedRevenueMinor, c, true)} ads`} />
           <KpiCard
             accent
             label="ROAS"
@@ -76,8 +76,8 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
             sub={`blended ${roas(cur.blendedRoas)}`}
             hint="Revenue attributed to ads ÷ ad spend, using the selected attribution model. Blended = all revenue ÷ ad spend."
           />
-          <KpiCard label="Leads" value={num(cur.leads)} delta={delta(cur.leads, prev.leads)} icon={UserPlusIcon} sub={`CPL ${money(cur.cplMinor, c)}`} />
-          <KpiCard label="Customers" value={num(cur.customers)} delta={delta(cur.customers, prev.customers)} icon={HandCoinsIcon} sub={`CAC ${money(cur.cacMinor, c)}`} />
+          <KpiCard label="Leads" value={num(cur.leads)} delta={delta(cur.leads, prev.leads)} icon={UserPlusIcon} sub={`CPL ${moneyKpi(cur.cplMinor, c)}`} />
+          <KpiCard label="Customers" value={num(cur.customers)} delta={delta(cur.customers, prev.customers)} icon={HandCoinsIcon} sub={`CAC ${moneyKpi(cur.cacMinor, c)}`} />
           <KpiCard
             label="Unattributed"
             value={pct(cur.unattributedShare)}

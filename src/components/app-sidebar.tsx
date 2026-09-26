@@ -21,6 +21,7 @@ import { LogoMark } from "@/components/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -49,10 +50,17 @@ const NAV = [
   { href: "/insights", label: "AI insights", icon: SparklesIcon },
 ];
 
-export function AppSidebar({ user, workspace }: { user: { email: string; name: string | null }; workspace: { name: string; isDemo: boolean } }) {
+export function AppSidebar({
+  user,
+  workspace,
+}: {
+  user: { email: string; name: string | null };
+  workspace: { name: string; isDemo: boolean };
+}) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const active = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
   const initials = (user.name || user.email).slice(0, 2).toUpperCase();
 
   return (
@@ -80,7 +88,11 @@ export function AppSidebar({ user, workspace }: { user: { email: string; name: s
             <SidebarMenu>
               {NAV.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton isActive={active(item.href)} tooltip={item.label} render={<Link href={item.href} />}>
+                  <SidebarMenuButton
+                    isActive={active(item.href)}
+                    tooltip={item.label}
+                    render={<Link href={item.href} />}
+                  >
                     <item.icon />
                     <span>{item.label}</span>
                   </SidebarMenuButton>
@@ -94,13 +106,20 @@ export function AppSidebar({ user, workspace }: { user: { email: string; name: s
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive={active("/settings")} tooltip="Settings" render={<Link href="/settings" />}>
+                <SidebarMenuButton
+                  isActive={active("/settings")}
+                  tooltip="Settings"
+                  render={<Link href="/settings" />}
+                >
                   <SettingsIcon />
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Setup guide" render={<Link href="/settings?tab=tracking" />}>
+                <SidebarMenuButton
+                  tooltip="Setup guide"
+                  render={<Link href="/settings?tab=tracking" />}
+                >
                   <BookOpenIcon />
                   <span>Setup guide</span>
                 </SidebarMenuButton>
@@ -114,26 +133,41 @@ export function AppSidebar({ user, workspace }: { user: { email: string; name: s
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-xs font-semibold text-primary">{initials}</span>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-xs font-semibold text-primary">
+                  {initials}
+                </span>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name || "Admin"}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                  <span className="truncate font-medium">
+                    {user.name || "Admin"}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </span>
                 </div>
                 <ChevronsUpDownIcon className="ml-auto size-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="min-w-56">
-                <DropdownMenuLabel>Theme</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={(v) => setTheme(String(v))}>
-                  <DropdownMenuRadioItem value="light">
-                    <SunIcon /> Light
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="dark">
-                    <MoonIcon /> Dark
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="system">
-                    <MonitorIcon /> System
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="min-w-56"
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Theme</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={theme ?? "system"}
+                    onValueChange={(v) => setTheme(String(v))}
+                  >
+                    <DropdownMenuRadioItem value="light">
+                      <SunIcon /> Light
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="dark">
+                      <MoonIcon /> Dark
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="system">
+                      <MonitorIcon /> System
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logoutAction()}>
                   <LogOutIcon /> Sign out

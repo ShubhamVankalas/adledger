@@ -33,6 +33,7 @@ export function SetupForm() {
   const tz = picked ?? browserTz;
   const [demo, setDemo] = useState(true);
   const e = state?.fieldErrors ?? {};
+  const v = state?.values ?? {};
 
   const zones = TIMEZONES.includes(tz) ? TIMEZONES : [tz, ...TIMEZONES];
 
@@ -45,14 +46,14 @@ export function SetupForm() {
       <CardContent>
         <form action={action} className="grid gap-4">
           <Field label="Business / workspace name" error={e.workspaceName}>
-            <Input name="workspaceName" placeholder="Acme Inc." required autoFocus />
+            <Input name="workspaceName" placeholder="Acme Inc." required autoFocus defaultValue={v.workspaceName} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Your name" error={e.name}>
-              <Input name="name" placeholder="Alex" autoComplete="name" />
+              <Input name="name" placeholder="Alex" autoComplete="name" defaultValue={v.name} />
             </Field>
             <Field label="Email" error={e.email}>
-              <Input name="email" type="email" placeholder="you@company.com" required autoComplete="email" />
+              <Input name="email" type="email" placeholder="you@company.com" required autoComplete="email" defaultValue={v.email} />
             </Field>
           </div>
           <Field label="Password" error={e.password} hint="At least 8 characters.">
@@ -60,7 +61,7 @@ export function SetupForm() {
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Reporting currency" error={e.currency}>
-              <NativeSelect name="currency" defaultValue="USD">
+              <NativeSelect name="currency" defaultValue={v.currency || "USD"} key={v.currency}>
                 {CURRENCIES.map(([code, name]) => (
                   <option key={code} value={code}>
                     {code} — {name}

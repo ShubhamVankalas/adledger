@@ -8,7 +8,9 @@
 
 Self-hosted ad attribution that joins **Meta & Google Ads spend**, **first-party website tracking**, **leads** and **Stripe revenue** — with AI insights you bring yourself and a built-in **MCP server** so Claude can answer *“which ads made money?”*
 
-[Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [Docs](docs/)
+[Website](https://shubhamvankalas.github.io/adledger/) · [Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [Docs](docs/)
+
+<img src="docs/screenshots/overview.png" alt="AdLedger overview dashboard" width="900" />
 
 </div>
 
@@ -45,6 +47,16 @@ curl -fsSL https://raw.githubusercontent.com/ShubhamVankalas/adledger/main/insta
 ```bash
 pnpm install && pnpm dev
 ```
+
+## Screenshots
+
+| Performance by campaign, ad set and ad | Customer journey and credit per model |
+|---|---|
+| <img src="docs/screenshots/performance.png" alt="Performance table" /> | <img src="docs/screenshots/journey.png" alt="Contact journey" /> |
+| **Weekly insights (bring your own model)** | **Dark mode** |
+| <img src="docs/screenshots/insights.png" alt="AI insights" /> | <img src="docs/screenshots/overview-dark.png" alt="Dark mode" /> |
+| **One-snippet tracking setup** | **Setup wizard** |
+| <img src="docs/screenshots/settings-tracking.png" alt="Tracking settings" /> | <img src="docs/screenshots/setup.png" alt="Setup wizard" /> |
 
 ## Features
 
@@ -143,7 +155,8 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 ```bash
 pnpm install
 pnpm dev          # http://localhost:3000 (embedded database in ./.data, no Docker needed)
-pnpm test         # 60+ tests against an embedded Postgres, all connectors mocked
+pnpm test         # 65 tests against an embedded Postgres, all connectors mocked
+pnpm build && pnpm e2e   # browser tests (Playwright); SCREENSHOTS=1 refreshes docs/screenshots
 pnpm lint && pnpm typecheck
 pnpm build
 ```

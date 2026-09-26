@@ -50,3 +50,10 @@ AGENTS.md
 
 # local tooling
 /.claude/
+
+# playwright
+/test-results/
+/playwright-report/
+
+# copied from docs/screenshots by the Pages workflow
+/site/screenshots/

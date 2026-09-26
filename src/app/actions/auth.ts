@@ -8,7 +8,7 @@ import { getDb, schema } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
 import { log } from "@/lib/log";
 
-export type FormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
+export type FormState = { error?: string; fieldErrors?: Record<string, string>; values?: Record<string, string> } | undefined;
 
 const setupSchema = z.object({
   workspaceName: z.string().trim().min(1, "Give your workspace a name").max(80),
@@ -32,14 +32,16 @@ export async function setupAction(_prev: FormState, form: FormData): Promise<For
     timezone: form.get("timezone"),
     demo: form.get("demo") === "on" ? "on" : "off",
   });
+  // Echo non-secret values back: React resets the form after an action.
+  const values = Object.fromEntries(["workspaceName", "name", "email", "currency", "timezone"].map((k) => [k, String(form.get(k) ?? "")]));
   if (!parsed.success) {
-    return { fieldErrors: Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])) };
+    return { values, fieldErrors: Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])) };
   }
   const v = parsed.data;
   try {
     Intl.DateTimeFormat("en-US", { timeZone: v.timezone });
   } catch {
-    return { fieldErrors: { timezone: "Unknown timezone" } };
+    return { values, fieldErrors: { timezone: "Unknown timezone" } };
   }
   const slug = v.workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "workspace";
   const { ws, user } = await db.transaction(async (tx) => {
@@ -67,7 +69,7 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "local";
   const r = await login(email, password, ip);
-  if (!r.ok) return { error: r.error };
+  if (!r.ok) return { error: r.error, values: { email } };
   const next = String(form.get("next") ?? "/");
   redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
 }

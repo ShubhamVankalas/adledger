@@ -21,11 +21,11 @@ export function LoginForm({ next }: { next: string }) {
           <input type="hidden" name="next" value={next} />
           <div className="grid gap-1.5">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required autoComplete="email" autoFocus />
+            <Input id="email" name="email" type="email" required autoComplete="email" autoFocus={!state?.values?.email} defaultValue={state?.values?.email} key={state?.values?.email} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required autoComplete="current-password" />
+            <Input id="password" name="password" type="password" required autoComplete="current-password" autoFocus={!!state?.values?.email} />
           </div>
           {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
           <Button type="submit" size="lg" disabled={pending}>

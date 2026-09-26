@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "pixel": "node scripts/build-pixel.mjs",
     "db:generate": "drizzle-kit generate",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.63",
@@ -45,6 +46,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.13.6",
     "@types/pg": "^8.23.1",
