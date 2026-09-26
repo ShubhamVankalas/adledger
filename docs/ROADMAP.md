@@ -17,15 +17,18 @@ end to end in that form. Status below.
 | M6 Demo seed + dashboard | ✅ | Deterministic 90-day demo (8 campaigns, 42 ads, ~26k visitors); Overview, Performance (drill-down + CSV), Contacts + journey, Insights, Settings; dark mode |
 | M7 AI insights (BYO model) | ✅ | Facts pack, AI SDK providers incl. Ollama, template fallback, weekly schedule, number check |
 | M8 MCP server | ✅ | 8 read-only tools at `/api/mcp`, API-key auth, tests prove no writes |
-| M9 Launch polish | 🟡 | README, docs, install script, compose + HTTPS profile, Render/Railway configs done. Remaining: README GIF + screenshots, verify one-click deploys on real accounts, public GHCR image, `v0.1.0` tag |
+| M9 Launch polish | 🟡 | README with screenshots, landing site (`site/`), docs, install script, compose + HTTPS profile, Render/Railway configs, Playwright e2e in CI. Remaining: README GIF, verify deploys on real accounts, public GHCR image, `v0.1.0` tag |
 
 ### Before the public launch
 - [ ] Record the 20-second GIF (dashboard → “which ad made money” → MCP answer in Claude).
-- [ ] Make the repo and GHCR package public; tag `v0.1.0` (release workflow publishes the image).
+- [ ] Make the repo public (Settings → General → Danger zone → Change visibility).
+- [ ] Make the container image public (GitHub → Packages → adledger → Package settings → Change visibility).
+- [ ] Turn on the website: Settings → Pages → Source: **GitHub Actions**, then re-run the “Website” workflow → https://shubhamvankalas.github.io/adledger/
+- [ ] Tag `v0.1.0` (`git tag v0.1.0 && git push --tags`) so the release workflow publishes `:latest` and `:0.1.0`.
 - [ ] Test `install.sh` on a fresh VPS with a real domain.
 - [ ] Connect a real Stripe test account, Meta ad account and Google Ads account end to end.
 - [ ] Lighthouse accessibility pass on Overview (target ≥ 90).
-- [ ] `pnpm audit` clean of high-severity issues.
+- [x] `pnpm audit --prod`: no known vulnerabilities (2026-09-26).
 
 ## v0.2 backlog
 - Meta Conversions API + Google offline/enhanced conversions upload (hashed PII) — biggest value add.
