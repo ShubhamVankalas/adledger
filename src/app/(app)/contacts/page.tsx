@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth";
@@ -23,6 +23,7 @@ const FILTERS = [
 export default async function ContactsPage({ searchParams }: PageProps<"/contacts">) {
   const user = await requireUser();
   const ws = user.workspace;
+  const canSetup = user.can("workspace.settings");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const lifecycle = sp.lifecycle === "lead" || sp.lifecycle === "customer" ? sp.lifecycle : undefined;
@@ -113,56 +114,72 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
         </div>
 
         {rows.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">{q ? <SearchIcon /> : <UsersIcon />}</EmptyMedia>
+          !q && !lifecycle && total === 0 ? (
+            <Empty className="border bg-card py-10 sm:py-14">
+              <EmptyHeader className="max-w-md">
+                <EmptyMedia variant="icon" className="size-10 rounded-xl bg-primary/10 text-primary">
+                  <UsersIcon className="size-5" />
+                </EmptyMedia>
+                <EmptyTitle className="text-base">No contacts yet</EmptyTitle>
+                <EmptyDescription>
+                  Contacts appear when someone submits a form on your site, a form tool calls your lead webhook, or a payment arrives — each with the ads and visits that brought them in.
+                </EmptyDescription>
+              </EmptyHeader>
+              {canSetup ? (
+                <EmptyContent className="max-w-md sm:flex-row sm:justify-center">
+                  <Button size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#leads" />}>
+                    Capture your first lead
+                  </Button>
+                  <Button variant="outline" size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#revenue" />}>
+                    Connect payments
+                  </Button>
+                </EmptyContent>
+              ) : null}
+            </Empty>
+          ) : (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">{q ? <SearchIcon /> : <UsersIcon />}</EmptyMedia>
+                {q ? (
+                  <>
+                    <EmptyTitle>
+                      No {noun}s match “{q}”
+                    </EmptyTitle>
+                    <EmptyDescription>Search looks at names and email addresses. Check the spelling or try part of the email.</EmptyDescription>
+                  </>
+                ) : total > 0 ? (
+                  <>
+                    <EmptyTitle>Nothing on this page</EmptyTitle>
+                    <EmptyDescription>
+                      There are only {pages} page{pages === 1 ? "" : "s"} of {noun}s.
+                    </EmptyDescription>
+                  </>
+                ) : (
+                  <>
+                    <EmptyTitle>No {noun}s yet</EmptyTitle>
+                    <EmptyDescription>
+                      {lifecycle === "customer"
+                        ? "Contacts become customers when a payment arrives from Stripe or another revenue source."
+                        : "Leads appear when someone submits a form on your site or a form tool calls your lead webhook."}
+                    </EmptyDescription>
+                  </>
+                )}
+              </EmptyHeader>
               {q ? (
-                <>
-                  <EmptyTitle>
-                    No {noun}s match “{q}”
-                  </EmptyTitle>
-                  <EmptyDescription>Search looks at names and email addresses. Check the spelling or try part of the email.</EmptyDescription>
-                </>
+                <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ q: undefined, page: undefined })} />}>
+                  Clear search
+                </Button>
               ) : total > 0 ? (
-                <>
-                  <EmptyTitle>Nothing on this page</EmptyTitle>
-                  <EmptyDescription>
-                    There are only {pages} page{pages === 1 ? "" : "s"} of {noun}s.
-                  </EmptyDescription>
-                </>
-              ) : lifecycle ? (
-                <>
-                  <EmptyTitle>No {noun}s yet</EmptyTitle>
-                  <EmptyDescription>
-                    {lifecycle === "customer"
-                      ? "Contacts become customers when a payment arrives from Stripe or another revenue source."
-                      : "Leads appear when someone submits a form on your site or a form tool calls your lead webhook."}
-                  </EmptyDescription>
-                </>
+                <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ page: undefined })} />}>
+                  Go to the first page
+                </Button>
               ) : (
-                <>
-                  <EmptyTitle>No contacts yet</EmptyTitle>
-                  <EmptyDescription>
-                    Contacts appear when someone submits a form on your site (pixel <code>adledger.lead()</code>), a form tool calls your lead webhook, or a Stripe
-                    payment arrives.
-                  </EmptyDescription>
-                </>
+                <Button variant="outline" className="h-10 sm:h-8" render={<Link href="/contacts" />}>
+                  Show all contacts
+                </Button>
               )}
-            </EmptyHeader>
-            {q ? (
-              <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ q: undefined, page: undefined })} />}>
-                Clear search
-              </Button>
-            ) : total > 0 ? (
-              <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ page: undefined })} />}>
-                Go to the first page
-              </Button>
-            ) : (
-              <Button variant="outline" className="h-10 sm:h-8" render={<Link href="/settings/workspace/tracking" />}>
-                Set up tracking
-              </Button>
-            )}
-          </Empty>
+            </Empty>
+          )
         ) : (
           <section className="@container space-y-3" aria-label={`${noun}s`}>
             <p className="text-sm text-muted-foreground">

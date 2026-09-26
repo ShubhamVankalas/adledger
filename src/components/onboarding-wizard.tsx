@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { saveOnboardingAction } from "@/app/actions/settings";
-import { CodeBlock, CopyField } from "@/components/copy-field";
+import { CopyButton } from "@/components/copy-field";
 import { BrandGlyph } from "@/components/brand-icon";
 import { IntegrationLogo } from "@/components/settings/integration-logo";
 import { Badge } from "@/components/ui/badge";
@@ -31,14 +31,27 @@ const BUILDERS = [
   { key: "site:code", label: "Custom code / React / Next.js", doc: "nextjs-react.md", tip: "Paste the snippet in your root layout's <head>. It follows client-side navigation automatically." },
 ];
 
+/** Code or URL to copy. Wraps instead of scrolling sideways (unreadable on phones); the copy button sits in its own header row. */
+function Snippet({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className={cn("min-w-0 overflow-hidden rounded-lg border bg-muted/40", className)}>
+      <div className="flex items-center justify-between gap-2 border-b bg-muted/40 py-1 pr-1 pl-3">
+        <span className="min-w-0 text-xs font-medium text-muted-foreground">{label}</span>
+        <CopyButton value={value} label="Copy" className="h-10 shrink-0 px-3 sm:h-7 sm:px-2.5" />
+      </div>
+      <pre className="p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">{value}</pre>
+    </div>
+  );
+}
+
 function StepCard({ id, n, title, done, children, detail }: { id: string; n: number; title: string; done: boolean; detail?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <Card id={id} className={cn("scroll-mt-24", done && "border-success/30")}>
+    <Card id={id} className={cn("scroll-mt-20", done && "ring-success/30")}>
       <CardHeader className="flex flex-row items-start gap-3">
         <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold", done ? "bg-success/15 text-success" : "bg-primary/15 text-primary")}>
           {done ? <CheckCircle2Icon className="size-4" /> : n}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pt-1">
           <CardTitle className="flex flex-wrap items-center gap-2">
             {title}
             {done ? <Badge className="bg-success/15 text-success">Done</Badge> : null}
@@ -46,7 +59,7 @@ function StepCard({ id, n, title, done, children, detail }: { id: string; n: num
           {detail ? <CardDescription className="mt-1">{detail}</CardDescription> : null}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pl-4 sm:pl-[3.75rem]">{children}</CardContent>
+      <CardContent className="min-w-0 space-y-4 lg:pl-[3.75rem]">{children}</CardContent>
     </Card>
   );
 }
@@ -54,21 +67,28 @@ function StepCard({ id, n, title, done, children, detail }: { id: string; n: num
 function IntegrationChoices({ items, connected, highlight }: { items: Integration[]; connected: string[]; highlight: string[] }) {
   const sorted = [...items].sort((a, b) => Number(highlight.includes(b.provider)) - Number(highlight.includes(a.provider)));
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-      {sorted.map((i) => (
-        <Link
-          key={i.provider}
-          href={`/settings/workspace/integrations?open=${i.provider}`}
-          className={cn(
-            "flex items-center gap-3 rounded-lg border p-2.5 text-sm transition-colors hover:border-primary/40 hover:bg-accent/40",
-            highlight.includes(i.provider) && "border-primary/40 bg-primary/5",
-          )}
-        >
-          <IntegrationLogo provider={i.provider} name={i.name} color={i.color} className="size-8 text-[11px]" />
-          <span className="min-w-0 flex-1 truncate font-medium">{i.name}</span>
-          {connected.includes(i.provider) ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground" />}
-        </Link>
-      ))}
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))]">
+      {sorted.map((i) => {
+        const on = connected.includes(i.provider);
+        return (
+          <Link
+            key={i.provider}
+            href={`/settings/workspace/integrations?open=${i.provider}`}
+            className={cn(
+              "group flex min-h-12 min-w-0 items-center gap-2 rounded-lg border p-2 text-[13px] transition-colors hover:border-primary/40 hover:bg-accent/40 sm:gap-3 sm:p-2.5 sm:text-sm",
+              highlight.includes(i.provider) && "border-primary/40 bg-primary/5",
+            )}
+          >
+            <IntegrationLogo provider={i.provider} name={i.name} color={i.color} className="size-7 rounded-lg sm:size-8" />
+            <span className="min-w-0 flex-1 leading-tight font-medium break-words">{i.name}</span>
+            {on ? (
+              <CheckCircle2Icon className="size-4 shrink-0 text-success" aria-label="Connected" />
+            ) : (
+              <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+            )}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -112,42 +132,87 @@ export function OnboardingWizard({
   const builder = BUILDERS.find((b) => picked.includes(b.key));
   const ads = integrations.filter((i) => i.category === "ads");
   const revenue = integrations.filter((i) => i.category === "revenue");
+  const required = status.steps.filter((s) => !s.optional);
   const optional = status.steps.filter((s) => s.optional);
+  const requiredDone = required.filter((s) => s.done).length;
+  const finish = () =>
+    startFinish(async () => {
+      await saveOnboardingAction({ completed: true });
+      router.push("/");
+    });
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
+        {/* Below xl the sidebar drops under the steps, so show a compact progress + jump list first. */}
+        <Card size="sm" className="xl:hidden">
+          <CardContent className="space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-sm font-medium">Essentials</div>
+              <div className="tabular text-xs text-muted-foreground">
+                {requiredDone} of {required.length} done
+              </div>
+            </div>
+            <Progress value={(requiredDone / required.length) * 100} aria-label="Setup progress" />
+            <ol className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
+              {required.map((s, i) => (
+                <li key={s.key} className="min-w-0">
+                  <Link
+                    href={s.href}
+                    className={cn(
+                      "flex min-h-10 items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-primary/40",
+                      s.done ? "border-success/30 text-muted-foreground" : "bg-background",
+                    )}
+                  >
+                    {s.done ? (
+                      <CheckCircle2Icon className="size-4 shrink-0 text-success" />
+                    ) : (
+                      <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">{i + 1}</span>
+                    )}
+                    <span className="min-w-0 leading-tight">{s.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>What do you use?</CardTitle>
             <CardDescription>Pick your website builder, payment tools and ad platforms. The steps below adapt to your choices.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {[
               { title: "Website", items: BUILDERS.map((b) => ({ key: b.key, label: b.label })) },
               { title: "Payments & stores", items: revenue.map((i) => ({ key: i.provider, label: i.name })) },
               { title: "Ad platforms", items: ads.map((i) => ({ key: i.provider, label: i.name })) },
             ].map((g) => (
-              <div key={g.title}>
+              <div key={g.title} role="group" aria-label={g.title}>
                 <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">{g.title}</div>
                 <div className="flex flex-wrap gap-2">
-                  {g.items.map((it) => (
-                    <button
-                      key={it.key}
-                      type="button"
-                      aria-pressed={picked.includes(it.key)}
-                      onClick={() => toggle(it.key)}
-                      className={cn(
-                        "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors outline-none hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-0",
-                        picked.includes(it.key) ? "border-primary bg-primary text-primary-foreground" : "bg-background text-muted-foreground",
-                      )}
-                    >
-                      <span className={cn("flex size-4 items-center justify-center rounded-full", picked.includes(it.key) && "bg-white")}>
-                        <BrandGlyph id={it.key} onWhite={picked.includes(it.key)} className="size-3" />
-                      </span>
-                      {it.label}
-                    </button>
-                  ))}
+                  {g.items.map((it) => {
+                    const on = picked.includes(it.key);
+                    return (
+                      <button
+                        key={it.key}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggle(it.key)}
+                        className={cn(
+                          "inline-flex min-h-10 items-center gap-2 rounded-full border py-1 pr-3.5 pl-1.5 text-sm transition-colors outline-none hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8 sm:pr-3 sm:pl-1",
+                          on ? "border-primary bg-primary text-primary-foreground hover:border-primary" : "bg-background text-foreground/80 hover:text-foreground dark:bg-input/30",
+                        )}
+                      >
+                        {/* Brand marks sit on a white disc so dark logos stay visible in dark mode. */}
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-black/5">
+                          <BrandGlyph id={it.key} onWhite className="size-3.5" />
+                        </span>
+                        {it.label}
+                        {on ? <CheckCircle2Icon className="-mr-1 size-3.5 opacity-80" /> : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -163,8 +228,8 @@ export function OnboardingWizard({
             pixelDone ? (
               <>Receiving data — last event {timeAgo(status.lastEventAt)}.</>
             ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2Icon className="size-3.5 animate-spin" /> Waiting for the first visit… open your website after installing and this ticks itself off.
+              <span className="inline-flex items-start gap-1.5">
+                <Loader2Icon className="mt-0.5 size-3.5 shrink-0 animate-spin" /> Waiting for the first visit… open your website after installing and this ticks itself off.
               </span>
             )
           }
@@ -173,33 +238,24 @@ export function OnboardingWizard({
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
               <div className="font-medium">{builder.label}</div>
               <p className="mt-1 text-muted-foreground">{builder.tip}</p>
-              <a href={`${DOCS}/${builder.doc}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              <a href={`${DOCS}/${builder.doc}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-primary hover:underline">
                 Step-by-step guide <ExternalLinkIcon className="size-3.5" />
               </a>
             </div>
           ) : null}
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground">Paste into the &lt;head&gt; of every page</div>
-            <CodeBlock code={snippetFor(origin, siteKey)} />
-          </div>
+          <Snippet label="Paste into the <head> of every page" value={snippetFor(origin, siteKey)} />
         </StepCard>
 
         <StepCard id="leads" n={2} title="Capture leads" done={step("leads").done} detail="So AdLedger knows who signed up, and from which ad.">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground">Forms on your site: add one attribute</div>
-              <CodeBlock code={`<form data-adledger-lead="Book a demo"> … </form>`} />
-            </div>
-            <div className="space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground">Typeform, Tally, Jotform, Zapier…: paste this webhook URL</div>
-              <CopyField value={leadWebhookUrl} />
-            </div>
+          <div className="grid gap-4 2xl:grid-cols-2">
+            <Snippet label="Forms on your site: add one attribute" value={`<form data-adledger-lead="Book a demo"> … </form>`} />
+            <Snippet label="Typeform, Tally, Jotform, Zapier…: webhook URL" value={leadWebhookUrl} />
           </div>
         </StepCard>
 
         <StepCard id="revenue" n={3} title="Connect payments" done={step("revenue").done} detail="Revenue is what turns clicks into ROAS. Pick where your money comes in.">
           <IntegrationChoices items={revenue} connected={connected} highlight={picked} />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Invoices, bank transfers or another checkout?{" "}
             <Link href="/settings/workspace/import" className="font-medium text-primary hover:underline">
               Import a CSV or use the Conversions API
@@ -210,7 +266,7 @@ export function OnboardingWizard({
 
         <StepCard id="ads" n={4} title="Connect ad platforms" done={step("ads").done} detail="Daily spend down to each ad. You can connect several.">
           <IntegrationChoices items={ads} connected={connected} highlight={picked} />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Using Taboola, Outbrain, Quora, Amazon or affiliates?{" "}
             <Link href="/settings/workspace/import" className="font-medium text-primary hover:underline">
               Upload spend as CSV or send it through the Spend API
@@ -220,8 +276,8 @@ export function OnboardingWizard({
         </StepCard>
       </div>
 
-      <div className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-        <Card>
+      <div className="min-w-0 space-y-6 xl:sticky xl:top-20 xl:self-start">
+        <Card className="hidden xl:flex">
           <CardHeader>
             <CardTitle>Progress</CardTitle>
             <CardDescription>
@@ -229,14 +285,14 @@ export function OnboardingWizard({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Progress aria-label="Setup progress" value={(status.done / status.steps.length) * 100} />
-            <ul className="space-y-0.5 text-sm md:space-y-2">
+            <Progress value={(status.done / status.steps.length) * 100} aria-label="Setup progress" />
+            <ul className="-mx-2 text-sm">
               {status.steps.map((s) => (
                 <li key={s.key}>
-                  <Link href={s.href} className="flex min-h-9 items-center gap-2 hover:text-primary md:min-h-0">
-                    {s.done ? <CheckCircle2Icon className="size-4 text-success" /> : <CircleDashedIcon className="size-4 text-muted-foreground" />}
-                    <span className={cn(s.done && "text-muted-foreground line-through")}>{s.label}</span>
-                    {s.optional ? <span className="ml-auto text-[10px] text-muted-foreground uppercase">optional</span> : null}
+                  <Link href={s.href} className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 hover:text-primary">
+                    {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" />}
+                    <span className={cn("min-w-0", s.done && "text-muted-foreground line-through")}>{s.label}</span>
+                    {s.optional ? <span className="ml-auto text-[10px] tracking-wide text-muted-foreground uppercase">optional</span> : null}
                   </Link>
                 </li>
               ))}
@@ -247,13 +303,15 @@ export function OnboardingWizard({
         <Card>
           <CardHeader>
             <CardTitle>Nice extras</CardTitle>
+            <CardDescription className="xl:hidden">Optional, and you can do them any time from Settings.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             {optional.map((s) => (
-              <Link key={s.key} href={s.href} className="block rounded-lg border p-3 transition-colors hover:border-primary/40">
+              <Link key={s.key} href={s.href} className="group block rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-accent/40">
                 <div className="flex items-center gap-2 text-sm font-medium">
-                  {s.done ? <CheckCircle2Icon className="size-4 text-success" /> : null}
-                  {s.label}
+                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : null}
+                  <span className="min-w-0 flex-1">{s.label}</span>
+                  <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">{s.desc}</p>
               </Link>
@@ -261,19 +319,12 @@ export function OnboardingWizard({
           </CardContent>
         </Card>
 
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={finishing}
-          onClick={() =>
-            startFinish(async () => {
-              await saveOnboardingAction({ completed: true });
-              router.push("/");
-            })
-          }
-        >
-          <PartyPopperIcon /> {status.complete ? "Finish setup" : "Continue to dashboard"}
-        </Button>
+        <div className="space-y-2">
+          <Button className="h-11 w-full text-[0.95rem] sm:h-10 sm:text-sm" size="lg" disabled={finishing} onClick={finish}>
+            {finishing ? <Loader2Icon className="animate-spin" /> : <PartyPopperIcon />} {status.complete ? "Finish setup" : "Continue to dashboard"}
+          </Button>
+          {!status.complete ? <p className="text-center text-xs text-muted-foreground">You can come back to this checklist any time from the sidebar.</p> : null}
+        </div>
       </div>
     </div>
   );

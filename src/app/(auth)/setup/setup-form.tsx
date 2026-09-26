@@ -1,25 +1,18 @@
 "use client";
 
-import { CompassIcon, Loader2Icon, RocketIcon } from "lucide-react";
+import { CheckIcon, CompassIcon, Loader2Icon, RocketIcon } from "lucide-react";
 import { useActionState, useState, useSyncExternalStore } from "react";
 import { setupAction } from "@/app/actions/auth";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { AuthField as Field, FormError, PasswordInput, authButton, authInput } from "../fields";
 
-function Field({ label, error, children, hint, htmlFor }: { label: string; error?: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
+// Native selects: 40px tall and 16px text on phones (smaller text makes iOS zoom in on focus).
+const selectCls = "[&_select]:h-10 [&_select]:text-base sm:[&_select]:text-sm";
 
 const STARTS = [
   {
@@ -52,7 +45,7 @@ export function SetupForm() {
   const zones = TIMEZONES.includes(tz) ? TIMEZONES : [tz, ...TIMEZONES];
 
   return (
-    <Card className="shadow-xl shadow-primary/5">
+    <Card data-wide className="shadow-xl shadow-primary/5">
       <CardHeader>
         <CardTitle className="text-xl">
           <h1>Welcome to AdLedger</h1>
@@ -62,22 +55,45 @@ export function SetupForm() {
       <CardContent>
         <form action={action} className="grid gap-4">
           <Field label="Business or agency name" error={e.organizationName} htmlFor="organizationName" hint="Agencies can add a workspace for each client later.">
-            <Input id="organizationName" name="organizationName" placeholder="Acme Inc." required autoFocus defaultValue={v.organizationName} />
+            <Input
+              id="organizationName"
+              name="organizationName"
+              placeholder="Acme Inc."
+              required
+              autoFocus
+              autoComplete="organization"
+              defaultValue={v.organizationName}
+              aria-invalid={e.organizationName ? true : undefined}
+              className={authInput}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Your name" error={e.name} htmlFor="name">
-              <Input id="name" name="name" placeholder="Alex" autoComplete="name" defaultValue={v.name} />
+              <Input id="name" name="name" placeholder="Alex" autoComplete="name" defaultValue={v.name} aria-invalid={e.name ? true : undefined} className={authInput} />
             </Field>
             <Field label="Email" error={e.email} htmlFor="email">
-              <Input id="email" name="email" type="email" placeholder="you@company.com" required autoComplete="email" defaultValue={v.email} />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="you@company.com"
+                required
+                autoComplete="email"
+                defaultValue={v.email}
+                aria-invalid={e.email ? true : undefined}
+                className={authInput}
+              />
             </Field>
           </div>
           <Field label="Password" error={e.password} hint="At least 8 characters." htmlFor="password">
-            <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+            <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" aria-invalid={e.password ? true : undefined} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Reporting currency" error={e.currency} htmlFor="currency">
-              <NativeSelect id="currency" name="currency" defaultValue={v.currency || "USD"} key={v.currency}>
+              <NativeSelect id="currency" name="currency" defaultValue={v.currency || "USD"} key={v.currency} className={selectCls}>
                 {CURRENCIES.map(([code, name]) => (
                   <option key={code} value={code}>
                     {code} — {name}
@@ -86,37 +102,54 @@ export function SetupForm() {
               </NativeSelect>
             </Field>
             <Field label="Timezone" error={e.timezone} htmlFor="timezone">
-              <NativeSelect id="timezone" name="timezone" value={tz} onChange={(ev) => setTz(ev.target.value)}>
+              <NativeSelect id="timezone" name="timezone" value={tz} onChange={(ev) => setTz(ev.target.value)} className={selectCls}>
                 {zones.map((z) => (
                   <option key={z} value={z}>
-                    {z}
+                    {z.replaceAll("_", " ")}
                   </option>
                 ))}
               </NativeSelect>
             </Field>
           </div>
           <fieldset className="grid gap-2">
-            <legend className="mb-1.5 text-sm font-medium">How do you want to start?</legend>
+            <legend className="mb-2 text-sm font-medium">How do you want to start?</legend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {STARTS.map((s) => (
-                <label
-                  key={s.value}
-                  className={cn(
-                    "flex cursor-pointer flex-col gap-1.5 rounded-lg border p-3 transition-colors hover:border-primary/40 has-focus-visible:ring-2 has-focus-visible:ring-ring",
-                    start === s.value && "border-primary bg-primary/5 ring-1 ring-primary/30",
-                  )}
-                >
-                  <input type="radio" name="start" value={s.value} checked={start === s.value} onChange={() => setStart(s.value)} className="sr-only" />
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <s.icon className="size-4 text-primary" /> {s.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{s.body}</span>
-                </label>
-              ))}
+              {STARTS.map((s) => {
+                const on = start === s.value;
+                return (
+                  <label
+                    key={s.value}
+                    className={cn(
+                      "relative flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors hover:border-primary/40 has-focus-visible:ring-2 has-focus-visible:ring-ring sm:flex-col sm:gap-1.5",
+                      on && "border-primary bg-primary/5 ring-1 ring-primary/30",
+                    )}
+                  >
+                    <input type="radio" name="start" value={s.value} checked={on} onChange={() => setStart(s.value)} className="sr-only" />
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md sm:hidden", on ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                      <s.icon className="size-4" />
+                    </span>
+                    <span className="grid min-w-0 gap-1">
+                      <span className="flex items-center gap-2 pr-6 text-sm font-medium">
+                        <s.icon className="hidden size-4 text-primary sm:block" /> {s.title}
+                      </span>
+                      <span className="text-xs leading-relaxed text-muted-foreground">{s.body}</span>
+                    </span>
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute top-3 right-3 flex size-4 items-center justify-center rounded-full border",
+                        on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                      )}
+                    >
+                      {on ? <CheckIcon className="size-3" strokeWidth={3} /> : null}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </fieldset>
-          {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-          <Button type="submit" size="lg" disabled={pending} className="mt-1">
+          <FormError>{state?.error}</FormError>
+          <Button type="submit" size="lg" disabled={pending} className={cn(authButton, "mt-1")}>
             {pending ? (
               <>
                 <Loader2Icon className="animate-spin" /> {start === "demo" ? "Building your demo workspace…" : "Creating your account…"}

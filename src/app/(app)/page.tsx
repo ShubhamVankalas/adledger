@@ -16,7 +16,7 @@ import Link from "next/link";
 import { SpendRevenueChart } from "@/components/charts/spend-revenue-chart";
 import { KpiCard } from "@/components/kpi-card";
 import { Markdown } from "@/components/markdown";
-import { Onboarding, getSetupStatus } from "@/components/onboarding";
+import { Onboarding, Welcome, getSetupStatus, isFreshWorkspace } from "@/components/onboarding";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { PlatformBadge } from "@/components/platform-badge";
 import { ReportControls } from "@/components/report-controls";
@@ -40,7 +40,8 @@ const headerLink = "h-9 px-3 sm:h-7 sm:px-2.5";
 const rowLink = "-mx-2 rounded-lg px-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none";
 
 export default async function OverviewPage({ searchParams }: PageProps<"/">) {
-  const { workspace: ws } = await requireUser();
+  const user = await requireUser();
+  const ws = user.workspace;
   const db = await getDb();
   const p = await resolvePeriodParams(db, ws, await searchParams);
   const [cur, prev, series, camps, ch, waste, [latest], setup, plats] = await Promise.all([
@@ -65,13 +66,25 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
   const perfHref = (extra: Record<string, string> = {}) => `/performance?${new URLSearchParams({ ...extra, ...period })}`;
   const campaignHref = (id: string) => perfHref({ level: "ad_group", parent: id });
 
+  // Brand-new workspace with nothing connected: a welcome beats a dashboard full of zeros.
+  if (!ws.isDemo && isFreshWorkspace(setup)) {
+    return (
+      <>
+        <PageHeader title="Overview" description="Which ads actually made you money" />
+        <PageBody>
+          <Welcome status={setup} name={ws.name} canSetup={user.can("workspace.settings")} />
+        </PageBody>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title="Overview" description="Which ads actually made you money">
         <ReportControls start={p.start} end={p.end} range={p.range} model={p.model} platform={p.platform} />
       </PageHeader>
       <PageBody>
-        {!ws.isDemo && !setup.complete ? <Onboarding status={setup} /> : null}
+        {!ws.isDemo && !setup.complete ? <Onboarding status={setup} canSetup={user.can("workspace.settings")} /> : null}
 
         {cur.warnings.map((w) => (
           <div key={w} role="status" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">

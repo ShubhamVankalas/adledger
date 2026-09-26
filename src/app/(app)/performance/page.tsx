@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
+import { NoAdDataYet, getSetupStatus } from "@/components/onboarding";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { PerformanceTable } from "@/components/performance-table";
 import { ReportControls } from "@/components/report-controls";
@@ -34,10 +35,9 @@ const LEVELS: {
   { key: "ad", label: "Ads", short: "Ads", child: null },
 ];
 
-export default async function PerformancePage({
-  searchParams,
-}: PageProps<"/performance">) {
-  const { workspace: ws } = await requireUser();
+export default async function PerformancePage({ searchParams }: PageProps<"/performance">) {
+  const user = await requireUser();
+  const ws = user.workspace;
   const db = await getDb();
   const sp = await searchParams;
   const p = await resolvePeriodParams(db, ws, sp);
@@ -48,6 +48,18 @@ export default async function PerformancePage({
       ? sp.parent
       : undefined;
   const rows = await performance(db, ws, { ...p, level, parentId: parent });
+
+  // No ad platform connected and no spend imported yet: explain how to get data instead of an empty table.
+  if (rows.length === 0 && !parent && !ws.isDemo && !(await getSetupStatus(db, ws)).steps.some((s) => s.key === "ads" && s.done)) {
+    return (
+      <>
+        <PageHeader title="Performance" description="Spend, leads, customers and revenue per campaign, ad set and ad" />
+        <PageBody>
+          <NoAdDataYet canSetup={user.can("workspace.settings")} />
+        </PageBody>
+      </>
+    );
+  }
 
   // Breadcrumb for drill-down.
   const crumbs: { label: string; href: string }[] = [];
