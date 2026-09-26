@@ -1,0 +1,35 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "102290129340398",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550783881",
+              "phone_number_id": "106540352242922"
+            },
+            "contacts": [
+              {
+                "profile": { "name": "Rahul Verma" },
+                "wa_id": "919812345678"
+              }
+            ],
+            "messages": [
+              {
+                "from": "919812345678",
+                "id": "wamid.HBgMOTE5ODEyMzQ1Njc4FQIAEhggNUI2QjZGMzc0OTVEMzg2RDBGNUE3QjRDNEZBOUI2QzcA",
+                "timestamp": "1790000300",
+                "text": { "body": "Is the shop open on Sunday?" },
+                "type": "text"
+              }
+            ]
+          },
+          "field": "messages"
+        }
+      ]
+    }
+  ]
+}

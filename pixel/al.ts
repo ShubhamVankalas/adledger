@@ -6,6 +6,9 @@
 //   adledger.track("event_name", { any: "props" })
 //   adledger.getVisitorId()
 //   adledger.consent(false)   stop tracking and clear the visitor ID
+//   adledger.whatsapp("919876543210", "Hi!")   open a WhatsApp chat tagged "Ref: AL-XXXXX"
+// Clicks on wa.me / api.whatsapp.com / whatsapp:// links are tagged the same way and sent as
+// "whatsapp_click" (opt out per link with data-adledger-noref); tel: links send "call_click".
 
 type Traits = { email?: string; phone?: string; name?: string };
 type Ev = { t: "page_view" | "identify" | "lead" | "custom"; ts: number; url: string; ref?: string | null; name?: string; props?: Record<string, unknown>; traits?: Traits };
@@ -141,8 +144,43 @@ type QueueItem = [string, ...unknown[]];
     push({ t: "page_view", ref });
   }
 
+  // WhatsApp click-to-chat: append a reference code to the prefilled text and record it, so the
+  // WhatsApp Business webhook can match the conversation to this visitor. Alphabet has no 0/O/1/I
+  // (must match src/lib/connectors/leads-whatsapp.ts).
+  const WA = /^(https?:\/\/(wa\.me|api\.whatsapp\.com|((www|web)\.)?whatsapp\.com\/send)([/?#]|$)|whatsapp:)/i;
+  function waTag(href: string, ref: boolean): string {
+    if (!enabled || !vid) return href;
+    let u: URL;
+    try {
+      u = new URL(href);
+    } catch {
+      return href;
+    }
+    // Only chats with a number are click-to-chat. wa.me/?text= and send?text= without a phone are
+    // "share" links (the visitor picks a friend), and wa.me/message/… short links ignore ?text=.
+    const p = /wa\.me$/i.test(u.hostname) ? u.pathname.replace(/^\/\+?/, "").replace(/\/$/, "") : "";
+    const to = (/^\d*$/.test(p) ? u.searchParams.get("phone") || p : "").replace(/\D/g, "");
+    if (to.length < 6) return href;
+    let code: string | undefined;
+    if (ref) {
+      code = "AL-";
+      for (let i = 0; i < 5; i++) code += "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 32)];
+      const text = (u.searchParams.get("text") || "").replace(/\s*Ref: AL-\w{5}$/, "");
+      u.searchParams.set("text", (text ? text + "\n\n" : "") + "Ref: " + code);
+      // URLSearchParams writes spaces as "+"; WhatsApp expects %20 (a literal "+" is already %2B).
+      u.search = u.search.replace(/\+/g, "%20");
+    }
+    push({ t: "custom", name: "whatsapp_click", props: { to, ref: code } }, true);
+    return u.href;
+  }
+
   const api = {
     _loaded: true,
+    whatsapp(number: string, message?: string) {
+      const url = waTag("https://wa.me/" + String(number).replace(/\D/g, "") + (message ? "?text=" + encodeURIComponent(message) : ""), true);
+      if (!window.open(url, "_blank")) location.href = url;
+      return url;
+    },
     identify(traits: Traits) {
       push({ t: "identify", traits: clean(traits) }, true);
     },
@@ -195,6 +233,19 @@ type QueueItem = [string, ...unknown[]];
     const fn = (api as unknown as Record<string, (...a: unknown[]) => unknown>)[method];
     if (typeof fn === "function") fn(...args);
   }
+
+  // Auto-capture: WhatsApp and phone links (capture phase, before the browser navigates).
+  d.addEventListener(
+    "click",
+    (e) => {
+      const t = e.target as Element | null;
+      const a = t && t.closest ? (t.closest("a[href]") as HTMLAnchorElement | null) : null;
+      if (!a) return;
+      if (/^tel:/i.test(a.href)) push({ t: "custom", name: "call_click", props: { to: a.href.slice(4).replace(/%2B/gi, "+").replace(/%../g, "").replace(/[^\d+]/g, "") } }, true);
+      else if (WA.test(a.href)) a.href = waTag(a.href, !a.hasAttribute("data-adledger-noref"));
+    },
+    true,
+  );
 
   // Auto-capture: forms with data-adledger-lead send a lead on submit.
   d.addEventListener(

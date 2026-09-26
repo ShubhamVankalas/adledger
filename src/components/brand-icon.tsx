@@ -139,6 +139,7 @@ export const ICON_FOR: Record<string, string> = {
   meta_leads: "meta",
   google_ads_leads: "googleads",
   tiktok_leads: "tiktok",
+  whatsapp: "whatsapp",
 };
 
 function luminance(hex: string) {

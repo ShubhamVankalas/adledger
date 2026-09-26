@@ -2,6 +2,7 @@ import { NOTIFICATION_DRIVERS } from "../notify/channels";
 import { googleConnector, metaConnector } from "./ads";
 import { EXTRA_ADS_CONNECTORS } from "./ads/index";
 import { LEAD_CONNECTORS } from "./leads/index";
+import { whatsappIntegration } from "./leads-whatsapp";
 import { REVENUE_CONNECTORS } from "./revenue/index";
 import { stripeIntegration } from "./stripe";
 import type { AdsConnector, IntegrationMeta, NotificationChannelDriver, RevenueConnector } from "./types";
@@ -76,6 +77,7 @@ export function allIntegrations(): IntegrationMeta[] {
     ...ADS_CONNECTORS.map((c) => c.meta),
     stripeIntegration,
     ...REVENUE_CONNECTORS.map((c) => c.meta),
+    whatsappIntegration,
     ...NOTIFICATION_DRIVERS.map((d) => d.meta),
     ...BUILT_IN,
     ...LEAD_CONNECTORS.map((c) => c.meta),
