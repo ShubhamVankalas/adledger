@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { recomputeAttribution } from "./attribution";
+import { creditsFor, MODELS } from "./attribution";
 import { rows, schema, type DB } from "./db";
 import { log } from "./log";
 import { currencyExponent } from "./money";
@@ -59,11 +59,14 @@ export const CONTACT_CSV_COLUMNS = [
   "currency",
 ] as const;
 
-/** RFC 4180 cell; values that a spreadsheet would run as a formula are prefixed with a quote. */
+/**
+ * RFC 4180 cell; values that a spreadsheet would run as a formula are prefixed with a quote.
+ * Plain decimal numbers ("-12.50") are left alone so negative amounts stay numeric.
+ */
 export function csvCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
   let s = String(value);
-  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s) && !/^-\d+(\.\d+)?$/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -122,22 +125,17 @@ export function scrubText(value: string | null): string | null {
   return value === null ? null : value.replace(EMAIL_ANYWHERE, ERASED).replace(HASH_TOKEN, ERASED);
 }
 
-function scrubJson(value: unknown): unknown {
-  if (typeof value === "string") return scrubText(value);
-  if (Array.isArray(value)) return value.map(scrubJson);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubJson(v)]));
-  return value;
-}
-
 const mayHoldPii = (col: ReturnType<typeof sql>) => sql`(${col} ilike '%@%' or ${col} ilike '%\\%40%' or ${col} like '%sha256:%')`;
 
 /**
  * Erase a contact (GDPR art. 17 / CCPA delete):
  * - deletes the contact row (the only place with a raw email) and its leads (form payloads);
- * - unlinks its visitors, and clears identity traits from their raw events and any emails
- *   or email hashes in their URLs, so the remaining browsing data is anonymous;
+ * - unlinks its visitors, clears the properties of their raw events and any emails or email
+ *   hashes in their event/touchpoint URLs, so the remaining browsing data is anonymous;
  * - keeps revenue rows with contact_id = null so revenue totals stay correct;
- * - recomputes attribution (the revenue becomes "unattributed").
+ * - updates attribution in place: the contact's lead/customer credits go and its revenue moves
+ *   to the "unattributed" bucket. That is exactly what a full recompute would produce (other
+ *   contacts' credits don't depend on this one) without its cost on large workspaces.
  * Returns null if the contact doesn't exist in this workspace.
  */
 export async function eraseContact(db: DB, workspaceId: string, contactId: string): Promise<ErasureResult | null> {
@@ -158,25 +156,26 @@ export async function eraseContact(db: DB, workspaceId: string, contactId: strin
     let eventsScrubbed = 0;
     let touchpointsScrubbed = 0;
     if (visitorIds.length) {
-      // identify/lead events carry the traits someone typed into a form.
+      // Event properties can hold anything a site sent (names, phones, form traits), so they
+      // are cleared on every event of these visitors; only type/time/URL survive, anonymized.
       const cleared = await tx
         .update(schema.events)
         .set({ properties: {} })
-        .where(and(inArray(schema.events.visitorId, visitorIds), inArray(schema.events.type, ["identify", "lead"])))
+        .where(and(inArray(schema.events.visitorId, visitorIds), sql`${schema.events.properties} <> '{}'::jsonb`))
         .returning({ id: schema.events.id });
       const suspects = await tx
-        .select({ id: schema.events.id, url: schema.events.url, referrer: schema.events.referrer, properties: schema.events.properties })
+        .select({ id: schema.events.id, url: schema.events.url, referrer: schema.events.referrer })
         .from(schema.events)
         .where(
           and(
             inArray(schema.events.visitorId, visitorIds),
-            sql`(${mayHoldPii(sql`${schema.events.url}`)} or ${mayHoldPii(sql`${schema.events.referrer}`)} or ${mayHoldPii(sql`${schema.events.properties}::text`)})`,
+            sql`(${mayHoldPii(sql`${schema.events.url}`)} or ${mayHoldPii(sql`${schema.events.referrer}`)})`,
           ),
         );
       for (const e of suspects) {
         await tx
           .update(schema.events)
-          .set({ url: scrubText(e.url), referrer: scrubText(e.referrer), properties: scrubJson(e.properties) as Record<string, unknown> })
+          .set({ url: scrubText(e.url), referrer: scrubText(e.referrer) })
           .where(eq(schema.events.id, e.id));
       }
       eventsScrubbed = new Set([...cleared.map((e) => e.id), ...suspects.map((e) => e.id)]).size;
@@ -208,20 +207,36 @@ export async function eraseContact(db: DB, workspaceId: string, contactId: strin
       .set({ contactId: null })
       .where(and(eq(schema.visitors.workspaceId, workspaceId), eq(schema.visitors.contactId, contactId)))
       .returning({ id: schema.visitors.id });
+    // Serialize with recomputeAttribution(), which rewrites credits under the same lock.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${"attr:" + workspaceId}))`);
     const revenue = await tx
       .update(schema.revenueEvents)
       .set({ contactId: null })
       .where(and(eq(schema.revenueEvents.workspaceId, workspaceId), eq(schema.revenueEvents.contactId, contactId)))
-      .returning({ id: schema.revenueEvents.id });
+      .returning({
+        id: schema.revenueEvents.id,
+        occurredAt: schema.revenueEvents.occurredAt,
+        amountMinor: schema.revenueEvents.amountMinor,
+        currency: schema.revenueEvents.currency,
+      });
     await tx
-      .update(schema.attributionCredits)
-      .set({ contactId: null })
+      .delete(schema.attributionCredits)
       .where(and(eq(schema.attributionCredits.workspaceId, workspaceId), eq(schema.attributionCredits.contactId, contactId)));
+    const unattributed = revenue.flatMap((r) =>
+      MODELS.flatMap((model) =>
+        creditsFor(
+          workspaceId,
+          model,
+          { id: r.id, type: "revenue", contactId: null, at: r.occurredAt, anchor: r.occurredAt, amountMinor: r.amountMinor, currency: r.currency },
+          [],
+        ),
+      ),
+    );
+    for (let i = 0; i < unattributed.length; i += 1000) await tx.insert(schema.attributionCredits).values(unattributed.slice(i, i + 1000));
     await tx.delete(schema.contacts).where(eq(schema.contacts.id, contactId));
 
     return { leads: leads.length, visitors: visitors.length, revenueEvents: revenue.length, eventsScrubbed, touchpointsScrubbed };
   });
-  if (result) await recomputeAttribution(db, workspaceId);
   return result;
 }
 

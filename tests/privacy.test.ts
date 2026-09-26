@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { recomputeAttribution } from "@/lib/attribution";
 import { hashEmail, sha256 } from "@/lib/crypto";
 import { rows, schema, type DB } from "@/lib/db";
 import { clearWorkspaceData } from "@/lib/demo/seed";
@@ -83,6 +84,7 @@ beforeAll(async () => {
       events: [
         { t: "page_view", ts: NOW.getTime() - 3_600_000, url: `https://shop.test/?utm_source=facebook&utm_medium=paid_social&utm_campaign=spring&email=jane.doe%40acme.test` },
         { t: "lead", ts: NOW.getTime() - 1_800_000, url: "https://shop.test/signup", name: "Signup", props: { email: JANE, plan: "pro" }, traits: { email: JANE, name: "Jane Doe" } },
+        { t: "custom", ts: NOW.getTime() - 1_700_000, url: "https://shop.test/checkout", name: "Checkout", props: { shipping_name: "Janet Quill", city: "Lyon" } },
       ],
     },
     ctx,
@@ -114,6 +116,9 @@ describe("contacts CSV export", () => {
     expect(csvCell("=HYPERLINK(1)")).toBe("'=HYPERLINK(1)");
     expect(csvCell(null)).toBe("");
     expect(csvCell(-5)).toBe("-5");
+    expect(csvCell("-10.00")).toBe("-10.00"); // negative amounts stay numeric
+    expect(csvCell("-1+2")).toBe("'-1+2");
+    expect(csvCell("@SUM(A1)")).toBe("'@SUM(A1)");
     expect(minorToDecimal(12345, 2)).toBe("123.45");
     expect(minorToDecimal(-5, 2)).toBe("-0.05");
     expect(minorToDecimal(700, 0)).toBe("700");
@@ -184,7 +189,8 @@ describe("right to erasure", () => {
     expect(result).toMatchObject({ leads: 1, visitors: 1, revenueEvents: 3 });
 
     const dump = await collectText(workspaceExportJson(db, ws));
-    for (const needle of [JANE, "jane.doe%40acme.test", hashEmail(JANE), "Jane Doe"]) expect(dump).not.toContain(needle);
+    expect(dumpBefore).toContain("Janet Quill");
+    for (const needle of [JANE, "jane.doe%40acme.test", hashEmail(JANE), "Jane Doe", "Janet Quill"]) expect(dump).not.toContain(needle);
     expect(dump).toContain(BOB); // other contacts untouched
 
     const after = await revenueTotals();
@@ -196,6 +202,17 @@ describe("right to erasure", () => {
 
     const credits = await db.select().from(schema.attributionCredits).where(eq(schema.attributionCredits.contactId, id));
     expect(credits).toHaveLength(0);
+    // The in-place credit update equals a full recompute.
+    const snapshot = async () =>
+      rows<Record<string, unknown>>(
+        await db.execute(sql`select model, conversion_type, conversion_id, conversion_at, contact_id, touchpoint_id, channel, platform,
+            campaign_id, ad_group_id, ad_id, credit::text, revenue_minor, currency
+          from attribution_credits where workspace_id = ${ws.id}
+          order by model, conversion_type, conversion_id, touchpoint_id nulls first`),
+      );
+    const inPlace = await snapshot();
+    await recomputeAttribution(db, ws.id);
+    expect(await snapshot()).toEqual(inPlace);
     // Anonymous browsing data is kept.
     const [v] = await db.select().from(schema.visitors).where(eq(schema.visitors.anonymousId, "vid-jane-000001"));
     expect(v.contactId).toBeNull();

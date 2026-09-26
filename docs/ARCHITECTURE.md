@@ -197,9 +197,9 @@ switching validates access.
 
 **Privacy & data ownership.** `src/lib/privacy.ts`. *Erasure* (Contact page → Delete contact, or
 `DELETE /api/v1/contacts/{id}`): deletes the contact row and its leads, unlinks its visitors, clears
-identity traits and any (hashed or URL-encoded) emails from their events and touchpoint URLs, keeps the
-revenue rows with `contact_id = null` so totals don't change, and recomputes attribution (that revenue
-becomes “unattributed”). *Subject access*: `GET /api/v1/contacts/{id}/export` (JSON). *Exports*:
+the properties of their raw events and any (hashed or URL-encoded) emails from their event and touchpoint URLs, keeps the
+revenue rows with `contact_id = null` so totals don't change, and moves that revenue's attribution
+credits to “unattributed” in place (same result as a full recompute, without its cost). *Subject access*: `GET /api/v1/contacts/{id}/export` (JSON). *Exports*:
 `GET /api/v1/exports/contacts` (CSV of the Contacts filter, `reports.export` or API key) and
 `GET /api/v1/exports/workspace` (every workspace table as one streamed JSON document, credentials
 omitted; session with `workspace.data` only). *Retention*: optional “delete raw events older than N days”

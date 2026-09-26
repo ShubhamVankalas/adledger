@@ -5,7 +5,7 @@ import { eraseContact } from "@/lib/privacy";
 import { authorize, UUID_RE } from "@/lib/request-auth";
 
 // DELETE /api/v1/contacts/{id} — right to erasure. Deletes the contact and its leads, unlinks
-// its visitors, keeps its revenue anonymously and recomputes attribution.
+// its visitors, keeps its revenue anonymously (as unattributed).
 // API key, or a session with workspace.data (owners/admins).
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const caller = await authorize(req, "workspace.data");
