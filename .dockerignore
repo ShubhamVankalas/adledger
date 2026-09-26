@@ -1,0 +1,15 @@
+node_modules
+.next
+.data
+.git
+.github
+.claude
+coverage
+*.log
+.env
+.env.*
+!.env.example
+public/p
+docs
+tests
+examples

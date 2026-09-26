@@ -1,0 +1,291 @@
+import { adDayMetrics, dateRange, demoAds } from "../demo/world";
+import { currencyExponent, fromDecimalString, fromMicros } from "../money";
+import type { Connection } from "../settings";
+
+/** One ad-day of spend, normalized across platforms. Money in minor units. */
+export type AdDayRow = {
+  platform: "meta" | "google";
+  account: { externalId: string; name: string; currency: string; timezone: string | null };
+  campaign: { externalId: string; name: string; status: string | null; objective: string | null };
+  adGroup: { externalId: string; name: string; status: string | null };
+  ad: { externalId: string; name: string; status: string | null };
+  date: string;
+  spendMinor: number;
+  impressions: number;
+  clicks: number;
+  conversions: string;
+};
+
+export type DateWindow = { since: string; until: string };
+
+export const META_API_VERSION_DEFAULT = "v26.0";
+export const GOOGLE_ADS_API_VERSION_DEFAULT = "v25";
+
+// ---------------------------------------------------------------- Meta
+
+export type MetaInsightRow = {
+  date_start: string;
+  account_id?: string;
+  account_name?: string;
+  account_currency?: string;
+  campaign_id: string;
+  campaign_name: string;
+  adset_id: string;
+  adset_name: string;
+  ad_id: string;
+  ad_name: string;
+  spend?: string;
+  impressions?: string;
+  clicks?: string;
+  actions?: { action_type: string; value: string }[];
+};
+
+const LEAD_ACTIONS = new Set(["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead", "complete_registration", "purchase", "offsite_conversion.fb_pixel_purchase"]);
+
+export function parseMetaInsights(
+  rows: MetaInsightRow[],
+  account: { externalId: string; name: string; currency: string; timezone: string | null },
+  statuses: { campaigns: Map<string, { status?: string; objective?: string }>; } = { campaigns: new Map() },
+): AdDayRow[] {
+  return rows.map((r) => {
+    const currency = (r.account_currency ?? account.currency).toUpperCase();
+    const conv = (r.actions ?? [])
+      .filter((a) => LEAD_ACTIONS.has(a.action_type))
+      .reduce((s, a) => s + Number(a.value || 0), 0);
+    const c = statuses.campaigns.get(r.campaign_id);
+    return {
+      platform: "meta",
+      account: { ...account, name: r.account_name ?? account.name, currency },
+      campaign: { externalId: r.campaign_id, name: r.campaign_name, status: c?.status ?? null, objective: c?.objective ?? null },
+      adGroup: { externalId: r.adset_id, name: r.adset_name, status: null },
+      ad: { externalId: r.ad_id, name: r.ad_name, status: null },
+      date: r.date_start,
+      spendMinor: fromDecimalString(r.spend ?? "0", currency),
+      impressions: Number(r.impressions ?? 0),
+      clicks: Number(r.clicks ?? 0),
+      conversions: conv.toFixed(2),
+    };
+  });
+}
+
+async function graphGet<T>(url: string): Promise<T> {
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const body = (await res.json().catch(() => ({}))) as T & { error?: { message?: string } };
+  if (!res.ok || body.error) {
+    throw new Error(`Meta API error (${res.status}): ${body.error?.message ?? "unknown error"}`);
+  }
+  return body;
+}
+
+async function fetchMetaLive(conn: Connection, window: DateWindow): Promise<AdDayRow[]> {
+  const token = conn.secrets.accessToken;
+  const ids = (conn.config.adAccountIds ?? "").split(/[\s,]+/).filter(Boolean);
+  if (!token) throw new Error("Meta access token is missing");
+  if (ids.length === 0) throw new Error("Add at least one Meta ad account ID (act_...)");
+  const version = conn.config.apiVersion || META_API_VERSION_DEFAULT;
+  const base = `https://graph.facebook.com/${version}`;
+  const out: AdDayRow[] = [];
+
+  for (const raw of ids) {
+    const act = raw.startsWith("act_") ? raw : `act_${raw}`;
+    const q = (params: Record<string, string>) =>
+      new URLSearchParams({ ...params, access_token: token }).toString();
+    const info = await graphGet<{ name: string; currency: string; timezone_name?: string }>(
+      `${base}/${act}?${q({ fields: "name,currency,account_status,timezone_name" })}`,
+    );
+    const account = { externalId: act, name: info.name, currency: info.currency, timezone: info.timezone_name ?? null };
+
+    const campaigns = new Map<string, { status?: string; objective?: string }>();
+    let next: string | undefined = `${base}/${act}/campaigns?${q({ fields: "id,name,effective_status,objective", limit: "500" })}`;
+    while (next) {
+      const page: { data: { id: string; effective_status?: string; objective?: string }[]; paging?: { next?: string } } =
+        await graphGet(next);
+      for (const c of page.data) campaigns.set(c.id, { status: c.effective_status, objective: c.objective });
+      next = page.paging?.next;
+    }
+
+    next = `${base}/${act}/insights?${q({
+      level: "ad",
+      time_increment: "1",
+      time_range: JSON.stringify({ since: window.since, until: window.until }),
+      fields: "account_currency,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions",
+      use_unified_attribution_setting: "true",
+      limit: "500",
+    })}`;
+    while (next) {
+      const page: { data: MetaInsightRow[]; paging?: { next?: string } } = await graphGet(next);
+      out.push(...parseMetaInsights(page.data, account, { campaigns }));
+      next = page.paging?.next;
+    }
+  }
+  return out;
+}
+
+/** Mock Meta: demo world served in the Graph API's insights format. */
+export function mockMetaInsights(window: DateWindow, currency: string): { account: AdDayRow["account"]; rows: MetaInsightRow[] }[] {
+  const ads = demoAds().filter((a) => a.platform === "meta");
+  const byAccount = new Map<string, { account: AdDayRow["account"]; rows: MetaInsightRow[] }>();
+  for (const date of dateRange(window.since, window.until)) {
+    for (const ad of ads) {
+      const m = adDayMetrics(ad, date, currency);
+      const acc = byAccount.get(ad.account.externalId) ?? {
+        account: { externalId: ad.account.externalId, name: ad.account.name, currency, timezone: ad.account.timezone },
+        rows: [],
+      };
+      acc.rows.push({
+        date_start: date,
+        account_currency: currency,
+        campaign_id: ad.campaign.externalId,
+        campaign_name: ad.campaign.name,
+        adset_id: ad.group.externalId,
+        adset_name: ad.group.name,
+        ad_id: ad.ad.externalId,
+        ad_name: ad.ad.name,
+        spend: m.spend.toFixed(currencyExponent(currency)),
+        impressions: String(m.impressions),
+        clicks: String(m.clicks),
+        actions: m.conversions > 0 ? [{ action_type: "lead", value: String(m.conversions) }] : [],
+      });
+      byAccount.set(ad.account.externalId, acc);
+    }
+  }
+  return [...byAccount.values()];
+}
+
+// ---------------------------------------------------------------- Google Ads
+
+export type GoogleAdsResult = {
+  customer?: { id?: string; currencyCode?: string; descriptiveName?: string; timeZone?: string };
+  campaign: { id: string; name: string; status?: string; advertisingChannelType?: string };
+  adGroup: { id: string; name: string; status?: string };
+  adGroupAd: { ad: { id: string; name?: string }; status?: string };
+  segments: { date: string };
+  metrics: { costMicros?: string | number; impressions?: string | number; clicks?: string | number; conversions?: string | number };
+};
+
+export function parseGoogleAdsStream(batches: { results?: GoogleAdsResult[] }[], customerId: string): AdDayRow[] {
+  const out: AdDayRow[] = [];
+  for (const batch of batches) {
+    for (const r of batch.results ?? []) {
+      const currency = (r.customer?.currencyCode ?? "USD").toUpperCase();
+      out.push({
+        platform: "google",
+        account: {
+          externalId: customerId,
+          name: r.customer?.descriptiveName || `Google Ads ${customerId}`,
+          currency,
+          timezone: r.customer?.timeZone ?? null,
+        },
+        campaign: { externalId: String(r.campaign.id), name: r.campaign.name, status: r.campaign.status ?? null, objective: r.campaign.advertisingChannelType ?? null },
+        adGroup: { externalId: String(r.adGroup.id), name: r.adGroup.name, status: r.adGroup.status ?? null },
+        ad: { externalId: String(r.adGroupAd.ad.id), name: r.adGroupAd.ad.name || `Ad ${r.adGroupAd.ad.id}`, status: r.adGroupAd.status ?? null },
+        date: r.segments.date,
+        spendMinor: fromMicros(String(r.metrics.costMicros ?? "0"), currency),
+        impressions: Number(r.metrics.impressions ?? 0),
+        clicks: Number(r.metrics.clicks ?? 0),
+        conversions: Number(r.metrics.conversions ?? 0).toFixed(2),
+      });
+    }
+  }
+  return out;
+}
+
+export function googleAdsQuery(window: DateWindow): string {
+  return `SELECT customer.currency_code, customer.descriptive_name, customer.time_zone,
+  campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type,
+  ad_group.id, ad_group.name, ad_group.status,
+  ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.status,
+  segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions
+FROM ad_group_ad
+WHERE segments.date BETWEEN '${window.since}' AND '${window.until}'`;
+}
+
+async function googleAccessToken(conn: Connection): Promise<string> {
+  const clientId = conn.config.clientId;
+  const { clientSecret, refreshToken } = conn.secrets;
+  if (!clientId || !clientSecret || !refreshToken) throw new Error("Google OAuth client ID, secret and refresh token are required");
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { access_token?: string; error_description?: string; error?: string };
+  if (!res.ok || !body.access_token) throw new Error(`Google OAuth error: ${body.error_description ?? body.error ?? res.status}`);
+  return body.access_token;
+}
+
+async function fetchGoogleLive(conn: Connection, window: DateWindow): Promise<AdDayRow[]> {
+  const devToken = conn.secrets.developerToken;
+  if (!devToken) throw new Error("Google Ads developer token is missing");
+  const ids = (conn.config.customerIds ?? "").split(/[\s,]+/).map((s) => s.replace(/-/g, "")).filter(Boolean);
+  if (ids.length === 0) throw new Error("Add at least one Google Ads customer ID");
+  const version = conn.config.apiVersion || GOOGLE_ADS_API_VERSION_DEFAULT;
+  const token = await googleAccessToken(conn);
+  const loginCustomerId = (conn.config.loginCustomerId ?? "").replace(/-/g, "");
+  const out: AdDayRow[] = [];
+  for (const cid of ids) {
+    const res = await fetch(`https://googleads.googleapis.com/${version}/customers/${cid}/googleAds:searchStream`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "developer-token": devToken,
+        "Content-Type": "application/json",
+        ...(loginCustomerId ? { "login-customer-id": loginCustomerId } : {}),
+      },
+      body: JSON.stringify({ query: googleAdsQuery(window) }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = Array.isArray(body) ? body[0]?.error?.message : body?.error?.message;
+      throw new Error(`Google Ads API error (${res.status}): ${msg ?? "unknown error"}`);
+    }
+    out.push(...parseGoogleAdsStream(Array.isArray(body) ? body : [body], cid));
+  }
+  return out;
+}
+
+/** Mock Google Ads: demo world served in searchStream format (costMicros as strings). */
+export function mockGoogleStream(window: DateWindow, currency: string): { customerId: string; batches: { results: GoogleAdsResult[] }[] } {
+  const ads = demoAds().filter((a) => a.platform === "google");
+  const results: GoogleAdsResult[] = [];
+  for (const date of dateRange(window.since, window.until)) {
+    for (const ad of ads) {
+      const m = adDayMetrics(ad, date, currency);
+      results.push({
+        customer: { id: ad.account.externalId, currencyCode: currency, descriptiveName: ad.account.name, timeZone: ad.account.timezone },
+        campaign: { id: ad.campaign.externalId, name: ad.campaign.name, status: "ENABLED", advertisingChannelType: ad.campaign.objective },
+        adGroup: { id: ad.group.externalId, name: ad.group.name, status: "ENABLED" },
+        adGroupAd: { ad: { id: ad.ad.externalId, name: ad.ad.name }, status: "ENABLED" },
+        segments: { date },
+        metrics: {
+          costMicros: String(Math.round(m.spend * 1_000_000)),
+          impressions: String(m.impressions),
+          clicks: String(m.clicks),
+          conversions: m.conversions,
+        },
+      });
+    }
+  }
+  return { customerId: ads[0].account.externalId, batches: [{ results }] };
+}
+
+// ---------------------------------------------------------------- entry point
+
+export async function fetchAdRows(
+  provider: "meta" | "google_ads",
+  conn: Connection,
+  window: DateWindow,
+  opts: { mock: boolean; currency: string },
+): Promise<AdDayRow[]> {
+  if (provider === "meta") {
+    if (opts.mock) {
+      return mockMetaInsights(window, opts.currency).flatMap((a) => parseMetaInsights(a.rows, a.account));
+    }
+    return fetchMetaLive(conn, window);
+  }
+  if (opts.mock) {
+    const s = mockGoogleStream(window, opts.currency);
+    return parseGoogleAdsStream(s.batches, s.customerId);
+  }
+  return fetchGoogleLive(conn, window);
+}

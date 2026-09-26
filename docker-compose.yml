@@ -1,0 +1,74 @@
+# AdLedger — `docker compose up -d`, then open http://localhost:3000
+#
+# Everything is optional: with no .env file this runs with safe defaults.
+# For a public server with HTTPS, set DOMAIN in .env and run:
+#   docker compose --profile https up -d
+
+services:
+  app:
+    image: ghcr.io/shubhamvankalas/adledger:${ADLEDGER_VERSION:-latest}
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgres://adledger:${POSTGRES_PASSWORD:-adledger}@postgres:5432/adledger
+      APP_SECRET: ${APP_SECRET:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      CONNECTOR_MODE: ${CONNECTOR_MODE:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DEMO_DATA: ${DEMO_DATA:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_BASE: ${LLM_API_BASE:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    extra_hosts:
+      # Lets AdLedger reach Ollama / LM Studio running on your computer.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - appdata:/data
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adledger
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adledger}
+      POSTGRES_DB: adledger
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adledger -d adledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Optional automatic HTTPS (Let's Encrypt). Requires DOMAIN in .env and ports 80/443 open.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${DOMAIN:-localhost} --to app:3000
+    volumes:
+      - caddydata:/data
+
+  # Optional: a tiny demo landing page with the pixel installed (http://localhost:8080).
+  demo-site:
+    image: nginx:alpine
+    profiles: ["demo"]
+    ports:
+      - "8080:80"
+    volumes:
+      - ./examples/demo-site:/usr/share/nginx/html:ro
+
+volumes:
+  pgdata:
+  appdata:
+  caddydata:

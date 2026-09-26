@@ -1,0 +1,155 @@
+<div align="center">
+
+<img src="public/icon.svg" width="64" alt="AdLedger" />
+
+# AdLedger
+
+**The open-source Hyros. Know which ads actually make you money.**
+
+Self-hosted ad attribution that joins **Meta & Google Ads spend**, **first-party website tracking**, **leads** and **Stripe revenue** — with AI insights you bring yourself and a built-in **MCP server** so Claude can answer *“which ads made money?”*
+
+[Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [Docs](docs/)
+
+</div>
+
+---
+
+## Why
+
+Ad platforms each take credit for the same sale, iOS privacy broke their pixels, and the tools that fix this (Hyros, Triple Whale, Cometly, Wicked Reports) cost $129–$2,500+/month — often priced as a cut of your revenue.
+
+AdLedger does the core job for free, on your own server: every click, lead and payment in **one ledger**, so you can see real **ROAS, CAC and CPL per campaign, ad set and ad**.
+
+> *“I spent $58k on ads last month. AdLedger shows Lookalike 1% returned 3.5x while Broad Interest returned 0.01x on $11k. The weekly note tells me to move budget from Broad to Lookalike and Retargeting.”*
+
+## Quick start
+
+You need [Docker](https://docs.docker.com/get-docker/). That's it.
+
+```bash
+git clone https://github.com/ShubhamVankalas/adledger.git
+cd adledger
+docker compose up -d
+```
+
+Open **http://localhost:3000**, create your account, and tick **“Start with demo data”** to explore 90 days of realistic Meta, Google Ads and Stripe data in under a minute.
+
+**On a server with a domain (automatic HTTPS):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShubhamVankalas/adledger/main/install.sh | DOMAIN=ads.yourcompany.com sh
+```
+
+**Without Docker** (Node 20+), using the built-in embedded database:
+
+```bash
+pnpm install && pnpm dev
+```
+
+## Features
+
+| | |
+|---|---|
+| **Ad spend sync** | Meta Ads + Google Ads — daily spend, impressions, clicks at campaign, ad set/ad group and ad level. Re-syncs never duplicate. |
+| **First-party pixel** | One `<script>` tag (**1.7 KB** gzipped). Page views, UTMs, click IDs (`gclid`, `fbclid`, `gbraid`, `wbraid`, `ttclid`…), `_fbp`/`_fbc`, SPA support, consent API. |
+| **Lead capture** | `data-adledger-lead` on any form, `adledger.lead()` in JS, or a webhook for Typeform, Tally, Webflow, Zapier… (fields auto-detected). |
+| **Revenue** | Stripe webhooks + 90-day backfill. Refunds, renewals and multi-currency handled. |
+| **Identity stitching** | Anonymous visitor → lead → customer, across devices, by email. |
+| **Attribution** | First-touch, last-touch and linear — switch instantly. Exact revenue splits (integer cents, largest-remainder). LTV: renewals credit the journey that acquired the customer. Unattributed revenue is shown, never hidden. |
+| **Dashboard** | KPIs with period-over-period change, spend vs revenue chart, drill-down tables with CSV export, contact journeys, dark mode. |
+| **AI insights (BYO model)** | Weekly note on what changed, wasted spend and where to move budget. Works with **Ollama / LM Studio (local, free)**, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, or no AI at all. Every number is computed in SQL; invented numbers are flagged. |
+| **MCP server** | Read-only tools for Claude, Cursor or any agent: overview, performance, wasted spend, period comparison, contact journeys (emails masked). |
+| **Demo mode** | Realistic mock connectors for every integration — the whole app works with zero API access. |
+
+## How it compares
+
+| | **AdLedger** | Hyros | Triple Whale | Cometly |
+|---|---|---|---|---|
+| Price | **Free (AGPL)** | Paid, scales with revenue tracked | Paid, scales with GMV | Paid subscription |
+| Self-hosted / own your data | **Yes** | No | No | No |
+| Meta + Google spend | Yes | Yes | Yes | Yes |
+| First-party pixel + click IDs | Yes | Yes | Yes | Yes |
+| Stripe revenue | Yes | Yes | Partial | Yes |
+| Multi-touch models | First, last, linear | Many | Many | Many |
+| Conversions API upload | Roadmap (v0.2) | Yes | Yes | Yes |
+| AI with your own model | **Yes (incl. local)** | No | Proprietary | Proprietary |
+| MCP server for AI agents | **Yes** | No | No | No |
+
+*Based on public information at the time of writing; check each vendor for current features and pricing.*
+
+## Deploy anywhere
+
+| Where | How |
+|---|---|
+| **Any Linux server / VPS** | `install.sh` above (Docker + Postgres + optional Caddy HTTPS). ~1 GB RAM is plenty. |
+| **Your laptop** | `docker compose up -d` |
+| **Render** | Uses [`render.yaml`](render.yaml): web service + managed Postgres. |
+| **Railway / Coolify / Dokploy / CapRover** | Deploy the `Dockerfile`, add a Postgres, set `DATABASE_URL`. |
+| **Single container, no Postgres** | `docker run -p 3000:3000 -v adledger:/data ghcr.io/shubhamvankalas/adledger` (embedded database — great for trying it; use Postgres for production). |
+
+Upgrading: `docker compose pull && docker compose up -d`. Database migrations run automatically on start. Full guide: [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+
+## Connect your data
+
+Everything is configured in **Settings** — no config files:
+
+1. **Tracking** → add your website and paste the snippet into your `<head>`.
+2. **Connections** → Stripe (restricted key + webhook), Meta (system-user token), Google Ads (developer token + OAuth). Step-by-step instructions are on each card and in [docs/CONNECTORS.md](docs/CONNECTORS.md).
+3. **AI model** (optional) → pick Ollama, OpenAI, Anthropic, etc.
+
+Use IDs in your UTMs so AdLedger can match visits to exact ads:
+
+```
+Meta:   utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}
+Google: utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={adgroupid}&utm_content={creative}
+```
+
+## Ask Claude about your ads (MCP)
+
+Create an API key in **Settings → API & MCP**, then:
+
+```bash
+claude mcp add --transport http adledger https://your-adledger/api/mcp --header "Authorization: Bearer al_..."
+```
+
+> **You:** Which campaigns made money last month and which wasted spend?
+> **Claude:** *(calls `get_performance` and `find_wasted_spend`)* Lookalike 1% returned 3.47x on $13.7k and Brand search 12.98x…
+
+Tools: `get_overview`, `get_performance`, `find_wasted_spend`, `compare_periods`, `list_contacts`, `get_contact_journey`, `get_latest_insights`, `get_sync_status` — all read-only. Claude Desktop and Cursor configs are in [docs/MCP.md](docs/MCP.md).
+
+## Architecture
+
+One Next.js app + PostgreSQL. The dashboard, REST API, pixel endpoint, webhooks, MCP server and background jobs (syncs, attribution, weekly reports) all run in a single container.
+
+```
+ your website ──al.js──▶ /api/v1/collect ─┐
+ form tools ──webhook──▶ /api/v1/webhooks ┤          ┌──────────────┐
+ Stripe ─────webhook──▶ /api/v1/webhooks ─┼──▶ AdLedger app ──▶│ PostgreSQL 16│
+ Meta / Google Ads ◀── scheduled sync ────┤  (Next.js)   └──────────────┘
+ Claude / Cursor ──MCP──▶ /api/mcp ───────┘   ▲ dashboard (browser)
+```
+
+Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn/ui · Recharts · Vercel AI SDK · MCP SDK. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Privacy & security
+
+- Raw emails are stored only in `contacts`; everywhere else emails/phones are SHA-256 hashed (lowercased, trimmed — the format Meta CAPI / Google Enhanced Conversions expect).
+- IPs are truncated before storage. The pixel honors `adledger.consent(false)` and optional Do-Not-Track.
+- Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
+- API keys and sessions are stored hashed. The MCP server is read-only.
+
+## Development
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000 (embedded database in ./.data, no Docker needed)
+pnpm test         # 60+ tests against an embedded Postgres, all connectors mocked
+pnpm lint && pnpm typecheck
+pnpm build
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## License
+
+[AGPL-3.0](LICENSE). Free to use, modify and self-host. If you offer a modified version as a hosted service, share your changes.

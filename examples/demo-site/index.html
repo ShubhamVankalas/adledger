@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Analytics — demo landing page</title>
+    <style>
+      :root { font-family: ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+      body { margin: 0; }
+      main { max-width: 720px; margin: 0 auto; padding: 48px 20px; }
+      .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; margin-top: 24px; }
+      h1 { font-size: 2.2rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+      p { color: #475569; line-height: 1.6; }
+      input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin: 6px 0 12px; font: inherit; }
+      button, .btn { background: #0f9d74; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+      .btn.secondary { background: #e2e8f0; color: #0f172a; margin: 4px 6px 4px 0; font-size: 14px; }
+      code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+      .ok { color: #0f9d74; font-weight: 600; }
+    </style>
+    <!-- AdLedger pixel: loaded from the settings below so this page works with any install. -->
+    <script>
+      window.adledger = window.adledger || { q: [] };
+      ["identify", "lead", "track", "consent"].forEach(function (m) {
+        adledger[m] = adledger[m] || function () { adledger.q.push([m].concat([].slice.call(arguments))); };
+      });
+      (function () {
+        var host = localStorage.getItem("al_host") || "http://localhost:3000";
+        var key = localStorage.getItem("al_key");
+        if (!key) return;
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = host + "/p/al.js";
+        s.setAttribute("data-site", key);
+        document.head.appendChild(s);
+      })();
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Know which ads make money.</h1>
+      <p>This is a demo landing page for testing the AdLedger pixel. Visit it through the “ad click” links below, then submit the form.</p>
+
+      <div class="card" id="setup">
+        <strong>1. Connect this page to your AdLedger</strong>
+        <p>Paste the site key from <em>Settings → Tracking</em> (starts with <code>pk_</code>).</p>
+        <input id="host" placeholder="AdLedger URL" />
+        <input id="key" placeholder="pk_..." />
+        <button onclick="save()">Save &amp; reload</button>
+        <p id="status"></p>
+      </div>
+
+      <div class="card">
+        <strong>2. Simulate an ad click</strong>
+        <p>
+          <a class="btn secondary" href="?utm_source=facebook&utm_medium=paid_social&utm_campaign=238500000000&utm_term=2385100000000&utm_content=23852000000000&fbclid=IwAR_demo">Facebook ad</a>
+          <a class="btn secondary" href="?utm_source=google&utm_medium=cpc&utm_campaign=17005000005&utm_term=14005100001&utm_content=68005100001&gclid=Cj0K_demo">Google search ad</a>
+          <a class="btn secondary" href="?utm_source=newsletter&utm_medium=email&utm_campaign=weekly">Newsletter</a>
+          <a class="btn secondary" href="pricing.html">Pricing page</a>
+        </p>
+      </div>
+
+      <div class="card">
+        <strong>3. Become a lead</strong>
+        <form data-adledger-lead="Book a demo" onsubmit="event.preventDefault(); setTimeout(function(){ document.getElementById('thanks').textContent = 'Thanks! Check Contacts in AdLedger.'; }, 50);">
+          <input name="name" placeholder="Your name" required />
+          <input name="email" type="email" placeholder="you@company.com" required />
+          <input name="phone" placeholder="Phone (optional)" />
+          <button type="submit">Book a demo</button>
+          <p id="thanks" class="ok"></p>
+        </form>
+      </div>
+    </main>
+    <script>
+      document.getElementById("host").value = localStorage.getItem("al_host") || "http://localhost:3000";
+      document.getElementById("key").value = localStorage.getItem("al_key") || "";
+      document.getElementById("status").innerHTML = localStorage.getItem("al_key")
+        ? '<span class="ok">Pixel active.</span> Visitor ID: <code id="vid">loading…</code>'
+        : "Not connected yet.";
+      setTimeout(function () {
+        var v = document.getElementById("vid");
+        if (v && window.adledger.getVisitorId) v.textContent = window.adledger.getVisitorId();
+      }, 800);
+      function save() {
+        localStorage.setItem("al_host", document.getElementById("host").value.replace(/\/$/, ""));
+        localStorage.setItem("al_key", document.getElementById("key").value.trim());
+        location.reload();
+      }
+    </script>
+  </body>
+</html>

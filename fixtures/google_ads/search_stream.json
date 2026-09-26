@@ -1,0 +1,16 @@
+[
+  {
+    "results": [
+      {
+        "customer": { "resourceName": "customers/1234567890", "currencyCode": "JPY", "descriptiveName": "Acme JP", "timeZone": "Asia/Tokyo" },
+        "campaign": { "resourceName": "customers/1234567890/campaigns/17001", "status": "ENABLED", "advertisingChannelType": "SEARCH", "name": "Search – Brand", "id": "17001" },
+        "adGroup": { "resourceName": "customers/1234567890/adGroups/14001", "status": "ENABLED", "id": "14001", "name": "Brand – Exact" },
+        "adGroupAd": { "resourceName": "customers/1234567890/adGroupAds/14001~68001", "status": "ENABLED", "ad": { "resourceName": "customers/1234567890/ads/68001", "id": "68001" } },
+        "metrics": { "clicks": "84", "conversions": 6.5, "costMicros": "12345500000", "impressions": "1320" },
+        "segments": { "date": "2026-09-20" }
+      }
+    ],
+    "fieldMask": "customer.currencyCode,customer.descriptiveName,customer.timeZone,campaign.id,campaign.name,campaign.status,campaign.advertisingChannelType,adGroup.id,adGroup.name,adGroup.status,adGroupAd.ad.id,adGroupAd.ad.name,adGroupAd.status,segments.date,metrics.costMicros,metrics.impressions,metrics.clicks,metrics.conversions",
+    "requestId": "fixture-request-id"
+  }
+]

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Analytics — pricing</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 48px 20px; color: #0f172a; background: #f8fafc; }
+      a { color: #0f9d74; }
+    </style>
+    <script>
+      window.adledger = window.adledger || { q: [] };
+      ["identify", "lead", "track", "consent"].forEach(function (m) {
+        adledger[m] = adledger[m] || function () { adledger.q.push([m].concat([].slice.call(arguments))); };
+      });
+      (function () {
+        var key = localStorage.getItem("al_key");
+        if (!key) return;
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = (localStorage.getItem("al_host") || "http://localhost:3000") + "/p/al.js";
+        s.setAttribute("data-site", key);
+        document.head.appendChild(s);
+      })();
+    </script>
+  </head>
+  <body>
+    <h1>Pricing</h1>
+    <p>Starter $49/mo · Growth $199/mo · Scale $799/mo</p>
+    <p><a href="index.html">← Back</a></p>
+  </body>
+</html>

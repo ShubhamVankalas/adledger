@@ -1,0 +1,26 @@
+{
+  "id": "evt_fixture_1",
+  "object": "event",
+  "api_version": "2026-08-26.dahlia",
+  "created": 1790000000,
+  "type": "charge.succeeded",
+  "data": {
+    "object": {
+      "id": "ch_fixture_1",
+      "object": "charge",
+      "amount": 4900,
+      "amount_captured": 4900,
+      "amount_refunded": 0,
+      "billing_details": { "email": "buyer@example.com", "name": "Buyer Example", "phone": null },
+      "captured": true,
+      "created": 1790000000,
+      "currency": "usd",
+      "customer": "cus_fixture_1",
+      "metadata": { "adledger_vid": "fixturevid0001" },
+      "paid": true,
+      "payment_intent": "pi_fixture_1",
+      "receipt_email": null,
+      "status": "succeeded"
+    }
+  }
+}

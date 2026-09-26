@@ -1,0 +1,21 @@
+# One-click deploy on Render: https://render.com/deploy?repo=<your-repo-url>
+services:
+  - type: web
+    name: adledger
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: adledger-db
+          property: connectionString
+      - key: APP_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+
+databases:
+  - name: adledger-db
+    plan: basic-256mb
+    postgresMajorVersion: "16"

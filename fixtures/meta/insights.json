@@ -1,0 +1,38 @@
+{
+  "data": [
+    {
+      "account_currency": "USD",
+      "campaign_id": "120210000000000001",
+      "campaign_name": "Prospecting – Lookalike 1%",
+      "adset_id": "120210000000000101",
+      "adset_name": "LAL 1% – US",
+      "ad_id": "120210000000001001",
+      "ad_name": "Founder story video",
+      "spend": "412.37",
+      "impressions": "31502",
+      "clicks": "688",
+      "actions": [
+        { "action_type": "link_click", "value": "688" },
+        { "action_type": "lead", "value": "21" },
+        { "action_type": "offsite_conversion.fb_pixel_purchase", "value": "4" }
+      ],
+      "date_start": "2026-09-20",
+      "date_stop": "2026-09-20"
+    },
+    {
+      "account_currency": "USD",
+      "campaign_id": "120210000000000001",
+      "campaign_name": "Prospecting – Lookalike 1%",
+      "adset_id": "120210000000000101",
+      "adset_name": "LAL 1% – US",
+      "ad_id": "120210000000001002",
+      "ad_name": "ROAS calculator carousel",
+      "spend": "0.1",
+      "impressions": "12",
+      "clicks": "0",
+      "date_start": "2026-09-20",
+      "date_stop": "2026-09-20"
+    }
+  ],
+  "paging": { "cursors": { "before": "MAZDZD", "after": "MQZDZD" } }
+}

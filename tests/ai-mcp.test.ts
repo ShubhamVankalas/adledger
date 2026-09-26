@@ -1,0 +1,117 @@
+import { sql } from "drizzle-orm";
+import { beforeAll, describe, expect, it } from "vitest";
+import { buildFacts } from "@/lib/ai/facts";
+import { unverifiedNumbers } from "@/lib/ai/numbers";
+import { generateReport, templateReport } from "@/lib/ai/report";
+import { rows, type DB } from "@/lib/db";
+import { seedDemo } from "@/lib/demo/seed";
+import { buildMcpHandler, MCP_TOOL_NAMES } from "@/lib/mcp";
+import type { Workspace } from "@/lib/settings";
+import { setupWorkspace } from "./helpers";
+
+let db: DB;
+let ws: Workspace;
+
+beforeAll(async () => {
+  ({ db, ws } = await setupWorkspace());
+  await seedDemo(db, ws.id, { anchor: "2026-09-01" });
+});
+
+describe("AI facts + number check", () => {
+  it("flags a fabricated figure and accepts real ones", async () => {
+    const { facts } = await buildFacts(db, ws, { end: "2026-09-01", days: 30 });
+    const real = `Spend was ${facts.totals.spend} and ROAS ${facts.totals.roas}. The top campaign was ${facts.topCampaigns[0].name}.`;
+    expect(unverifiedNumbers(real, facts)).toEqual([]);
+    const fake = `${real} Revenue jumped to $987,654.32 and CPL fell 37.9%.`;
+    const bad = unverifiedNumbers(fake, facts);
+    expect(bad).toContain("987,654.32");
+    expect(bad).toContain("37.9");
+  });
+
+  it("template report only uses numbers from the facts pack", async () => {
+    const { facts } = await buildFacts(db, ws, { end: "2026-09-01", days: 30 });
+    const md = templateReport(facts);
+    expect(md).toContain("## Summary");
+    expect(unverifiedNumbers(md, facts)).toEqual([]);
+  });
+
+  it("generates and stores a report without an LLM configured", async () => {
+    const { report } = await generateReport(db, ws, { end: "2026-09-01" });
+    expect(report.modelName).toBe("template");
+    expect(report.contentMd.length).toBeGreaterThan(100);
+  });
+});
+
+async function callTool(ws: Workspace, name: string, args: Record<string, unknown> = {}) {
+  const handler = buildMcpHandler(ws);
+  const init = await handler(
+    new Request("http://localhost/api/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
+    }),
+  );
+  const text = await init.text();
+  // Responses may be JSON or a single SSE "data:" frame.
+  const json = text.trim().startsWith("{") ? JSON.parse(text) : JSON.parse(text.split("\n").find((l) => l.startsWith("data:"))!.slice(5));
+  return json;
+}
+
+async function listTools(ws: Workspace) {
+  const res = await buildMcpHandler(ws)(
+    new Request("http://localhost/api/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    }),
+  );
+  const text = await res.text();
+  return text.trim().startsWith("{") ? JSON.parse(text) : JSON.parse(text.split("\n").find((l) => l.startsWith("data:"))!.slice(5));
+}
+
+describe("MCP server", () => {
+  it("lists exactly the documented tools, all annotated read-only", async () => {
+    const r = await listTools(ws);
+    const tools = r.result.tools as { name: string; annotations?: { readOnlyHint?: boolean } }[];
+    expect(tools.map((t) => t.name).sort()).toEqual([...MCP_TOOL_NAMES].sort());
+    for (const t of tools) expect(t.annotations?.readOnlyHint, t.name).toBe(true);
+  });
+
+  it("no tool modifies data", async () => {
+    const snapshot = async () =>
+      rows<{ t: string; n: string }>(
+        await db.execute(sql`select 'contacts' t, count(*) n from contacts union all select 'credits', count(*) from attribution_credits
+          union all select 'revenue', count(*) from revenue_events union all select 'reports', count(*) from ai_reports
+          union all select 'insights', count(*) from ad_insights_daily union all select 'runs', count(*) from sync_runs`),
+      );
+    const before = await snapshot();
+    const [contact] = rows<{ id: string }>(await db.execute(sql`select id from contacts where lifecycle = 'customer' limit 1`));
+    const calls: [string, Record<string, unknown>][] = [
+      ["get_overview", {}],
+      ["get_performance", { level: "ad" }],
+      ["find_wasted_spend", {}],
+      ["compare_periods", {}],
+      ["list_contacts", { lifecycle: "customer" }],
+      ["get_contact_journey", { contactId: contact.id }],
+      ["get_latest_insights", {}],
+      ["get_sync_status", {}],
+    ];
+    for (const [name, args] of calls) {
+      const r = await callTool(ws, name, args);
+      expect(r.error, name).toBeUndefined();
+      expect(r.result.isError, name).not.toBe(true);
+    }
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it("outputs include date range, currency and model; emails are masked", async () => {
+    const o = await callTool(ws, "get_overview", { start: "2026-08-01", end: "2026-09-01" });
+    const text = o.result.content[0].text as string;
+    expect(text).toContain("2026-08-01 → 2026-09-01");
+    expect(text).toContain("currency USD");
+    expect(text).toContain("attribution model linear");
+    const list = await callTool(ws, "list_contacts", { limit: 5 });
+    expect(list.result.content[0].text).toMatch(/•/);
+    expect(list.result.content[0].text).not.toMatch(/[a-z]+\.[a-z]+\d+@example/);
+  });
+});
