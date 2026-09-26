@@ -1,0 +1,74 @@
+{
+  "id": "ev_AzZTQnUQ8cX9m2sLd",
+  "occurred_at": 1759132840,
+  "source": "admin_console",
+  "user": "support@example.com",
+  "object": "event",
+  "api_version": "v2",
+  "event_type": "payment_refunded",
+  "webhook_status": "not_configured",
+  "content": {
+    "transaction": {
+      "id": "txn_AzZTQnUQ8cX7k2sLb",
+      "customer_id": "AzZTQnUQ8bUx81rJZ",
+      "subscription_id": "AzZTQnUQ8bV0I1rKX",
+      "gateway_account_id": "gw_AzZTQnUQ8bUpa1rJT",
+      "payment_source_id": "pm_AzZTQnUQ8bUyk1rK0",
+      "payment_method": "card",
+      "gateway": "stripe",
+      "type": "refund",
+      "date": 1759132838,
+      "exchange_rate": 1.0,
+      "amount": 1500,
+      "id_at_gateway": "re_3SBkL2Ch9aX1bQ0r1Hc2Vw8K",
+      "status": "success",
+      "updated_at": 1759132839,
+      "resource_version": 1759132839000,
+      "deleted": false,
+      "object": "transaction",
+      "masked_card_number": "************4242",
+      "currency_code": "USD",
+      "base_currency_code": "USD",
+      "refunded_txn_id": "txn_AzZTQnUQ8bV2i1rKa",
+      "linked_invoices": [],
+      "linked_credit_notes": [
+        {
+          "cn_id": "CN-17",
+          "applied_amount": 1500,
+          "applied_at": 1759132838,
+          "cn_reason_code": "product_unsatisfactory",
+          "cn_date": 1759132837,
+          "cn_total": 1500,
+          "cn_status": "refunded",
+          "cn_reference_invoice_id": "1042"
+        }
+      ],
+      "linked_refunds": [],
+      "linked_payments": []
+    },
+    "credit_note": {
+      "id": "CN-17",
+      "customer_id": "AzZTQnUQ8bUx81rJZ",
+      "subscription_id": "AzZTQnUQ8bV0I1rKX",
+      "reference_invoice_id": "1042",
+      "type": "refundable",
+      "reason_code": "product_unsatisfactory",
+      "status": "refunded",
+      "date": 1759132837,
+      "total": 1500,
+      "amount_refunded": 1500,
+      "currency_code": "USD",
+      "object": "credit_note"
+    },
+    "customer": {
+      "id": "AzZTQnUQ8bUx81rJZ",
+      "first_name": "Priya",
+      "last_name": "Raman",
+      "email": "priya.raman@example.com",
+      "phone": "+14155550142",
+      "object": "customer",
+      "preferred_currency_code": "USD",
+      "cf_adledger_vid": "5d7e9a1b-2c3f-4a6b-8d9e-0f1a2b3c4d5e"
+    }
+  }
+}

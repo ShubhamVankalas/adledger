@@ -45,7 +45,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   if (!valid) return json({ error: "invalid signature" }, 401);
 
   try {
-    const payload = rawBody ? JSON.parse(rawBody) : {};
+    // Most sources post JSON; Gumroad (form) and Recurly (XML) parse `request.rawBody` themselves.
+    let payload: unknown = {};
+    try {
+      payload = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      payload = rawBody;
+    }
     const events = connector.parseWebhook(payload, request);
     const stored = events.length ? await ingestRevenue(db, ws.id, connector.source, events) : 0;
     if (stored) await requestAttribution(ws.id);
