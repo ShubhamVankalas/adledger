@@ -16,6 +16,7 @@ Pick your platform. Every guide starts from the snippet and site key in AdLedger
 | Google Tag Manager | [gtm.md](gtm.md) | Pixel as a Custom HTML tag + dataLayer leads |
 | Next.js / React | [nextjs-react.md](nextjs-react.md) | SPA install, leads, visitor id on Stripe Checkout |
 | Zapier / Make | [zapier-make.md](zapier-make.md) | Conversions API (payments, refunds, leads) and Spend API (any ad network) |
+| WhatsApp | [whatsapp.md](whatsapp.md) | Click-to-chat and call clicks; WhatsApp conversations as leads linked to the ad click |
 
 Any other site: paste the snippet from **Settings → Tracking** into the `<head>` of every
 page. See [PIXEL.md](../PIXEL.md) for the full pixel API.

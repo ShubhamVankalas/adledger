@@ -62,10 +62,14 @@ Supported versions: the latest release and `main`. Self-hosters should update re
   role, and it never demotes an existing owner.
 - **Webhooks.** Stripe, Shopify, WooCommerce, Paddle, Razorpay and Lemon Squeezy signatures are
   HMACs compared in constant time; Stripe and Paddle reject events older than 5 minutes and
-  PayPal verifies through PayPal's API. Ingestion is idempotent on the provider's ids, so a
-  replayed delivery can't double-count revenue. Bodies are size-capped and rate limited.
+  PayPal verifies through PayPal's API. Cashfree, Instamojo, HubSpot, Meta (lead forms,
+  WhatsApp) and TikTok signatures are verified the same way; Chargebee, Recurly and Pipedrive use
+  HTTP Basic auth, PhonePe its hashed username:password header, Gumroad a secret URL token and
+  Google Ads lead forms a shared key, all compared in constant time. Ingestion is idempotent on the provider's ids, so a replayed delivery can't
+  double-count revenue or leads, or re-send alerts. Bodies are size-capped and rate limited.
 - **Input limits.** Request bodies are capped before parsing (pixel 64 KB, lead webhooks 256 KB,
-  revenue webhooks 2 MB, Spend API 20 MB, Conversions API 10 MB); CSV imports are capped at
+  ad lead-form webhooks 1 MB, revenue, CRM and WhatsApp webhooks 2 MB, Spend API 20 MB,
+  Conversions API 10 MB); CSV imports are capped at
   10 MB, 100,000 rows and 100 columns.
 - **Output.** React escapes everything rendered in the dashboard; the Markdown renderer for AI
   reports never renders HTML; emails escape every value and only link `http(s)` URLs. Server

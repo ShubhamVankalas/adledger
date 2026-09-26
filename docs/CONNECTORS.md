@@ -111,6 +111,24 @@ visits still count at channel level.
   create one and paste the URL into the tool's webhook settings. Email, phone and name are
   detected automatically; add a hidden field `al_vid` with `adledger.getVisitorId()` to link the
   lead to its ad clicks.
+- **Native ad lead forms (Meta Lead Ads, Google Ads lead forms, TikTok Lead Generation):** the
+  person never visits your site, so the pixel can't see them. Connect the platform in Settings →
+  Integrations and paste the webhook URL from its dialog into the platform (Meta: Page webhook,
+  field `leadgen`, with your verify token; Google: lead form → Webhook integration, with your key;
+  TikTok: Lead Generation subscription). Each lead becomes a contact, a lead and a touchpoint on the
+  exact ad, ad group and campaign that collected it. These connections are webhook-only: saving the
+  form doesn't start a sync — send a test lead to check it.
+- **WhatsApp click-to-chat:** the pixel adds a short reference code to `wa.me` / WhatsApp links;
+  when the chat's first message arrives through the WhatsApp Business Cloud API webhook, AdLedger
+  links it to the visitor (and ad) that clicked and records a lead. See
+  [integrations/whatsapp.md](integrations/whatsapp.md).
+
+## CRM deals (HubSpot, Pipedrive)
+
+For sales-led businesses the revenue lives in the CRM. Connect HubSpot (private app token) or
+Pipedrive (API token + company domain): **Sync now** imports won deals from the last 90 days, and an
+optional CRM webhook (URL in the dialog) makes new wins appear instantly. Deals are matched to ad
+clicks by the contact's / person's email and are idempotent on deal id.
 
 ## Demo / mock mode
 
@@ -127,6 +145,11 @@ API formats (see `src/lib/demo/world.ts` and `fixtures/`). New workspaces create
 | Payments & stores | Stripe | Stable | Webhooks (auto-created) + 90-day backfill |
 | Payments & stores | Shopify, WooCommerce | Beta | Signed webhooks + backfill |
 | Payments & stores | Paddle, Lemon Squeezy, Razorpay, PayPal | Beta | Signed webhooks |
+| Subscriptions & creators | Chargebee, Recurly, Gumroad | Beta | Webhooks (HTTP Basic auth; Gumroad: secret `?token=` in the ping URL) |
+| Payments (India) | Cashfree Payments, Instamojo, PhonePe | Beta | Signed webhooks (Instamojo posts a form, verified with its MAC) |
+| CRM (sales-led revenue) | HubSpot CRM, Pipedrive | Beta | Won deals: 90-day backfill on connect / **Sync now**, optional instant webhooks |
+| Ad lead forms | Meta Lead Ads, Google Ads lead forms, TikTok Lead Generation | Beta | Webhooks; each lead is credited to the ad that collected it |
+| Messaging | WhatsApp Business (click-to-chat) | Beta | Signed Cloud API webhook + pixel reference code |
 | Anything else | CSV import, Spend API, Conversions API | Stable | Upload or push (Zapier, Make, n8n, scripts) |
 | Website | Pixel, WordPress plugin, Shopify custom pixel, GTM tag | Stable | Browser → `/api/v1/collect` |
 | Notifications | Email (SMTP), Slack, Discord, Microsoft Teams, SMS (Twilio), webhook | Stable | Rules in Settings → Notifications |
@@ -135,8 +158,21 @@ API formats (see `src/lib/demo/world.ts` and `fixtures/`). New workspaces create
 against real-format sample responses (`fixtures/`), but haven't yet been verified against every kind of
 live account. Please open an issue if something doesn't match your account.
 
-Every revenue webhook URL is shown in the integration's dialog:
-`https://your-adledger/api/v1/webhooks/<provider>/<workspace-id>` (Stripe: `/api/v1/webhooks/stripe/<workspace-id>`).
+Every webhook URL is shown, ready to copy, in the integration's dialog:
+
+| Integration | Webhook URL |
+|---|---|
+| Stripe | `https://your-adledger/api/v1/webhooks/stripe/<workspace-id>` |
+| Other payment sources | `https://your-adledger/api/v1/webhooks/<provider>/<workspace-id>` |
+| Gumroad | `…/api/v1/webhooks/gumroad/<workspace-id>?token=<your ping token>` (Gumroad pings are not signed) |
+| Recurly | `…/api/v1/webhooks/recurly/<workspace-id>?currency=<site currency>` (Recurly's XML omits the currency) |
+| HubSpot, Pipedrive | `…/api/v1/webhooks/crm/<hubspot\|pipedrive>/<workspace-id>` |
+| Ad lead forms | `…/api/v1/webhooks/leads-native/<meta_leads\|google_ads_leads\|tiktok_leads>/<workspace-id>` (GET answers Meta's verification handshake) |
+| WhatsApp Business | `…/api/v1/webhooks/whatsapp/<workspace-id>` (GET answers the verification handshake) |
+
+All webhook routes are rate limited per IP, cap the body before parsing, and verify the platform's
+signature (or shared secret) before storing anything. Ingestion is idempotent on the platform's ids,
+so retries and replays never double-count revenue, leads or alerts.
 
 ## Trying integrations without real accounts
 
@@ -150,6 +186,14 @@ real APIs, all of these are free and use fake money:
 | Shopify | A free development store from a Shopify Partners account. |
 | PayPal | Sandbox accounts at developer.paypal.com. |
 | Razorpay, Paddle, Lemon Squeezy | Test / sandbox mode in each dashboard. |
+| Chargebee, Recurly | A free test site (Chargebee) / sandbox site (Recurly). |
+| Gumroad | **Send test ping to URL** in Settings → Advanced → Ping. |
+| Cashfree, PhonePe, Instamojo | Cashfree Test mode, PhonePe UAT sandbox, test.instamojo.com. |
+| HubSpot, Pipedrive | A free HubSpot developer test account; a Pipedrive trial or developer sandbox. |
+| Meta Lead Ads | The Lead Ads Testing Tool (developers.facebook.com/tools/lead-ads-testing). |
+| Google Ads lead forms | **Send test data** in the lead form's webhook settings. |
+| TikTok Lead Generation | Instant Form preview → submit a test lead. |
+| WhatsApp Business | The free test phone number in your Meta app's WhatsApp setup. |
 | Meta | A sandbox ad account from your Meta developer app (no real spend). |
 | Google Ads | A test manager account; the test developer token works immediately. |
 | TikTok | The TikTok for Business API sandbox. |

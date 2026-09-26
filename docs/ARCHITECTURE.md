@@ -45,6 +45,10 @@ Rules:
 │   │       ├── v1/collect                pixel endpoint (text/plain beacons)
 │   │       ├── v1/webhooks/leads/[token] generic form webhook
 │   │       ├── v1/webhooks/stripe/[ws]   Stripe webhook (signature verified)
+│   │       ├── v1/webhooks/[provider]/[ws] other revenue sources (Shopify … PhonePe)
+│   │       ├── v1/webhooks/leads-native/[provider]/[ws] Meta / Google Ads / TikTok lead forms
+│   │       ├── v1/webhooks/whatsapp/[ws] WhatsApp Business Cloud API (click-to-chat leads)
+│   │       ├── v1/webhooks/crm/[provider]/[ws] HubSpot / Pipedrive deal events
 │   │       ├── v1/reports/[report]       REST reports (API key)
 │   │       ├── v1/contacts, v1/sync      REST (+ DELETE / export per contact)
 │   │       ├── v1/exports/{contacts,workspace} CSV / streamed JSON downloads
@@ -59,6 +63,7 @@ Rules:
 │   │   ├── settings.ts                   workspace + encrypted connection credentials
 │   │   ├── tracking/{utm,collect,identity}.ts
 │   │   ├── connectors/{ads,stripe}.ts    Meta, Google Ads, Stripe (live + mock)
+│   │   ├── connectors/{ads,revenue,crm,leads}/ one file per extra connector (registry.ts lists all)
 │   │   ├── sync.ts, matching.ts          upserts, touchpoint→ad matching
 │   │   ├── attribution/                  models + recompute
 │   │   ├── reports.ts                    all reporting SQL
@@ -111,8 +116,8 @@ PII-redacted properties, truncated IP), `touchpoints` (UTMs, click id, fbp/fbc, 
 platform, matched campaign/ad group/ad).
 
 **People & money** — `contacts` (the only table with raw email; email_hash, phone_hash,
-lifecycle, external ids), `leads` (PII-redacted raw payload), `revenue_events` (Stripe
-payments and refunds; unique `(workspace_id, source, external_id)`).
+lifecycle, external ids), `leads` (PII-redacted raw payload), `revenue_events` (payments
+and refunds from every revenue source, plus won CRM deals; unique `(workspace_id, source, external_id)`).
 
 **Derived** — `attribution_credits` (model, conversion type/id/time, touchpoint or null for
 unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), revenue_minor),
@@ -188,7 +193,28 @@ notification channels implement `NotificationChannelDriver`. Each carries `Integ
 setup steps, docs link) that drives the Settings catalog and connect forms — adding an integration is one
 file plus one registry line. Revenue webhooks for every non-Stripe source share
 `/api/v1/webhooks/{provider}/{workspaceId}`; all revenue goes through `ingestRevenue` (idempotent on
-source + external id; contact matched by visitor id → email → customer id → phone).
+source + external id; contact matched by visitor id → email → customer id → phone). “New customer” and
+“large payment” alerts fire only when the row is newly inserted, so webhook replays never re-notify.
+Connectors with non-JSON bodies read the raw body themselves (Instamojo and Gumroad post forms, Recurly
+posts XML); Gumroad and Recurly also read a `token` / `currency` query parameter, which the Settings
+dialog includes in the webhook URL it shows (`webhookPathFor` in the registry).
+
+**CRM deals.** `src/lib/connectors/crm/` (HubSpot, Pipedrive) implement `RevenueConnector` plus
+`webhookDealIds` / `fetchDeals`. Backfill (on connect and **Sync now**) imports won deals;
+`/api/v1/webhooks/crm/{provider}/{workspaceId}` re-reads the deals named in a webhook through the CRM
+API (CRM webhooks carry only ids) and ingests the won ones through `ingestRevenue`.
+
+**Native lead forms.** `src/lib/connectors/leads/` (Meta Lead Ads, Google Ads lead forms, TikTok Lead
+Generation) implement `LeadConnector` (`verifyWebhook`, `parseWebhook`, and `verifyChallenge` for Meta's
+GET handshake). `/api/v1/webhooks/leads-native/{provider}/{workspaceId}` verifies the call, and
+`ingestNativeLeads` creates the contact, the lead and a touchpoint carrying the ad, ad group and
+campaign ids, so the lead is credited to the ad that collected it (idempotent on the platform's lead id).
+These connections are webhook-only: sync is a no-op.
+
+**WhatsApp click-to-chat.** The pixel appends a short reference code to WhatsApp links and records a
+`whatsapp_click` event. `/api/v1/webhooks/whatsapp/{workspaceId}` (signed with the app secret; GET is the
+verification handshake) turns the first message carrying a code into a lead linked to that visitor
+(`src/lib/tracking/whatsapp.ts`).
 
 **One-click connect.** `src/lib/oauth` runs the OAuth authorization-code flow (PKCE where the
 platform supports it) for connectors whose `IntegrationMeta.oauth` env vars are set:

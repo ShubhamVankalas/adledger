@@ -47,7 +47,7 @@
     },
     {
       "name": "Webhooks",
-      "description": "Inbound webhooks from form tools and revenue platforms."
+      "description": "Inbound webhooks from form tools, ad-platform lead forms, WhatsApp, CRMs and revenue platforms."
     },
     {
       "name": "MCP",
@@ -976,6 +976,405 @@
         }
       }
     },
+    "/api/v1/webhooks/leads-native/{provider}/{workspaceId}": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "nativeLeadWebhookVerify",
+        "summary": "Native lead form webhook verification",
+        "description": "Subscription handshake for Meta Lead Ads: answers `hub.challenge` when `hub.verify_token` matches the connection's verify token.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Lead form connector.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta_leads",
+                "google_ads_leads",
+                "tiktok_leads"
+              ]
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "subscribe"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "required": true,
+            "description": "The verify token saved in AdLedger.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "required": true,
+            "description": "Echoed back on success.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `hub.challenge` value, echoed as plain text.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "description": "Verification failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "nativeLeadWebhook",
+        "summary": "Native lead form webhook",
+        "description": "Leads from Meta Lead Ads (signed `X-Hub-Signature-256`; lead details are fetched from the Graph API), Google Ads lead form extensions (`google_key` in the body) and TikTok Lead Generation (`TikTok-Signature`). Each lead becomes a contact, a lead and a touchpoint on the ad that collected it. Idempotent on the platform's lead id.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Lead form connector.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta_leads",
+                "google_ads_leads",
+                "tiktok_leads"
+              ]
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "The platform's lead webhook payload."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "stored": {
+                      "type": "integer",
+                      "description": "New leads stored."
+                    },
+                    "duplicates": {
+                      "type": "integer",
+                      "description": "Leads already stored (replays)."
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "description": "Leads without an email or phone."
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "stored",
+                    "duplicates",
+                    "skipped"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Invalid signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "description": "Payload too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "Processing failed; the platform will retry (ingestion is idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/whatsapp/{workspaceId}": {
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "whatsappWebhookVerify",
+        "summary": "WhatsApp webhook verification",
+        "description": "WhatsApp Business Cloud API subscription handshake: answers `hub.challenge` when `hub.verify_token` matches the connection's verify token.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hub.mode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "subscribe"
+            }
+          },
+          {
+            "name": "hub.verify_token",
+            "in": "query",
+            "required": true,
+            "description": "The verify token saved in AdLedger.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hub.challenge",
+            "in": "query",
+            "required": true,
+            "description": "Echoed back on success.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The `hub.challenge` value, echoed as plain text.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verification failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "whatsappWebhook",
+        "summary": "WhatsApp message webhook",
+        "description": "Inbound WhatsApp messages, verified with `X-Hub-Signature-256` (your app secret). A message carrying a click-to-chat reference code is linked to the visitor and ad that opened the chat and recorded as a lead. Idempotent per reference code.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "WhatsApp Cloud API webhook payload."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "leads": {
+                      "type": "integer",
+                      "description": "Leads recorded."
+                    },
+                    "linked": {
+                      "type": "integer",
+                      "description": "Chats linked to a visitor."
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "leads",
+                    "linked"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "description": "Payload too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "Processing failed; Meta will retry (ingestion is idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/webhooks/stripe/{workspaceId}": {
       "post": {
         "tags": [
@@ -1065,7 +1464,7 @@
         ],
         "operationId": "revenueWebhook",
         "summary": "Revenue platform webhook",
-        "description": "Orders, payments and refunds from connected revenue platforms. Each provider's own signature scheme is verified. WooCommerce's `webhook_id=N` activation ping is acknowledged.",
+        "description": "Orders, payments and refunds from connected revenue platforms. Each provider's own signature scheme is verified (HMAC, HTTP Basic auth for Chargebee and Recurly, a `?token=` for Gumroad). WooCommerce's `webhook_id=N` activation ping is acknowledged. Recurly reads the site currency from `?currency=` (default USD). HubSpot and Pipedrive use `/api/v1/webhooks/crm/{provider}/{workspaceId}` instead.",
         "security": [],
         "parameters": [
           {
@@ -1081,7 +1480,13 @@
                 "paddle",
                 "lemonsqueezy",
                 "razorpay",
-                "paypal"
+                "paypal",
+                "chargebee",
+                "recurly",
+                "gumroad",
+                "cashfree",
+                "instamojo",
+                "phonepe"
               ]
             }
           },
@@ -1103,6 +1508,19 @@
               "schema": {
                 "type": "object",
                 "description": "The platform's webhook payload."
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Form-encoded payload (Instamojo, Gumroad)."
+              }
+            },
+            "application/xml": {
+              "schema": {
+                "type": "string",
+                "description": "XML notification (Recurly)."
               }
             }
           }
@@ -1149,11 +1567,136 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "413": {
+            "description": "Payload too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           },
           "500": {
             "description": "Processing failed; the platform will retry (ingestion is idempotent).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/crm/{provider}/{workspaceId}": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "operationId": "crmWebhook",
+        "summary": "CRM deal webhook",
+        "description": "Deal events from HubSpot (`X-HubSpot-Signature-v3`) or Pipedrive (HTTP Basic auth). The events carry only deal ids, so AdLedger re-reads those deals through the CRM's API and stores the won ones as revenue (idempotent on deal id).",
+        "security": [],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "CRM connector.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hubspot",
+                "pipedrive"
+              ]
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "The CRM's webhook payload (HubSpot sends an array of events)."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "received": {
+                      "type": "boolean"
+                    },
+                    "deals": {
+                      "type": "integer",
+                      "description": "Deal ids in the payload."
+                    },
+                    "stored": {
+                      "type": "integer",
+                      "description": "Won deals stored as revenue."
+                    }
+                  },
+                  "required": [
+                    "received",
+                    "deals",
+                    "stored"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Invalid signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "description": "Payload too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "Processing failed; the CRM will retry (ingestion is idempotent).",
             "content": {
               "application/json": {
                 "schema": {

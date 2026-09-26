@@ -31,8 +31,13 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | OPTIONS | [`/api/v1/collect`](#options-apiv1collect) | CORS preflight | public |
 | GET | [`/api/v1/import/template`](#get-apiv1importtemplate) | CSV import template | public |
 | POST | [`/api/v1/webhooks/leads/{token}`](#post-apiv1webhooksleadstoken) | Form lead webhook | public |
+| GET | [`/api/v1/webhooks/leads-native/{provider}/{workspaceId}`](#get-apiv1webhooksleads-nativeproviderworkspaceid) | Native lead form webhook verification | public |
+| POST | [`/api/v1/webhooks/leads-native/{provider}/{workspaceId}`](#post-apiv1webhooksleads-nativeproviderworkspaceid) | Native lead form webhook | public |
+| GET | [`/api/v1/webhooks/whatsapp/{workspaceId}`](#get-apiv1webhookswhatsappworkspaceid) | WhatsApp webhook verification | public |
+| POST | [`/api/v1/webhooks/whatsapp/{workspaceId}`](#post-apiv1webhookswhatsappworkspaceid) | WhatsApp message webhook | public |
 | POST | [`/api/v1/webhooks/stripe/{workspaceId}`](#post-apiv1webhooksstripeworkspaceid) | Stripe webhook | public |
 | POST | [`/api/v1/webhooks/{provider}/{workspaceId}`](#post-apiv1webhooksproviderworkspaceid) | Revenue platform webhook | public |
+| POST | [`/api/v1/webhooks/crm/{provider}/{workspaceId}`](#post-apiv1webhookscrmproviderworkspaceid) | CRM deal webhook | public |
 | GET | [`/api/mcp`](#get-apimcp) | MCP event stream (not supported) | API key |
 | POST | [`/api/mcp`](#post-apimcp) | MCP endpoint (Streamable HTTP) | API key |
 | DELETE | [`/api/mcp`](#delete-apimcp) | End an MCP session (not supported) | API key |
@@ -276,7 +281,7 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 ## Webhooks
 
-Inbound webhooks from form tools and revenue platforms.
+Inbound webhooks from form tools, ad-platform lead forms, WhatsApp, CRMs and revenue platforms.
 
 ### POST /api/v1/webhooks/leads/{token}
 
@@ -296,6 +301,93 @@ Request body: `application/json`: object · `application/x-www-form-urlencoded`:
 | 404 | Not found. — `application/json`: [Error](#error) |
 | 422 | Nothing usable in the payload. — `application/json`: [Error](#error) |
 | 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### GET /api/v1/webhooks/leads-native/{provider}/{workspaceId}
+
+**Native lead form webhook verification.** Subscription handshake for Meta Lead Ads: answers `hub.challenge` when `hub.verify_token` matches the connection's verify token.
+
+Auth: none (public endpoint).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `provider` | path | `meta_leads`, `google_ads_leads`, `tiktok_leads` | yes | Lead form connector. |
+| `workspaceId` | path | string (uuid) | yes | Workspace id. |
+| `hub.mode` | query | `"subscribe"` | yes |  |
+| `hub.verify_token` | query | string | yes | The verify token saved in AdLedger. |
+| `hub.challenge` | query | string | yes | Echoed back on success. |
+
+| Status | Response |
+|---|---|
+| 200 | The `hub.challenge` value, echoed as plain text. — `text/plain`: string |
+| 400 | Malformed request. — `application/json`: [Error](#error) |
+| 403 | Verification failed. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### POST /api/v1/webhooks/leads-native/{provider}/{workspaceId}
+
+**Native lead form webhook.** Leads from Meta Lead Ads (signed `X-Hub-Signature-256`; lead details are fetched from the Graph API), Google Ads lead form extensions (`google_key` in the body) and TikTok Lead Generation (`TikTok-Signature`). Each lead becomes a contact, a lead and a touchpoint on the ad that collected it. Idempotent on the platform's lead id.
+
+Auth: none (public endpoint).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `provider` | path | `meta_leads`, `google_ads_leads`, `tiktok_leads` | yes | Lead form connector. |
+| `workspaceId` | path | string (uuid) | yes | Workspace id. |
+
+Request body: `application/json`: object
+
+| Status | Response |
+|---|---|
+| 200 | Webhook processed. — `application/json`: object |
+| 400 | Malformed request. — `application/json`: [Error](#error) |
+| 401 | Invalid signature. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 413 | Payload too large. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+| 500 | Processing failed; the platform will retry (ingestion is idempotent). — `application/json`: [Error](#error) |
+
+### GET /api/v1/webhooks/whatsapp/{workspaceId}
+
+**WhatsApp webhook verification.** WhatsApp Business Cloud API subscription handshake: answers `hub.challenge` when `hub.verify_token` matches the connection's verify token.
+
+Auth: none (public endpoint).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `workspaceId` | path | string (uuid) | yes | Workspace id. |
+| `hub.mode` | query | `"subscribe"` | yes |  |
+| `hub.verify_token` | query | string | yes | The verify token saved in AdLedger. |
+| `hub.challenge` | query | string | yes | Echoed back on success. |
+
+| Status | Response |
+|---|---|
+| 200 | The `hub.challenge` value, echoed as plain text. — `text/plain`: string |
+| 403 | Verification failed. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### POST /api/v1/webhooks/whatsapp/{workspaceId}
+
+**WhatsApp message webhook.** Inbound WhatsApp messages, verified with `X-Hub-Signature-256` (your app secret). A message carrying a click-to-chat reference code is linked to the visitor and ad that opened the chat and recorded as a lead. Idempotent per reference code.
+
+Auth: none (public endpoint).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `workspaceId` | path | string (uuid) | yes | Workspace id. |
+| `X-Hub-Signature-256` | header | string | yes |  |
+
+Request body: `application/json`: object
+
+| Status | Response |
+|---|---|
+| 200 | Webhook processed. — `application/json`: object |
+| 401 | Invalid signature. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 413 | Payload too large. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+| 500 | Processing failed; Meta will retry (ingestion is idempotent). — `application/json`: [Error](#error) |
 
 ### POST /api/v1/webhooks/stripe/{workspaceId}
 
@@ -319,16 +411,16 @@ Request body: `application/json`: object
 
 ### POST /api/v1/webhooks/{provider}/{workspaceId}
 
-**Revenue platform webhook.** Orders, payments and refunds from connected revenue platforms. Each provider's own signature scheme is verified. WooCommerce's `webhook_id=N` activation ping is acknowledged.
+**Revenue platform webhook.** Orders, payments and refunds from connected revenue platforms. Each provider's own signature scheme is verified (HMAC, HTTP Basic auth for Chargebee and Recurly, a `?token=` for Gumroad). WooCommerce's `webhook_id=N` activation ping is acknowledged. Recurly reads the site currency from `?currency=` (default USD). HubSpot and Pipedrive use `/api/v1/webhooks/crm/{provider}/{workspaceId}` instead.
 
 Auth: none (public endpoint).
 
 | Parameter | In | Type | Required | Description |
 |---|---|---|---|---|
-| `provider` | path | `shopify`, `woocommerce`, `paddle`, `lemonsqueezy`, `razorpay`, `paypal` | yes | Revenue connector. |
+| `provider` | path | `shopify`, `woocommerce`, `paddle`, `lemonsqueezy`, `razorpay`, `paypal`, `chargebee`, `recurly`, `gumroad`, `cashfree`, `instamojo`, `phonepe` | yes | Revenue connector. |
 | `workspaceId` | path | string (uuid) | yes | Workspace id. |
 
-Request body: `application/json`: object
+Request body: `application/json`: object · `application/x-www-form-urlencoded`: object · `application/xml`: string
 
 | Status | Response |
 |---|---|
@@ -336,8 +428,32 @@ Request body: `application/json`: object
 | 400 | Malformed request. — `application/json`: [Error](#error) |
 | 401 | Invalid signature. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+| 413 | Payload too large. — `application/json`: [Error](#error) |
 | 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 | 500 | Processing failed; the platform will retry (ingestion is idempotent). — `application/json`: [Error](#error) |
+
+### POST /api/v1/webhooks/crm/{provider}/{workspaceId}
+
+**CRM deal webhook.** Deal events from HubSpot (`X-HubSpot-Signature-v3`) or Pipedrive (HTTP Basic auth). The events carry only deal ids, so AdLedger re-reads those deals through the CRM's API and stores the won ones as revenue (idempotent on deal id).
+
+Auth: none (public endpoint).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `provider` | path | `hubspot`, `pipedrive` | yes | CRM connector. |
+| `workspaceId` | path | string (uuid) | yes | Workspace id. |
+
+Request body: `application/json`: any
+
+| Status | Response |
+|---|---|
+| 200 | Webhook processed. — `application/json`: object |
+| 400 | Malformed request. — `application/json`: [Error](#error) |
+| 401 | Invalid signature. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 413 | Payload too large. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+| 500 | Processing failed; the CRM will retry (ingestion is idempotent). — `application/json`: [Error](#error) |
 
 ## MCP
 

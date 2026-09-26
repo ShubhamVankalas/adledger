@@ -3,6 +3,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { POST as mcpRoute } from "@/app/api/mcp/route";
 import { GET as openapiRoute } from "@/app/api/v1/openapi.json/route";
+import { CRM_CONNECTORS } from "@/lib/connectors/crm";
+import { LEAD_CONNECTORS } from "@/lib/connectors/leads";
 import { AD_PLATFORMS } from "@/lib/connectors/types";
 import { REVENUE_CONNECTORS } from "@/lib/connectors/revenue";
 import { buildMcpHandler } from "@/lib/mcp";
@@ -102,7 +104,15 @@ describe("OpenAPI contract", () => {
   });
 
   it("marks public (non-API-key) endpoints explicitly", () => {
-    const publicOps = ["/api/v1/health", "/api/v1/collect", "/api/v1/webhooks/leads/{token}", "/api/v1/webhooks/stripe/{workspaceId}"];
+    const publicOps = [
+      "/api/v1/health",
+      "/api/v1/collect",
+      "/api/v1/webhooks/leads/{token}",
+      "/api/v1/webhooks/stripe/{workspaceId}",
+      "/api/v1/webhooks/leads-native/{provider}/{workspaceId}",
+      "/api/v1/webhooks/whatsapp/{workspaceId}",
+      "/api/v1/webhooks/crm/{provider}/{workspaceId}",
+    ];
     for (const p of publicOps) expect(spec.paths[p].post?.security ?? spec.paths[p].get?.security, p).toEqual([]);
     expect(spec.paths["/api/v1/reports/{report}"].get.security).toBeUndefined();
     expect(spec.paths["/api/v1/spend"].post.security).toBeUndefined();
@@ -119,7 +129,15 @@ describe("OpenAPI contract", () => {
   it("keeps its enums in sync with the code", () => {
     const schemas = spec.components.schemas as Record<string, { enum?: unknown[] }>;
     expect(schemas.Platform.enum).toEqual([...AD_PLATFORMS]);
-    expect(pathEnum("/api/v1/webhooks/{provider}/{workspaceId}", "post", "provider")).toEqual(REVENUE_CONNECTORS.map((c) => c.meta.provider));
+    // CRM connectors share the revenue registry but post to their own route.
+    const crm = CRM_CONNECTORS.map((c) => c.meta.provider);
+    expect(pathEnum("/api/v1/webhooks/{provider}/{workspaceId}", "post", "provider")).toEqual(
+      REVENUE_CONNECTORS.map((c) => c.meta.provider).filter((p) => !crm.includes(p)),
+    );
+    expect(pathEnum("/api/v1/webhooks/crm/{provider}/{workspaceId}", "post", "provider")).toEqual(crm);
+    for (const method of ["get", "post"]) {
+      expect(pathEnum("/api/v1/webhooks/leads-native/{provider}/{workspaceId}", method, "provider")).toEqual(LEAD_CONNECTORS.map((c) => c.meta.provider));
+    }
     // The sync route hard-codes its providers; keep this list and the spec in step with it.
     const syncSrc = readFileSync(path.join(API_DIR, "sync/[provider]/route.ts"), "utf8");
     const accepted = [...syncSrc.matchAll(/provider !== "([a-z_]+)"/g)].map((m) => m[1]);
