@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
-import { ArrowRightIcon, CheckCircle2Icon, CircleIcon } from "lucide-react";
+import { ArrowRightIcon, BarChart3Icon, CheckCircle2Icon, CircleIcon, RouteIcon, SparklesIcon, TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { getLlmConfig } from "@/lib/ai/report";
 import { rows, type DB } from "@/lib/db";
 import type { Workspace } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "./ui/empty";
 import { Progress } from "./ui/progress";
 
 export type SetupStep = { key: string; done: boolean; optional?: boolean; label: string; desc: string; href: string };
@@ -48,42 +50,167 @@ export async function getSetupStatus(db: DB, ws: Workspace) {
   };
 }
 
+/** True when none of the essential steps are done yet: nothing to report, so pages show a welcome instead of zeros. */
+export function isFreshWorkspace(status: SetupStatus) {
+  return status.steps.every((s) => s.optional || !s.done);
+}
+
 /** Compact banner for the Overview page. */
-export function Onboarding({ status }: { status: SetupStatus }) {
-  const next = status.steps.find((s) => !s.done && !s.optional) ?? status.steps.find((s) => !s.done);
+export function Onboarding({ status, canSetup = true }: { status: SetupStatus; canSetup?: boolean }) {
+  const required = status.steps.filter((s) => !s.optional);
+  const requiredDone = required.filter((s) => s.done).length;
+  const next = required.find((s) => !s.done) ?? status.steps.find((s) => !s.done);
   return (
-    <Card className="border-primary/25">
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-        <div>
+    <Card className="ring-primary/25">
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0 flex-1 basis-64">
           <CardTitle>Finish setting up</CardTitle>
           <CardDescription>
-            {status.done} of {status.steps.length} done. Numbers get accurate once the pixel, payments and ad spend are all connected.
+            {requiredDone} of {required.length} essentials done. Numbers get accurate once the pixel, payments and ad spend are all connected.
           </CardDescription>
         </div>
-        <Link href="/onboarding" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-          Open setup checklist <ArrowRightIcon className="size-3.5" />
-        </Link>
+        {canSetup ? (
+          <Link href="/onboarding" className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-primary hover:underline">
+            Open setup checklist <ArrowRightIcon className="size-3.5" />
+          </Link>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
-        <Progress value={(status.done / status.steps.length) * 100} />
+        <Progress value={(requiredDone / required.length) * 100} aria-label="Setup progress" />
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {status.steps
-            .filter((s) => !s.optional)
-            .map((s) => (
-              <Link
-                key={s.key}
-                href={s.href}
-                className={cn("rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-accent/40", s.done && "opacity-60", next?.key === s.key && "border-primary/50 bg-primary/5")}
-              >
+          {required.map((s) => {
+            const body = (
+              <>
                 <div className="flex items-center gap-2 text-sm font-medium">
-                  {s.done ? <CheckCircle2Icon className="size-4 text-success" /> : <CircleIcon className="size-4 text-muted-foreground" />}
-                  {s.label}
+                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <CircleIcon className="size-4 shrink-0 text-muted-foreground" />}
+                  <span className={cn("min-w-0", s.done && "text-muted-foreground line-through")}>{s.label}</span>
+                  {next?.key === s.key ? <span className="ml-auto shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">Next</span> : null}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{s.desc}</p>
+                {/* On phones only the next step keeps its description, so the banner stays short. */}
+                <p className={cn("mt-1 pl-6 text-xs text-muted-foreground", next?.key !== s.key && "hidden sm:block")}>{s.desc}</p>
+              </>
+            );
+            const cls = cn("rounded-lg border px-3 py-2.5 sm:p-3", s.done && "opacity-70", next?.key === s.key && "border-primary/50 bg-primary/5");
+            return canSetup ? (
+              <Link key={s.key} href={s.href} className={cn(cls, "transition-colors hover:border-primary/40 hover:bg-accent/40")}>
+                {body}
               </Link>
-            ))}
+            ) : (
+              <div key={s.key} className={cls}>
+                {body}
+              </div>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** Performance page on a workspace with no ad platform connected and no spend imported. */
+export function NoAdDataYet({ canSetup }: { canSetup: boolean }) {
+  return (
+    <Empty className="border bg-card py-10 sm:py-14">
+      <EmptyHeader className="max-w-md">
+        <EmptyMedia variant="icon" className="size-10 rounded-xl bg-primary/10 text-primary">
+          <BarChart3Icon className="size-5" />
+        </EmptyMedia>
+        <EmptyTitle className="text-base">No ad data yet</EmptyTitle>
+        <EmptyDescription>
+          Connect Meta, Google, TikTok, LinkedIn or another ad platform to see spend, leads, customers and revenue for every campaign, ad set and ad.
+          {canSetup ? null : " Ask an owner or admin to connect one."}
+        </EmptyDescription>
+      </EmptyHeader>
+      {canSetup ? (
+        <EmptyContent className="max-w-md sm:flex-row sm:justify-center">
+          <Button size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#ads" />}>
+            Connect an ad platform <ArrowRightIcon />
+          </Button>
+          <Button size="lg" variant="outline" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/settings/workspace/import" />}>
+            Import spend from CSV
+          </Button>
+        </EmptyContent>
+      ) : null}
+    </Empty>
+  );
+}
+
+const PREVIEW = [
+  { icon: TrendingUpIcon, title: "ROAS per campaign, ad set and ad", body: "Real revenue from Stripe or your store, matched to the ad that brought each customer in." },
+  { icon: RouteIcon, title: "Every customer's journey", body: "The clicks, visits and forms that led to each lead and sale, across every ad platform." },
+  { icon: SparklesIcon, title: "Weekly insights", body: "What changed, what's wasting money, and what to scale — from your own AI model, or none." },
+];
+
+/** Replaces the dashboard on a brand-new workspace, where every number would be zero. */
+export function Welcome({ status, name, canSetup }: { status: SetupStatus; name: string; canSetup: boolean }) {
+  return (
+    <div className="space-y-6">
+      <Card className="relative overflow-hidden ring-primary/25">
+        <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-primary/10 blur-3xl" />
+        <CardHeader className="relative">
+          <CardTitle className="text-lg break-words sm:text-xl">Let&apos;s get {name} tracking</CardTitle>
+          <CardDescription className="max-w-2xl">
+            {canSetup
+              ? "Your dashboard fills in as soon as data arrives. Four steps, about 15 minutes — and you can do them in any order."
+              : "An admin is still connecting this workspace. Your dashboard fills in as soon as data arrives."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="relative space-y-5">
+          <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {status.steps
+              .filter((s) => !s.optional)
+              .map((s, i) => {
+                const body = (
+                  <>
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{i + 1}</span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{s.label}</div>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
+                    </div>
+                  </>
+                );
+                return (
+                  <li key={s.key}>
+                    {canSetup ? (
+                      <Link href={s.href} className="flex h-full gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent/40">
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className="flex h-full gap-3 rounded-lg border bg-card p-3">{body}</div>
+                    )}
+                  </li>
+                );
+              })}
+          </ol>
+          {canSetup ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button size="lg" className="h-11 px-4 text-[0.95rem] sm:h-10 sm:text-sm" render={<Link href="/onboarding" />}>
+                Start the setup checklist <ArrowRightIcon />
+              </Button>
+              <Button size="lg" variant="ghost" className="h-11 px-4 sm:h-10" render={<Link href="/settings/workspace/integrations" />}>
+                Browse integrations
+              </Button>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <section aria-labelledby="preview-heading" className="space-y-3">
+        <h2 id="preview-heading" className="text-sm font-medium text-muted-foreground">
+          What you&apos;ll see here
+        </h2>
+        <div className="grid gap-3 xl:grid-cols-3">
+          {PREVIEW.map((p) => (
+            <div key={p.title} className="flex gap-3 rounded-xl border border-dashed p-4 xl:flex-col xl:gap-0">
+              <p.icon className="mt-0.5 size-5 shrink-0 text-primary xl:mt-0" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium xl:mt-3">{p.title}</div>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{p.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

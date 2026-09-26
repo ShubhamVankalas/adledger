@@ -142,7 +142,7 @@ test("settings pages render", async ({ page }) => {
   await page.goto("/settings/organization/audit");
   await expect(page.getByText("invited").first()).toBeVisible();
   await page.goto("/onboarding");
-  await expect(page.getByText("Install the tracking pixel").first()).toBeVisible();
+  await expect(page.locator("#pixel").getByText("Install the tracking pixel")).toBeVisible();
   await shot(page, "onboarding");
 });
 

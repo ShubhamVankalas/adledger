@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth";
@@ -16,7 +16,9 @@ export const metadata = { title: "Contacts" };
 const PAGE = 50;
 
 export default async function ContactsPage({ searchParams }: PageProps<"/contacts">) {
-  const { workspace: ws } = await requireUser();
+  const user = await requireUser();
+  const ws = user.workspace;
+  const canSetup = user.can("workspace.settings");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const lifecycle = sp.lifecycle === "lead" || sp.lifecycle === "customer" ? sp.lifecycle : undefined;
@@ -58,20 +60,50 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
         </div>
 
         {rows.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <UsersIcon />
-              </EmptyMedia>
-              <EmptyTitle>No contacts {q ? "match your search" : "yet"}</EmptyTitle>
-              <EmptyDescription>
-                Contacts appear when someone submits a form on your site (pixel <code>adledger.lead()</code>), a form tool calls your lead webhook, or a Stripe payment arrives.
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button variant="outline" size="sm" render={<Link href="/settings/workspace/tracking" />}>
-              Set up tracking
-            </Button>
-          </Empty>
+          q || lifecycle ? (
+            <Empty className="border bg-card py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchIcon />
+                </EmptyMedia>
+                <EmptyTitle>{q ? "No contacts match your search" : `No ${lifecycle}s yet`}</EmptyTitle>
+                <EmptyDescription>
+                  {q ? (
+                    <>
+                      Nothing found for <span className="font-medium break-all text-foreground">&ldquo;{q}&rdquo;</span>. Search matches email addresses and names.
+                    </>
+                  ) : (
+                    "Try another filter, or widen it to everyone."
+                  )}
+                </EmptyDescription>
+              </EmptyHeader>
+              <Button variant="outline" size="lg" className="h-11 px-4 sm:h-9" render={<Link href="/contacts" />}>
+                {q ? "Clear search" : "Show all contacts"}
+              </Button>
+            </Empty>
+          ) : (
+            <Empty className="border bg-card py-10 sm:py-14">
+              <EmptyHeader className="max-w-md">
+                <EmptyMedia variant="icon" className="size-10 rounded-xl bg-primary/10 text-primary">
+                  <UsersIcon className="size-5" />
+                </EmptyMedia>
+                <EmptyTitle className="text-base">No contacts yet</EmptyTitle>
+                <EmptyDescription>
+                  Contacts appear when someone submits a form on your site, a form tool calls your lead webhook, or a payment arrives — each with the ads and visits that brought them in.
+                </EmptyDescription>
+              </EmptyHeader>
+              {canSetup ? (
+                <EmptyContent className="max-w-md sm:flex-row sm:justify-center">
+                  <Button size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#leads" />}>
+                    Capture your first lead
+                  </Button>
+                  <Button variant="outline" size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#revenue" />}>
+                    Connect payments
+                  </Button>
+                </EmptyContent>
+              ) : null}
+            </Empty>
+          )
         ) : (
           <div className="overflow-hidden rounded-xl border bg-card">
             <Table>
