@@ -53,10 +53,24 @@ function useSidebar() {
   return context
 }
 
+function useBelowWidth(width: number | undefined) {
+  return React.useSyncExternalStore(
+    (onChange) => {
+      if (!width) return () => {}
+      const mql = window.matchMedia(`(max-width: ${width - 1}px)`)
+      mql.addEventListener("change", onChange)
+      return () => mql.removeEventListener("change", onChange)
+    },
+    () => (width ? window.matchMedia(`(max-width: ${width - 1}px)`).matches : false),
+    () => false
+  )
+}
+
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
+  collapseBelow,
   className,
   style,
   children,
@@ -65,19 +79,29 @@ function SidebarProvider({
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /**
+   * Viewport width (px) below which the desktop sidebar starts collapsed, e.g. 1024 for
+   * tablets. Toggling it there lasts for the visit and leaves the saved preference alone.
+   */
+  collapseBelow?: number
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const narrow = useBelowWidth(collapseBelow) && !isMobile
+  const [narrowOpen, setNarrowOpen] = React.useState(false)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen)
-  const open = openProp ?? _open
+  const open = openProp ?? (narrow ? narrowOpen : _open)
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value
       if (setOpenProp) {
         setOpenProp(openState)
+      } else if (narrow) {
+        setNarrowOpen(openState)
+        return
       } else {
         _setOpen(openState)
       }
@@ -85,7 +109,7 @@ function SidebarProvider({
       // This sets the cookie to keep the sidebar state.
       document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
     },
-    [setOpenProp, open]
+    [setOpenProp, open, narrow]
   )
 
   // Helper to toggle the sidebar.
@@ -187,7 +211,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className="w-(--sidebar-width) max-w-[85vw] bg-sidebar p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] text-sidebar-foreground [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,

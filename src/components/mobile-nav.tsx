@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3Icon, LayoutDashboardIcon, MenuIcon, SparklesIcon, UsersIcon } from "lucide-react";
+import { BarChart3Icon, LayoutDashboardIcon, MenuIcon, SparklesIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -16,7 +16,21 @@ const TABS = [
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
-const item = "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
+const item =
+  "group/tab flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl pt-1.5 pb-1 text-[11px] leading-none font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
+
+function TabIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
+  return (
+    <span
+      className={cn(
+        "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
+        active ? "bg-primary/12 text-primary dark:bg-primary/18" : "group-hover/tab:bg-muted",
+      )}
+    >
+      <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+    </span>
+  );
+}
 
 /**
  * Bottom tab bar for phones (below the md breakpoint, where the sidebar becomes a sheet).
@@ -39,34 +53,34 @@ export function MobileNav() {
       <nav
         aria-label="Primary"
         data-slot="mobile-nav"
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur supports-[backdrop-filter]:bg-background/75 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.12)] backdrop-blur-md supports-[backdrop-filter]:bg-background/75 md:hidden"
       >
-        <ul className="flex h-16 items-stretch gap-1 px-2">
-          {TABS.map(({ href, label, icon: Icon }) => {
+        <ul className="mx-auto flex h-16 max-w-lg items-stretch gap-0.5 px-1.5 py-1">
+          {TABS.map(({ href, label, icon }) => {
             const active = isActive(pathname, href);
             return (
-              <li key={href} className="flex flex-1">
+              <li key={href} className="flex min-w-0 flex-1">
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={cn(item, active ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+                  className={cn(item, active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
                 >
-                  <Icon className="size-5" aria-hidden />
-                  <span className="truncate">{label}</span>
+                  <TabIcon icon={icon} active={active} />
+                  <span className="max-w-full truncate">{label}</span>
                 </Link>
               </li>
             );
           })}
-          <li className="flex flex-1">
+          <li className="flex min-w-0 flex-1">
             <button
               type="button"
               aria-haspopup="dialog"
               aria-expanded={openMobile}
               onClick={() => setOpenMobile(true)}
-              className={cn(item, !onTab || openMobile ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+              className={cn(item, !onTab || openMobile ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
             >
-              <MenuIcon className="size-5" aria-hidden />
-              <span className="truncate">More</span>
+              <TabIcon icon={MenuIcon} active={!onTab || openMobile} />
+              <span className="max-w-full truncate">More</span>
             </button>
           </li>
         </ul>
