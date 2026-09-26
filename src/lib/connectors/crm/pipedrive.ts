@@ -1,6 +1,6 @@
 import type { ConnectionLike, RevenueEventInput, WebhookRequest } from "../types";
-import { arr, fetchJson, obj, str, type Json } from "../revenue/shared";
-import { chunks, currencyCode, dealAmountMinor, safeEqualStrings, utcDate, type CrmConnector } from "./shared";
+import { arr, obj, str, type Json } from "../revenue/shared";
+import { chunks, currencyCode, dealAmountMinor, fetchJsonRetry, safeEqualStrings, utcDate, wrongWebhookUrl, type CrmConnector } from "./shared";
 
 // Pipedrive: won deals -> payments (externalId = deal id), matched through the deal's person
 // (primary email, then Pipedrive person id).
@@ -73,8 +73,7 @@ function client(conn: ConnectionLike) {
   if (!tok) throw new Error("Pipedrive API token is missing");
   return async (path: string, params: Record<string, string>, what: string) => {
     const qs = new URLSearchParams(params);
-    const { body } = await fetchJson<Json>(`${base}${path}?${qs}`, { headers: { "x-api-token": tok } }, what);
-    return body;
+    return obj(await fetchJsonRetry(`${base}${path}?${qs}`, { headers: { "x-api-token": tok } }, what)) ?? {};
   };
 }
 
@@ -136,14 +135,16 @@ export function pipedriveWebhookDealIds(payload: unknown): string[] {
   const p = obj(payload);
   const meta = obj(p?.meta);
   if (!p || !meta) return [];
-  const entity = str(meta.entity) ?? str(meta.object);
+  const v2 = str(meta.entity) !== null;
+  const entity = v2 ? str(meta.entity) : str(meta.object);
   const action = str(meta.action) ?? "";
   if (entity !== "deal" || /^delete/.test(action)) return [];
   const current = obj(p.data) ?? obj(p.current);
   const status = str(current?.status);
   if (status && status !== "won") return [];
-  const id = str(meta.entity_id) ?? str(meta.id) ?? str(current?.id);
-  return id ? [id] : [];
+  // In v2, meta.id is the event's own id (a UUID); only v1 puts the deal id in meta.id.
+  const id = (v2 ? str(meta.entity_id) : str(meta.id)) ?? str(current?.id);
+  return id && /^\d+$/.test(id) ? [id] : [];
 }
 
 export function verifyPipedriveBasicAuth(req: WebhookRequest, user: string | undefined, password: string | undefined): boolean {
@@ -179,9 +180,10 @@ export const pipedriveConnector: CrmConnector = {
   verifyWebhook(req: WebhookRequest, conn: ConnectionLike) {
     return verifyPipedriveBasicAuth(req, conn.config.webhookUser, conn.secrets.webhookPassword);
   },
-  // Webhook payloads only name the deal; the CRM webhook route calls fetchDeals instead.
+  // Webhook payloads only name the deal; the CRM webhook route calls fetchDeals instead. Reaching this
+  // means the webhook targets the generic /webhooks/pipedrive/ URL: fail so Pipedrive's log shows it.
   parseWebhook() {
-    return [];
+    throw wrongWebhookUrl("pipedrive");
   },
   backfill,
   webhookDealIds: pipedriveWebhookDealIds,

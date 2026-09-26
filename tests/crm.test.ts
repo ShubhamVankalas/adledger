@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST as crmHook } from "@/app/api/v1/webhooks/crm/[provider]/[workspaceId]/route";
 import { CRM_CONNECTORS, getCrmConnector } from "@/lib/connectors/crm/index";
+import { fetchJsonRetry } from "@/lib/connectors/crm/shared";
 import { hubspotConnector, hubspotDealToEvent, hubspotWebhookDealIds, verifyHubspotSignature } from "@/lib/connectors/crm/hubspot";
 import { pipedriveBaseUrl, pipedriveConnector, pipedriveDealToEvent, pipedriveWebhookDealIds, verifyPipedriveBasicAuth } from "@/lib/connectors/crm/pipedrive";
 import { getRevenueConnector } from "@/lib/connectors/registry";
@@ -180,7 +181,50 @@ describe("HubSpot", () => {
     expect(hubspotWebhookDealIds(json("hubspot/webhook_deal_events.json"))).toEqual(["18234567001", "18234567005"]);
     expect(hubspotWebhookDealIds([{ subscriptionType: "object.propertyChange", objectTypeId: "0-3", objectId: 77 }, { subscriptionType: "object.propertyChange", objectTypeId: "0-1", objectId: 78 }])).toEqual(["77"]);
     expect(hubspotWebhookDealIds({ not: "an array" })).toEqual([]);
-    expect(hubspotConnector.parseWebhook([], hsReq(url, "[]", {}))).toEqual([]);
+    // The generic /webhooks/hubspot/ route can't re-read deals: it must fail visibly, not drop them.
+    expect(() => hubspotConnector.parseWebhook([], hsReq(url, "[]", {}))).toThrow(/webhooks\/crm\/hubspot/);
+  });
+
+  it("backfill restarts from the last close date when a search hits HubSpot's 10k cap", async () => {
+    calls = [];
+    const deal = (i: number) => ({ id: String(i), properties: { amount: "10", hs_is_closed_won: "true", closedate: new Date(Date.UTC(2026, 0, 1) + i * 1000).toISOString() } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL, init: RequestInit = {}) => {
+        const url = String(input);
+        const body = JSON.parse(String(init.body));
+        calls.push({ url, method: "POST", headers: {}, body });
+        if (url.endsWith("/deals/search")) {
+          const from = Number(body.filterGroups[0].filters[1].value);
+          const offset = Number(body.after ?? 0);
+          const all = Array.from({ length: 10_050 }, (_, i) => deal(i)).filter((d) => Date.parse(d.properties.closedate) >= from);
+          const page = all.slice(offset, offset + 100);
+          // Like HubSpot: no next page once 10k results have been served.
+          const next = offset + 100 < Math.min(all.length, 10_000) ? { next: { after: String(offset + 100) } } : undefined;
+          return ok({ total: all.length, results: page, ...(next ? { paging: next } : {}) });
+        }
+        return ok({ results: [] });
+      }),
+    );
+    const events = await hubspotConnector.backfill(HS, { sinceMs: Date.UTC(2026, 0, 1) });
+    expect(events).toHaveLength(10_050);
+    expect(new Set(events.map((e) => e.externalId)).size).toBe(10_050);
+    const restarts = calls.filter((c) => c.url.endsWith("/deals/search") && !(c.body as { after?: string }).after);
+    expect(restarts).toHaveLength(2);
+  });
+
+  it("retries HubSpot rate limits (429) and then succeeds", async () => {
+    let n = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => (n++ === 0 ? new Response("{}", { status: 429, headers: { "retry-after": "0" } }) : ok(json("hubspot/deals_batch_read.json")))),
+    );
+    const slept: number[] = [];
+    const body = await fetchJsonRetry<{ results: unknown[] }>("https://api.hubapi.com/x", {}, "t", async (ms) => void slept.push(ms));
+    expect(body.results).toHaveLength(2);
+    expect(slept).toEqual([1000]);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("slow down", { status: 429 })));
+    await expect(fetchJsonRetry("https://api.hubapi.com/x", {}, "HubSpot t", async () => undefined)).rejects.toThrow(/HTTP 429/);
   });
 
   it("deal parsing: won only, exact minor units, default currency, no amount -> skipped", () => {
@@ -245,6 +289,11 @@ describe("Pipedrive", () => {
     expect(pipedriveWebhookDealIds({ ...v2, data: { ...v2.data, status: "lost" } })).toEqual([]);
     expect(pipedriveWebhookDealIds({ ...v2, meta: { ...v2.meta, action: "delete" }, data: null })).toEqual([]);
     expect(pipedriveWebhookDealIds({ ...v2, meta: { ...v2.meta, entity: "person" } })).toEqual([]);
+    // v2's meta.id is the event UUID, never a deal id.
+    const metaNoEntityId = { ...v2.meta, entity_id: undefined };
+    expect(pipedriveWebhookDealIds({ ...v2, meta: metaNoEntityId, data: { ...v2.data, id: 1042 } })).toEqual(["1042"]);
+    expect(pipedriveWebhookDealIds({ ...v2, meta: metaNoEntityId, data: { status: "won" } })).toEqual([]);
+    expect(() => pipedriveConnector.parseWebhook(v2, r({}))).toThrow(/webhooks\/crm\/pipedrive/);
   });
 
   it("deal parsing: v1 timestamps and embedded person, exact minor units", () => {

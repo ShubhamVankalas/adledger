@@ -9,7 +9,8 @@ import type { ConnectionLike, RevenueConnector, RevenueEventInput } from "../typ
 // backfill pick it up unchanged) plus two webhook helpers. CRM webhooks only carry ids,
 // so the dedicated route `/api/v1/webhooks/crm/{provider}/{workspaceId}` verifies the call,
 // pulls the deal ids out with `webhookDealIds`, re-reads them with `fetchDeals` and ingests
-// whatever is won. `parseWebhook` therefore returns nothing.
+// whatever is won. `parseWebhook` throws, so a webhook sent to the generic revenue URL fails
+// visibly (HTTP 500 in the CRM's webhook log) instead of being accepted and silently dropped.
 //
 // Only won deals become revenue (externalId = deal id, so edits to amount/close date update the
 // same row). A deal that later moves out of won is ignored: the revenue event stays until it is
@@ -53,6 +54,32 @@ export function utcDate(v: unknown): Date | null {
 export function safeEqualStrings(a: string, b: string): boolean {
   const h = (x: string) => createHash("sha256").update(x, "utf8").digest();
   return safeEqual(h(a), h(b)) && a.length > 0;
+}
+
+/**
+ * `fetchJson` that waits and retries a few times on HTTP 429. HubSpot's search API allows only a
+ * few requests per second and Pipedrive rate-limits in short bursts, so a large backfill can hit it.
+ */
+export async function fetchJsonRetry<T = unknown>(url: string, init: RequestInit, what: string, sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.headers as Record<string, string>) } });
+    if (res.status === 429 && attempt < 3) {
+      await res.body?.cancel().catch(() => undefined);
+      const retryAfter = Number(res.headers.get("retry-after"));
+      await sleep(Math.min(retryAfter > 0 ? retryAfter * 1000 : 1000 * (attempt + 1), 10_000));
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`${what} failed: HTTP ${res.status} ${text.slice(0, 300)}`);
+    }
+    return (await res.json()) as T;
+  }
+}
+
+/** Thrown by `parseWebhook`: CRM webhooks must go to the CRM route, which re-reads the deals. */
+export function wrongWebhookUrl(provider: string): Error {
+  return new Error(`${provider} webhooks must use /api/v1/webhooks/crm/${provider}/{workspaceId}; nothing was stored`);
 }
 
 export function chunks<T>(xs: T[], size: number): T[][] {

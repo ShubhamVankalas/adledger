@@ -1,6 +1,6 @@
 import type { ConnectionLike, RevenueEventInput, WebhookRequest } from "../types";
-import { arr, fetchJson, hmacSha256, obj, safeEqual, str, type Json } from "../revenue/shared";
-import { chunks, currencyCode, dealAmountMinor, utcDate, type CrmConnector } from "./shared";
+import { arr, hmacSha256, obj, safeEqual, str, type Json } from "../revenue/shared";
+import { chunks, currencyCode, dealAmountMinor, fetchJsonRetry, utcDate, wrongWebhookUrl, type CrmConnector } from "./shared";
 
 // HubSpot: closed-won deals -> payments (externalId = deal id), matched through the deal's
 // associated contact (email, then HubSpot contact id).
@@ -64,12 +64,11 @@ function token(conn: ConnectionLike): string {
 }
 
 async function hsPost<T = Json>(tok: string, path: string, body: unknown, what: string): Promise<T> {
-  const { body: res } = await fetchJson<T>(
+  return fetchJsonRetry<T>(
     `${API}${path}`,
     { method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, body: JSON.stringify(body) },
     what,
   );
-  return res;
 }
 
 async function searchWonDeals(tok: string, sinceMs: number): Promise<HsObject[]> {
@@ -78,6 +77,7 @@ async function searchWonDeals(tok: string, sinceMs: number): Promise<HsObject[]>
   for (let round = 0; round < 100; round++) {
     let after: string | undefined;
     let last = from;
+    let count = 0;
     let capped = false;
     for (;;) {
       const body = await hsPost(
@@ -100,6 +100,7 @@ async function searchWonDeals(tok: string, sinceMs: number): Promise<HsObject[]>
         "HubSpot deal search",
       );
       for (const r of arr(obj(body)?.results)) {
+        count++;
         const d = hsObject(r);
         if (!d) continue;
         seen.set(d.id, d);
@@ -107,11 +108,12 @@ async function searchWonDeals(tok: string, sinceMs: number): Promise<HsObject[]>
         if (t && t > last) last = t;
       }
       after = str(obj(obj(obj(body)?.paging)?.next)?.after) ?? undefined;
-      if (!after) break;
-      if (Number(after) >= SEARCH_CAP) {
+      // HubSpot won't page past 10k results, and may simply stop offering a next page there.
+      if (count >= SEARCH_CAP || (after && Number(after) >= SEARCH_CAP)) {
         capped = true;
         break;
       }
+      if (!after) break;
     }
     // Past 10k results: restart from the last close date seen (ids are de-duplicated).
     if (!capped || last <= from) break;
@@ -254,9 +256,10 @@ export const hubspotConnector: CrmConnector = {
   verifyWebhook(req: WebhookRequest, conn: ConnectionLike) {
     return verifyHubspotSignature(req, conn.secrets.clientSecret);
   },
-  // Webhook events carry only ids; the CRM webhook route calls fetchDeals instead.
+  // Webhook events carry only ids; the CRM webhook route calls fetchDeals instead. Reaching this
+  // means the webhook targets the generic /webhooks/hubspot/ URL: fail so HubSpot's log shows it.
   parseWebhook() {
-    return [];
+    throw wrongWebhookUrl("hubspot");
   },
   async backfill(conn: ConnectionLike, opts: { sinceMs: number }) {
     const tok = token(conn);
