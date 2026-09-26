@@ -38,11 +38,14 @@ export async function finishOAuthConnectAction(provider: string, form: FormData)
     const { config, secrets } = p.connection(pending.tokens, ids, creds);
     const db = await getDb();
     // The new sign-in replaces every stored secret (e.g. a pasted refresh token from another app).
-    await db
-      .update(schema.connections)
-      .set({ secretsEnc: null })
-      .where(and(eq(schema.connections.workspaceId, user.workspace.id), eq(schema.connections.provider, provider)));
-    await saveConnection(user.workspace.id, provider, { mode: "live", enabled: true, config, secrets }, db);
+    // One transaction, so a failed save can't leave the connection without any secrets.
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.connections)
+        .set({ secretsEnc: null })
+        .where(and(eq(schema.connections.workspaceId, user.workspace.id), eq(schema.connections.provider, provider)));
+      await saveConnection(user.workspace.id, provider, { mode: "live", enabled: true, config, secrets }, tx);
+    });
     await audit(user, "integration.oauth_connected", provider, { accounts: ids.length });
     jar.delete(PENDING_COOKIE);
     revalidatePath("/settings", "layout");

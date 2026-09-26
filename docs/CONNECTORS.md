@@ -76,7 +76,7 @@ register is always `<PUBLIC_URL>/api/v1/oauth/<provider>/callback` — set `PUBL
 
 | Platform | Env vars | Redirect URI path | Where to create the app |
 |---|---|---|---|
-| Meta | `META_APP_ID`, `META_APP_SECRET` | `/api/v1/oauth/meta/callback` | developers.facebook.com → Create app (Business) → add **Facebook Login for Business** + **Marketing API**; permission `ads_read` (needs Advanced Access / app review for accounts outside your business) |
+| Meta | `META_APP_ID`, `META_APP_SECRET` (+ `META_LOGIN_CONFIG_ID` for Business apps) | `/api/v1/oauth/meta/callback` | developers.facebook.com → Create app (Business) → add **Facebook Login for Business** + **Marketing API**; create a login configuration (User access token, permission `ads_read`) and set its ID as `META_LOGIN_CONFIG_ID` (without it the classic `scope=ads_read` is sent). `ads_read` needs Advanced Access / app review for accounts outside your business |
 | Google Ads | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN` | `/api/v1/oauth/google_ads/callback` | Google Cloud Console → enable Google Ads API → OAuth client (Web application); consent screen with scope `…/auth/adwords`. Developer token from Google Ads → API Center |
 | TikTok | `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET` | `/api/v1/oauth/tiktok_ads/callback` | business-api.tiktok.com → My apps → create an app with Ad Account Management + Reporting scopes; set the advertiser redirect URL |
 | LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | `/api/v1/oauth/linkedin_ads/callback` | linkedin.com/developers → app with the **Advertising API** product; scopes `r_ads`, `r_ads_reporting`; add the redirect URL in the Auth tab |

@@ -56,6 +56,8 @@ export type OAuthMeta = {
   label: string;
   /** Env vars that must all be set to enable it: [client id, client secret, ...extras]. */
   env: string[];
+  /** Env vars read when set but not required (e.g. META_LOGIN_CONFIG_ID). */
+  optionalEnv?: string[];
   /** Scopes requested at sign-in (empty = the scopes configured on the platform's app). */
   scopes: string[];
 };

@@ -68,9 +68,38 @@ function chunks(window: DateWindow, size: number): DateWindow[] {
   return out;
 }
 
+/**
+ * JSON.parse for TikTok responses. Advertiser, campaign and ad IDs are 19-digit numbers (> 2^53)
+ * that some endpoints return unquoted, so bare integers of 16+ digits become strings before
+ * parsing. Walks the text so digits inside string values are never touched.
+ */
+export function parseTikTokJson(text: string): unknown {
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j + 1;
+    } else if (c === "-" || (c >= "0" && c <= "9")) {
+      let j = i + 1;
+      while (j < text.length && /[\d.eE+-]/.test(text[j])) j++;
+      const num = text.slice(i, j);
+      out += /^-?\d{16,}$/.test(num) ? `"${num}"` : num;
+      i = j;
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return JSON.parse(out);
+}
+
 async function tiktokGet<T>(base: string, path: string, params: Record<string, string>, token: string): Promise<T> {
   const res = await fetch(`${base}${path}?${new URLSearchParams(params)}`, { headers: { "Access-Token": token, Accept: "application/json" } });
-  const body = (await res.json().catch(() => null)) as { code?: number; message?: string; data?: T } | null;
+  const body = (await res.text().then(parseTikTokJson).catch(() => null)) as { code?: number; message?: string; data?: T } | null;
   if (!res.ok || !body || body.code !== 0) {
     throw new Error(`TikTok API error (${body?.code ?? res.status}): ${body?.message ?? "unknown error"}`);
   }

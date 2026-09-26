@@ -54,7 +54,7 @@ export default async function OAuthConnectPage({
       const existing = await getConnection(user.workspace.id, provider);
       const norm = (s: string) => s.replace(/^act_/, "").replace(/[^A-Za-z0-9]/g, "");
       const savedIds = new Set(
-        existing?.mode === "live" ? Object.values(existing.config).flatMap((v) => String(v).split(/[\s,]+/)).map(norm).filter(Boolean) : [],
+        existing?.mode === "live" ? String(existing.config[p.accountsKey] ?? "").split(/[\s,]+/).map(norm).filter(Boolean) : [],
       );
       const current = accounts.filter((a) => savedIds.has(norm(a.id)));
       preselected = (current.length ? current : accounts.filter((a) => !a.note)).map((a) => a.id);

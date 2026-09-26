@@ -269,7 +269,7 @@ export const metaConnector: AdsConnector = {
     status: "stable",
     color: "#0866ff",
     docsUrl: "https://developers.facebook.com/docs/marketing-api/get-started",
-    oauth: { label: "Meta", env: ["META_APP_ID", "META_APP_SECRET"], scopes: ["ads_read"] },
+    oauth: { label: "Meta", env: ["META_APP_ID", "META_APP_SECRET"], optionalEnv: ["META_LOGIN_CONFIG_ID"], scopes: ["ads_read"] },
     fields: [
       { name: "adAccountIds", label: "Ad account IDs", placeholder: "act_1234567890, act_987…", hint: "Comma-separated. Ads Manager → account dropdown." },
       { name: "accessToken", label: "Access token", secret: true, placeholder: "EAAB…", hint: "A System User token with ads_read permission (never expires)." },

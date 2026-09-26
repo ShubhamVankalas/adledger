@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { finishOAuthConnectAction } from "@/app/actions/oauth";
+import { parseTikTokJson } from "@/lib/connectors/ads/tiktok";
 import { getAdsConnector } from "@/lib/connectors/registry";
+import { schema } from "@/lib/db";
+import { getConnection, saveConnection } from "@/lib/settings";
+import { setupWorkspace } from "./helpers";
 import { beginOAuth, completeOAuth, connectPageUrl, oauthConfigured, oauthCredentials, readCookie, requestOrigin } from "@/lib/oauth/flow";
 import { cleanMessage, getOAuthProvider, OAUTH_PROVIDERS, type OAuthCredentials } from "@/lib/oauth/providers";
 import {
@@ -15,7 +20,10 @@ import {
   type OAuthStatePayload,
 } from "@/lib/oauth/state";
 
-const h = vi.hoisted(() => ({ user: null as null | { id: string; workspaceId: string; allowed: boolean } }));
+const h = vi.hoisted(() => ({
+  user: null as null | { id: string; workspaceId: string; allowed: boolean; orgId?: string },
+  jar: new Map<string, string>(),
+}));
 
 // Route handlers read the session through guard() → getSessionUser(); fake a signed-in user.
 vi.mock("@/lib/auth", async (importOriginal) => {
@@ -24,10 +32,22 @@ vi.mock("@/lib/auth", async (importOriginal) => {
     ...orig,
     getSessionUser: async () =>
       h.user
-        ? { id: h.user.id, workspace: { id: h.user.workspaceId }, organization: { id: "org" }, can: () => h.user!.allowed }
+        ? { id: h.user.id, workspace: { id: h.user.workspaceId }, organization: { id: h.user.orgId ?? "org" }, can: () => h.user!.allowed }
         : null,
   };
 });
+
+// Server actions read cookies through next/headers and revalidate through next/cache.
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) => (h.jar.has(name) ? { name, value: h.jar.get(name)! } : undefined),
+    delete: (name: string) => void h.jar.delete(name),
+  }),
+  headers: async () => new Headers(),
+}));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
+// The action starts a background sync; keep it off the network (and out of the assertions).
+vi.mock("@/lib/sync", () => ({ syncProvider: vi.fn(async () => ({ status: "ok", rows: 0 })) }));
 
 const SECRET = "test-secret-do-not-use"; // = APP_SECRET in vitest.config.ts
 const USER = { id: "user-1", workspaceId: "ws-1" };
@@ -164,6 +184,11 @@ describe("beginOAuth", () => {
     expect(tt.searchParams.get("app_id")).toBe("tt-app");
     const li = startFor("linkedin_ads").url;
     expect(li.searchParams.get("scope")).toBe("r_ads r_ads_reporting");
+    // Business apps (Facebook Login for Business) send a login configuration instead of scopes.
+    const withConfig = beginOAuth({ provider: "meta", user: USER, origin: ORIGIN, secret: SECRET, env: { ...ENV, META_LOGIN_CONFIG_ID: "cfg-42" } });
+    const cfgUrl = new URL("url" in withConfig ? withConfig.url : "http://x");
+    expect(cfgUrl.searchParams.get("config_id")).toBe("cfg-42");
+    expect(cfgUrl.searchParams.get("scope")).toBeNull();
     expect(li.searchParams.get("client_id")).toBe("li-client");
   });
 
@@ -375,5 +400,74 @@ describe("OAuth routes", () => {
     const replay = await callback(new Request(`${ORIGIN}/api/v1/oauth/linkedin_ads/callback?code=abc&state=${state}`), params("linkedin_ads"));
     expect(replay.headers.get("location")).toContain("?error=");
     expect(replay.headers.getSetCookie().some((c) => c.startsWith(`${PENDING_COOKIE}=`))).toBe(false);
+  });
+});
+
+describe("TikTok JSON", () => {
+  it("keeps 19-digit IDs exact without touching digits inside strings", () => {
+    const text = String.raw`{"code":0,"message":"ok: 1234567890123456789, done","data":{"ids":[7300000000000000001, -7300000000000000002],"n":12,"x":1.5e3,"s":"a\"7300000000000000003"}}`;
+    expect(parseTikTokJson(text)).toEqual({
+      code: 0,
+      message: "ok: 1234567890123456789, done",
+      data: { ids: ["7300000000000000001", "-7300000000000000002"], n: 12, x: 1500, s: 'a"7300000000000000003' },
+    });
+  });
+});
+
+describe("finishOAuthConnectAction (account picker save)", () => {
+  const form = (...ids: string[]) => {
+    const f = new FormData();
+    for (const id of ids) f.append("account", id);
+    return f;
+  };
+  const pendingFor = (provider: string, userId: string, workspaceId: string) =>
+    sealPending(
+      { provider, userId, workspaceId, tokens: { accessToken: "EAAB-new", expiresAt: Date.now() + 86_400_000 }, expiresAt: Date.now() + 60_000 },
+      SECRET,
+    );
+
+  beforeEach(() => {
+    for (const [k, v] of Object.entries(ENV)) vi.stubEnv(k, v);
+    h.jar.clear();
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("saves the picked accounts as a live connection, replacing old secrets", async () => {
+    const { db, ws, org } = await setupWorkspace();
+    const [u] = await db.insert(schema.users).values({ email: "owner@oauth.test", passwordHash: "x" }).returning();
+    h.user = { id: u.id, workspaceId: ws.id, orgId: org.id, allowed: true };
+    // A previous manual connection with a secret the new sign-in doesn't provide.
+    await saveConnection(ws.id, "meta", { mode: "live", config: { adAccountIds: "act_1", apiVersion: "v20.0" }, secrets: { accessToken: "old", stale: "x" } }, db);
+
+    expect((await finishOAuthConnectAction("meta", form("act_2"))).ok).toBe(false); // no sign-in in progress
+    h.jar.set(PENDING_COOKIE, pendingFor("meta", u.id, ws.id));
+    expect(await finishOAuthConnectAction("meta", form())).toMatchObject({ ok: false, message: "Pick at least one ad account." });
+    expect(await finishOAuthConnectAction("meta", form("bad id!", "act_2 "))).toMatchObject({ ok: true });
+
+    const conn = await getConnection(ws.id, "meta", db);
+    expect(conn?.mode).toBe("live");
+    expect(conn?.config).toMatchObject({ adAccountIds: "act_2", apiVersion: "v20.0", connectedVia: "oauth" });
+    expect(conn?.secrets).toEqual({ accessToken: "EAAB-new" });
+    expect(h.jar.has(PENDING_COOKIE)).toBe(false); // single use
+    const audits = await db.select().from(schema.auditLog);
+    expect(audits.map((a) => a.action)).toContain("integration.oauth_connected");
+    expect(JSON.stringify(audits)).not.toContain("EAAB");
+  });
+
+  it("refuses other users' sign-ins, other providers, disabled apps and missing permission", async () => {
+    const { db, ws, org } = await setupWorkspace();
+    const [u] = await db.insert(schema.users).values({ email: "a@oauth.test", passwordHash: "x" }).returning();
+    h.user = { id: u.id, workspaceId: ws.id, orgId: org.id, allowed: true };
+    h.jar.set(PENDING_COOKIE, pendingFor("meta", "00000000-0000-0000-0000-000000000000", ws.id));
+    expect((await finishOAuthConnectAction("meta", form("act_2"))).ok).toBe(false);
+    h.jar.set(PENDING_COOKIE, pendingFor("meta", u.id, ws.id));
+    expect((await finishOAuthConnectAction("stripe", form("act_2"))).ok).toBe(false);
+    expect((await finishOAuthConnectAction("google_ads", form("123-456-7890"))).ok).toBe(false);
+    vi.stubEnv("META_APP_SECRET", "");
+    expect((await finishOAuthConnectAction("meta", form("act_2"))).ok).toBe(false);
+    vi.stubEnv("META_APP_SECRET", ENV.META_APP_SECRET);
+    h.user = { ...h.user, allowed: false };
+    expect((await finishOAuthConnectAction("meta", form("act_2"))).ok).toBe(false);
+    expect(await getConnection(ws.id, "meta", db)).toBeUndefined();
   });
 });

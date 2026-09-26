@@ -1,6 +1,6 @@
 import { GOOGLE_ADS_API_VERSION_DEFAULT, META_API_VERSION_DEFAULT } from "../connectors/ads";
 import { LINKEDIN_VERSION_DEFAULT } from "../connectors/ads/linkedin";
-import { TIKTOK_API_VERSION } from "../connectors/ads/tiktok";
+import { parseTikTokJson, TIKTOK_API_VERSION } from "../connectors/ads/tiktok";
 import type { OAuthTokens } from "./state";
 
 // Per-platform OAuth details: authorize URL, code → token exchange, listing the ad accounts the
@@ -31,6 +31,8 @@ export type OAuthProvider = {
   provider: string;
   /** Send a PKCE S256 challenge (only where the platform supports it for web apps). */
   pkce: boolean;
+  /** Config key holding the imported account IDs (comma-separated). */
+  accountsKey: string;
   authorizeUrl(p: { creds: OAuthCredentials; redirectUri: string; state: string; scopes: string[]; codeChallenge?: string }): string;
   exchangeCode(p: { code: string; creds: OAuthCredentials; redirectUri: string; codeVerifier?: string }, fetchFn: FetchFn): Promise<OAuthTokens>;
   listAccounts(tokens: OAuthTokens, creds: OAuthCredentials, fetchFn: FetchFn): Promise<AdAccountOption[]>;
@@ -70,19 +72,25 @@ function withQuery(base: string, params: Record<string, string | undefined>): st
 type GraphError = { error?: { message?: string } };
 type GraphToken = GraphError & { access_token?: string; expires_in?: number };
 
+const META_CONFIG_ID_ENV = "META_LOGIN_CONFIG_ID";
 const META_GRAPH = `https://graph.facebook.com/${META_API_VERSION_DEFAULT}`;
 
 const meta: OAuthProvider = {
   provider: "meta",
+  accountsKey: "adAccountIds",
   pkce: false,
-  authorizeUrl: ({ creds, redirectUri, state, scopes }) =>
-    withQuery(`https://www.facebook.com/${META_API_VERSION_DEFAULT}/dialog/oauth`, {
+  authorizeUrl: ({ creds, redirectUri, state, scopes }) => {
+    // Business-type apps use Facebook Login for Business: permissions come from a login
+    // configuration (config_id) instead of `scope`.
+    const configId = creds.extra[META_CONFIG_ID_ENV];
+    return withQuery(`https://www.facebook.com/${META_API_VERSION_DEFAULT}/dialog/oauth`, {
       client_id: creds.clientId,
       redirect_uri: redirectUri,
       state,
       response_type: "code",
-      scope: scopes.join(","),
-    }),
+      ...(configId ? { config_id: configId, override_default_response_type: "true" } : { scope: scopes.join(",") }),
+    });
+  },
   async exchangeCode({ code, creds, redirectUri }, fetchFn) {
     const res = await fetchFn(
       withQuery(`${META_GRAPH}/oauth/access_token`, { client_id: creds.clientId, client_secret: creds.clientSecret, redirect_uri: redirectUri, code }),
@@ -151,6 +159,7 @@ const GOOGLE_DEV_TOKEN_ENV = "GOOGLE_ADS_DEVELOPER_TOKEN";
 
 const google: OAuthProvider = {
   provider: "google_ads",
+  accountsKey: "customerIds",
   pkce: true,
   authorizeUrl: ({ creds, redirectUri, state, scopes, codeChallenge }) =>
     withQuery("https://accounts.google.com/o/oauth2/v2/auth", {
@@ -237,11 +246,10 @@ const google: OAuthProvider = {
 
 type TikTokEnvelope<T> = { code?: number; message?: string; data?: T };
 
-/** TikTok IDs are 19-digit numbers (> 2^53): quote bare long integers before JSON.parse. */
+/** TikTok IDs are 19-digit numbers (> 2^53): parse without losing precision. */
 async function readTikTok<T>(res: Response): Promise<TikTokEnvelope<T>> {
-  const text = await res.text().catch(() => "");
   try {
-    return JSON.parse(text.replace(/([:[,]\s*)(-?\d{16,})(?=\s*[,\]}])/g, '$1"$2"')) as TikTokEnvelope<T>;
+    return (parseTikTokJson(await res.text()) ?? {}) as TikTokEnvelope<T>;
   } catch {
     return {};
   }
@@ -250,6 +258,7 @@ const TIKTOK_BASE = `https://business-api.tiktok.com/open_api/${TIKTOK_API_VERSI
 
 const tiktok: OAuthProvider = {
   provider: "tiktok_ads",
+  accountsKey: "advertiserIds",
   pkce: false,
   authorizeUrl: ({ creds, redirectUri, state }) =>
     withQuery("https://business-api.tiktok.com/portal/auth", { app_id: creds.clientId, state, redirect_uri: redirectUri }),
@@ -285,6 +294,7 @@ type LinkedInToken = { access_token?: string; expires_in?: number; refresh_token
 
 const linkedin: OAuthProvider = {
   provider: "linkedin_ads",
+  accountsKey: "adAccountIds",
   pkce: false,
   authorizeUrl: ({ creds, redirectUri, state, scopes }) =>
     withQuery("https://www.linkedin.com/oauth/v2/authorization", {

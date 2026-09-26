@@ -29,7 +29,12 @@ export function oauthCredentials(provider: string, env: Env = process.env): OAut
   if (!m || m.env.length < 2) return null;
   const values = m.env.map((k) => env[k]?.trim() ?? "");
   if (values.some((v) => !v)) return null;
-  return { clientId: values[0], clientSecret: values[1], extra: Object.fromEntries(m.env.slice(2).map((k, i) => [k, values[i + 2]])) };
+  const extra = Object.fromEntries(m.env.slice(2).map((k, i) => [k, values[i + 2]]));
+  for (const k of m.optionalEnv ?? []) {
+    const v = env[k]?.trim();
+    if (v) extra[k] = v;
+  }
+  return { clientId: values[0], clientSecret: values[1], extra };
 }
 
 export const oauthConfigured = (provider: string, env: Env = process.env) => oauthCredentials(provider, env) !== null;
