@@ -2,7 +2,8 @@ import type { ConnectionLike, RevenueConnector, RevenueEventInput, WebhookReques
 import { intMinor, toDate } from "./shared";
 import { verifyBasicAuth } from "./webhook-auth";
 
-// Recurly: successful_payment_notification -> payment; successful_refund_notification -> refund.
+// Recurly: successful_payment_notification -> payment; successful_refund_notification -> refund;
+// void_payment_notification -> full refund linked to the voided payment.
 // Recurly's JSON webhooks carry only ids (the payment must be fetched via the API), so AdLedger
 // uses the XML notifications, which include the account and the transaction. XML notifications
 // are not signed; the endpoint is protected with HTTP Basic auth configured on the endpoint.
@@ -25,7 +26,8 @@ function decodeXml(s: string): string {
 /** Inner XML of the first `<tag>…</tag>` element (null for missing, empty or `nil="true"`). */
 function xmlText(xml: string | null, tag: string): string | null {
   if (!xml) return null;
-  const m = new RegExp(`<${tag}(\\s[^>]*)?(?:/>|>([\\s\\S]*?)</${tag}>)`).exec(xml);
+  // Lazy attributes so a self-closing `<tag nil="true"/>` never swallows a later `</tag>`.
+  const m = new RegExp(`<${tag}(\\s[^>]*?)?(?:/>|>([\\s\\S]*?)</${tag}>)`).exec(xml);
   if (!m || /\bnil="(true|nil)"/.test(m[1] ?? "")) return null;
   const v = decodeXml(m[2] ?? "").trim();
   return v || null;
@@ -44,12 +46,13 @@ export function recurlyCurrency(url: string): string {
 
 export function recurlyXmlToEvents(rawBody: string, currency: string): RevenueEventInput[] {
   const root = /^\s*(?:<\?xml[^>]*\?>\s*)?<([a-z_]+)[\s>]/i.exec(rawBody)?.[1];
-  if (root !== "successful_payment_notification" && root !== "successful_refund_notification") return [];
+  if (root !== "successful_payment_notification" && root !== "successful_refund_notification" && root !== "void_payment_notification") return [];
   const account = xmlText(rawBody, "account");
   const txn = xmlText(rawBody, "transaction");
   const id = xmlText(txn, "id");
   const amountMinor = intMinor(xmlText(txn, "amount_in_cents"));
-  if (!id || !amountMinor || xmlText(txn, "status") !== "success") return [];
+  const status = xmlText(txn, "status");
+  if (!id || !amountMinor || status !== (root === "void_payment_notification" ? "void" : "success")) return [];
 
   const name = [xmlText(account, "first_name"), xmlText(account, "last_name")].filter(Boolean).join(" ");
   const customer: RevenueEventInput["customer"] = {
@@ -64,6 +67,11 @@ export function recurlyXmlToEvents(rawBody: string, currency: string): RevenueEv
   if (root === "successful_payment_notification") {
     if (action !== "purchase" && action !== "capture") return [];
     return [{ type: "payment", externalId: id, amountMinor, currency, occurredAt, customer }];
+  }
+  if (root === "void_payment_notification") {
+    // A void cancels a captured payment before it settles; the transaction id is the payment's.
+    if (action !== "purchase" && action !== "capture") return [];
+    return [{ type: "refund", externalId: `void:${id}`, relatedExternalId: id, amountMinor, currency, occurredAt: new Date(), customer }];
   }
   if (action !== "credit" && action !== "refund") return [];
   // The notification does not name the refunded transaction, so the refund is matched to the
@@ -88,7 +96,7 @@ export const recurlyConnector: RevenueConnector = {
     steps: [
       "In Recurly go to Integrations → Webhooks → Configure → New Endpoint and paste the webhook URL shown in AdLedger. Choose the XML format.",
       "Set an HTTP Auth username and a long random password on the endpoint and paste both here. If your site currency is not USD, add `?currency=EUR` (your code) to the end of the URL, because Recurly's XML omits it.",
-      "Make sure `Successful Payment` and `Successful Refund` notifications are enabled, then save.",
+      "Make sure the `Successful Payment`, `Successful Refund` and `Void Payment` notifications are enabled, then save.",
       "Buyers are matched to ad clicks by the account email, so use the same email in Recurly as in your signup form. Try it on your free Recurly sandbox site first.",
     ],
   },

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<void_payment_notification>
+  <account>
+    <account_code>acct-7731</account_code>
+    <username nil="true"></username>
+    <email>jonas.berg@example.com</email>
+    <first_name>Jonas</first_name>
+    <last_name>Berg</last_name>
+    <company_name>Berg &amp; S&#246;hne</company_name>
+    <phone nil="true"></phone>
+  </account>
+  <transaction>
+    <id>6a1f3c9e2b7d4e58a0c1f2e3d4b5a697</id>
+    <invoice_id>6a1f3c9d8e7f4a0b9c1d2e3f4a5b6c7d</invoice_id>
+    <invoice_number_prefix></invoice_number_prefix>
+    <invoice_number type="integer">3108</invoice_number>
+    <subscription_id>6a1f3c9a1b2c4d3e8f9a0b1c2d3e4f50</subscription_id>
+    <action>purchase</action>
+    <date type="datetime">2026-09-24T14:05:31Z</date>
+    <amount_in_cents type="integer">9900</amount_in_cents>
+    <status>void</status>
+    <message>Test Gateway: Voided</message>
+    <reference>ch_3SAzY1Rk2bXq9o0t0KfL1m2N</reference>
+    <source>subscription</source>
+    <cvv_result code="M">Match</cvv_result>
+    <avs_result code="D">Street address and postal code match.</avs_result>
+    <avs_result_street nil="true"></avs_result_street>
+    <avs_result_postal nil="true"></avs_result_postal>
+    <test type="boolean">true</test>
+    <voidable type="boolean">false</voidable>
+    <refundable type="boolean">false</refundable>
+  </transaction>
+</void_payment_notification>

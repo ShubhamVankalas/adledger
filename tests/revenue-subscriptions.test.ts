@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { POST as revenueHook } from "@/app/api/v1/webhooks/[provider]/[workspaceId]/route";
 import { getRevenueConnector } from "@/lib/connectors/registry";
+import { schema } from "@/lib/db";
+import { saveConnection } from "@/lib/settings";
+import { setupWorkspace } from "./helpers";
 import { chargebeeConnector } from "@/lib/connectors/revenue/chargebee";
 import { gumroadConnector } from "@/lib/connectors/revenue/gumroad";
 import { REVENUE_CONNECTORS } from "@/lib/connectors/revenue/index";
@@ -165,6 +170,29 @@ describe("Recurly", () => {
     expect(recurlyConnector.parseWebhook(notSuccess, req(notSuccess))).toEqual([]);
     expect(recurlyConnector.parseWebhook({}, req('{"id":"rafhdbbf41mc","object_type":"payment","event_type":"succeeded"}'))).toEqual([]);
   });
+
+  it("void_payment_notification -> full refund linked to the voided payment", () => {
+    const r = req(raw("recurly/void_payment_notification.xml"));
+    const [e, ...rest] = recurlyConnector.parseWebhook(payloadOf(r.rawBody), r);
+    expect(rest).toHaveLength(0);
+    expect(e).toMatchObject({
+      type: "refund",
+      externalId: "void:6a1f3c9e2b7d4e58a0c1f2e3d4b5a697",
+      relatedExternalId: "6a1f3c9e2b7d4e58a0c1f2e3d4b5a697",
+      amountMinor: 9900,
+      currency: "USD",
+    });
+    const notVoid = r.rawBody.replace("<status>void</status>", "<status>success</status>");
+    expect(recurlyConnector.parseWebhook(notVoid, req(notVoid))).toEqual([]);
+  });
+
+  it("a self-closing nil element does not swallow a later element", () => {
+    const body = raw("recurly/successful_payment_notification.xml")
+      .replace("<email>jonas.berg@example.com</email>", "<email />")
+      .replace('<phone nil="true"></phone>', '<phone nil="true"/>\n    <address><email>billing@example.com</email><phone>+4930123</phone></address>');
+    const [e] = recurlyConnector.parseWebhook(body, req(body));
+    expect(e.customer).toMatchObject({ email: null, phone: null, name: "Jonas Berg" });
+  });
 });
 
 describe("Gumroad", () => {
@@ -201,25 +229,98 @@ describe("Gumroad", () => {
     ]);
   });
 
-  it("refund -> the payment (idempotent) plus a full refund referencing it", () => {
+  it("reads the JSON content type the same way (and ignores the display `currency`)", () => {
+    const body = raw("gumroad/sale.json");
+    const r = ping(body);
+    expect(gumroadConnector.parseWebhook(payloadOf(body), r)).toEqual(gumroadConnector.parseWebhook(payloadOf(raw("gumroad/sale.txt")), ping(raw("gumroad/sale.txt"))));
+    expect(gumroadConnector.parseWebhook(payloadOf(body), r)[0]).toMatchObject({ currency: "USD", amountMinor: 2900, customer: { visitorId: "a3c5e7f9-1b2d-4f6a-8c0e-2d4f6a8c0e1b" } });
+    expect(gumroadConnector.verifyWebhook(r, conn({ sellerId: "wKFz8Qe2vN0bXyT1cR3hJg==" }))).toBe(true);
+    expect(gumroadConnector.verifyWebhook(r, conn({ sellerId: "someoneElse==" }))).toBe(false);
+  });
+
+  it("refund post -> only a full refund referencing the sale", () => {
     const r = ping(raw("gumroad/refund.txt"));
     const events = gumroadConnector.parseWebhook(payloadOf(r.rawBody), r);
-    expect(events).toHaveLength(2);
-    expect(events[0]).toMatchObject({ type: "payment", externalId: "Xk3PqR8sT2uV5wY1zA7bCd==", amountMinor: 2900 });
-    expect(events[1]).toMatchObject({
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
       type: "refund",
       externalId: "refund:Xk3PqR8sT2uV5wY1zA7bCd==",
       relatedExternalId: "Xk3PqR8sT2uV5wY1zA7bCd==",
       amountMinor: 2900,
       currency: "USD",
     });
-    expect(events[1].occurredAt).toBeInstanceOf(Date);
+    expect(events[0].occurredAt).toBeInstanceOf(Date);
+    // A refund post for a sale that is not (fully) refunded records nothing.
+    const partial = r.rawBody.replace("refunded=true", "refunded=false");
+    expect(gumroadConnector.parseWebhook(partial, ping(partial))).toEqual([]);
+  });
+
+  it("a sale ping of an already refunded sale records the payment and the refund", () => {
+    const body = raw("gumroad/sale.txt").replace("refunded=false", "refunded=true");
+    expect(gumroadConnector.parseWebhook(body, ping(body)).map((e) => [e.type, e.externalId])).toEqual([
+      ["payment", "Xk3PqR8sT2uV5wY1zA7bCd=="],
+      ["refund", "refund:Xk3PqR8sT2uV5wY1zA7bCd=="],
+    ]);
   });
 
   it("ignores pre-order authorizations and malformed prices", () => {
-    const pre = raw("gumroad/sale.txt").replace("is_preorder_authorization=false", "is_preorder_authorization=true");
+    const pre = `${raw("gumroad/sale.txt").trim()}&is_preorder_authorization=true`;
     expect(gumroadConnector.parseWebhook(pre, ping(pre))).toEqual([]);
     const float = raw("gumroad/sale.txt").replace("price=2900", "price=29.00");
     expect(gumroadConnector.parseWebhook(float, ping(float))).toEqual([]);
+  });
+});
+
+describe("webhook route with non-JSON bodies", () => {
+  it("rejects unconnected / unauthenticated posts and stores linked payments and refunds", async () => {
+    const { db, ws } = await setupWorkspace();
+    const post = (provider: string, body: string, headers: Record<string, string> = {}, query = "") =>
+      revenueHook(new Request(`http://localhost/api/v1/webhooks/${provider}/${ws.id}${query}`, { method: "POST", body, headers }), {
+        params: Promise.resolve({ provider, workspaceId: ws.id }),
+      });
+    const rows = (source: string) =>
+      db.select().from(schema.revenueEvents).where(and(eq(schema.revenueEvents.workspaceId, ws.id), eq(schema.revenueEvents.source, source)));
+
+    // Not connected in this workspace.
+    expect((await post("recurly", raw("recurly/successful_payment_notification.xml"), basic(USER, PASS))).status).toBe(400);
+
+    await saveConnection(ws.id, "recurly", { mode: "live", config: { webhookUsername: USER }, secrets: { webhookPassword: PASS } }, db);
+    await saveConnection(ws.id, "chargebee", { mode: "live", config: { webhookUsername: USER }, secrets: { webhookPassword: PASS } }, db);
+    await saveConnection(ws.id, "gumroad", { mode: "live", secrets: { webhookToken: "gr_route_tok_1" } }, db);
+
+    const xml = { "Content-Type": "application/xml" };
+    expect((await post("recurly", raw("recurly/successful_payment_notification.xml"), xml)).status).toBe(401);
+    expect((await post("recurly", raw("recurly/successful_payment_notification.xml"), { ...xml, ...basic(USER, "nope") })).status).toBe(401);
+    expect(await rows("recurly")).toHaveLength(0);
+    const ok = await post("recurly", raw("recurly/successful_payment_notification.xml"), { ...xml, ...basic(USER, PASS) }, "?currency=EUR");
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ stored: 1 });
+    await post("recurly", raw("recurly/void_payment_notification.xml"), { ...xml, ...basic(USER, PASS) }, "?currency=EUR");
+    const recurly = await rows("recurly");
+    expect(recurly.map((r) => [r.type, Number(r.amountMinor), r.currency, r.relatedExternalId]).sort()).toEqual([
+      ["payment", 9900, "EUR", null],
+      ["refund", -9900, "EUR", "6a1f3c9e2b7d4e58a0c1f2e3d4b5a697"],
+    ]);
+
+    const json = { "Content-Type": "application/json" };
+    await post("chargebee", raw("chargebee/payment_succeeded.json"), { ...json, ...basic(USER, PASS) });
+    await post("chargebee", raw("chargebee/payment_refunded.json"), { ...json, ...basic(USER, PASS) });
+    const chargebee = await rows("chargebee");
+    expect(chargebee.map((r) => [r.type, Number(r.amountMinor), r.relatedExternalId]).sort()).toEqual([
+      ["payment", 4900, null],
+      ["refund", -1500, "txn_AzZTQnUQ8bV2i1rKa"],
+    ]);
+
+    const form = { "Content-Type": "application/x-www-form-urlencoded" };
+    expect((await post("gumroad", raw("gumroad/sale.txt"), form, "?token=wrong")).status).toBe(401);
+    expect((await post("gumroad", raw("gumroad/sale.txt"), form, "?token=gr_route_tok_1")).status).toBe(200);
+    // A retried sale ping and the refund post: no duplicates, net zero, one contact.
+    await post("gumroad", raw("gumroad/sale.txt"), form, "?token=gr_route_tok_1");
+    await post("gumroad", raw("gumroad/refund.txt"), form, "?token=gr_route_tok_1");
+    const gumroad = await rows("gumroad");
+    expect(gumroad).toHaveLength(2);
+    expect(gumroad.reduce((s, r) => s + Number(r.amountMinor), 0)).toBe(0);
+    expect(gumroad[0].contactId).not.toBeNull();
+    expect(new Set(gumroad.map((r) => r.contactId)).size).toBe(1);
   });
 });
