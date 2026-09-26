@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { recomputeAttribution } from "../attribution";
 import { hashEmail, hashPhone, randomToken } from "../crypto";
 import { schema, type DB } from "../db";
@@ -153,10 +153,10 @@ export async function clearWorkspaceData(db: DB, workspaceId: string) {
     ]) {
       await tx.delete(t).where(eq(t.workspaceId, workspaceId));
     }
-    // Keep the user's own pixel sites/webhooks and AI settings; drop demo ones and ad/Stripe connections.
+    // Keep the user's own pixel sites/webhooks, AI and retention settings; drop demo ones and ad/Stripe connections.
     await tx.delete(schema.pixelSites).where(and(eq(schema.pixelSites.workspaceId, workspaceId), eq(schema.pixelSites.name, DEMO_SITE_NAME)));
     await tx.delete(schema.leadWebhooks).where(and(eq(schema.leadWebhooks.workspaceId, workspaceId), eq(schema.leadWebhooks.name, DEMO_WEBHOOK_NAME)));
-    await tx.delete(schema.connections).where(and(eq(schema.connections.workspaceId, workspaceId), ne(schema.connections.provider, "llm")));
+    await tx.delete(schema.connections).where(and(eq(schema.connections.workspaceId, workspaceId), notInArray(schema.connections.provider, ["llm", "retention"])));
     await tx.update(schema.workspaces).set({ isDemo: false }).where(eq(schema.workspaces.id, workspaceId));
   });
 }

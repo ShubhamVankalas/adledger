@@ -46,7 +46,8 @@ Rules:
 │   │       ├── v1/webhooks/leads/[token] generic form webhook
 │   │       ├── v1/webhooks/stripe/[ws]   Stripe webhook (signature verified)
 │   │       ├── v1/reports/[report]       REST reports (API key)
-│   │       ├── v1/contacts, v1/sync      REST
+│   │       ├── v1/contacts, v1/sync      REST (+ DELETE / export per contact)
+│   │       ├── v1/exports/{contacts,workspace} CSV / streamed JSON downloads
 │   │       ├── v1/health                 health check
 │   │       └── mcp                       MCP server (Streamable HTTP, API key)
 │   ├── components/                       UI (shadcn/ui on Base UI, Recharts)
@@ -61,6 +62,7 @@ Rules:
 │   │   ├── sync.ts, matching.ts          upserts, touchpoint→ad matching
 │   │   ├── attribution/                  models + recompute
 │   │   ├── reports.ts                    all reporting SQL
+│   │   ├── privacy.ts                    erasure, subject-access + workspace export, retention
 │   │   ├── ai/{facts,report,numbers}.ts  facts pack, BYO-model client, number check
 │   │   ├── mcp.ts                        read-only MCP tools
 │   │   ├── jobs.ts, boot.ts              in-process scheduler, startup
@@ -221,6 +223,17 @@ admin (workspaces, integrations, members), analyst (reports, exports, insights, 
 owners can't be demoted or removed if they are the last one. Sessions store the current workspace;
 switching validates access.
 
+**Privacy & data ownership.** `src/lib/privacy.ts`. *Erasure* (Contact page → Delete contact, or
+`DELETE /api/v1/contacts/{id}`): deletes the contact row and its leads, unlinks its visitors, clears
+the properties of their raw events and any (hashed or URL-encoded) emails from their event and touchpoint URLs, keeps the
+revenue rows with `contact_id = null` so totals don't change, and moves that revenue's attribution
+credits to “unattributed” in place (same result as a full recompute, without its cost). *Subject access*: `GET /api/v1/contacts/{id}/export` (JSON). *Exports*:
+`GET /api/v1/exports/contacts` (CSV of the Contacts filter, `reports.export` or API key) and
+`GET /api/v1/exports/workspace` (every workspace table as one streamed JSON document, credentials
+omitted; session with `workspace.data` only). *Retention*: optional “delete raw events older than N days”
+(7–3650), enforced by the daily `data-retention` job; touchpoints, contacts and revenue are kept, so
+attribution is unaffected. Erasures, exports and retention changes are audit-logged (ids only, never emails).
+
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
 events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
@@ -237,6 +250,8 @@ not provided). Headless installs can set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (+ `DEMO
 - Rate limits on `/collect`, webhooks and login (in-memory token buckets).
 - IPs truncated; emails/phones hashed everywhere except `contacts`; PII redacted from stored
   form payloads and event properties.
+- Right to erasure, subject-access export, full data export and raw-event retention (see “Privacy &
+  data ownership” above).
 - Sessions: random 256-bit tokens, stored hashed, httpOnly + SameSite=Lax cookies (Secure behind HTTPS).
 - Passwords: scrypt (N=2^15). Credentials: AES-256-GCM.
 - Security headers on dashboard routes; CORS open only on the pixel endpoint.
@@ -263,5 +278,10 @@ smoke-tests the Docker image with `docker compose up`.
 - **2026-09-27 — organizations & roles.** Agencies need many client workspaces and read-only client
   access; teams need roles. Existing installs are migrated automatically (each workspace becomes its own
   organization; its admin becomes the owner).
+- **2026-09-27 — retention setting stored in `connections`.** The raw-event retention policy is a
+  `connections` row with provider `retention` (`config.eventsDays`, `enabled`, `last_synced_at` = last run)
+  instead of a new column: connections is already the per-workspace, unique-per-provider settings store,
+  so no migration is needed. `workspaces.onboarding` is reserved for onboarding progress. Clearing
+  workspace data keeps it (like the `llm` connection).
 - **LTV attribution for repeat payments.** Renewals credit the acquiring journey instead of
   becoming “unattributed” once the window has passed.

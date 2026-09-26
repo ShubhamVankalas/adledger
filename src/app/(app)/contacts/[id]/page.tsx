@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, BadgeDollarSignIcon, FileTextIcon, MousePointerClickIcon, Undo2Icon } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ContactPrivacyActions } from "@/components/contact-privacy-actions";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { PlatformBadge } from "@/components/platform-badge";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,8 @@ export const metadata = { title: "Contact journey" };
 export default async function ContactPage({ params }: PageProps<"/contacts/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { workspace: ws } = await requireUser();
+  const user = await requireUser();
+  const ws = user.workspace;
   const db = await getDb();
   const j = await journey(db, ws, id);
   if (!j) notFound();
@@ -36,6 +38,12 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
         <Button variant="ghost" size="sm" render={<Link href="/contacts" />}>
           <ArrowLeftIcon /> All contacts
         </Button>
+        <ContactPrivacyActions
+          contactId={j.contact.id}
+          label={j.contact.name || j.contact.email || "this contact"}
+          canExport={user.can("reports.export")}
+          canDelete={user.can("workspace.data")}
+        />
       </PageHeader>
       <PageBody>
         <div className="grid gap-6 lg:grid-cols-3">

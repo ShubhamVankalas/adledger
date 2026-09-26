@@ -1,4 +1,4 @@
-import { SearchIcon, UsersIcon } from "lucide-react";
+import { DownloadIcon, SearchIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,8 @@ export const metadata = { title: "Contacts" };
 const PAGE = 50;
 
 export default async function ContactsPage({ searchParams }: PageProps<"/contacts">) {
-  const { workspace: ws } = await requireUser();
+  const user = await requireUser();
+  const ws = user.workspace;
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const lifecycle = sp.lifecycle === "lead" || sp.lifecycle === "customer" ? sp.lifecycle : undefined;
@@ -28,11 +29,18 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
     const next = new URLSearchParams(Object.entries({ q, lifecycle, page: String(page), ...patch }).filter(([, v]) => v) as [string, string][]);
     return `/contacts?${next}`;
   };
+  const exportHref = `/api/v1/exports/contacts?${new URLSearchParams(Object.entries({ q, lifecycle }).filter(([, v]) => v) as [string, string][])}`;
   const dateFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: ws.timezone });
 
   return (
     <>
-      <PageHeader title="Contacts" description="Every lead and customer, with the journey that brought them in" />
+      <PageHeader title="Contacts" description="Every lead and customer, with the journey that brought them in">
+        {user.can("reports.export") && total > 0 ? (
+          <Button variant="outline" size="sm" render={<a href={exportHref} download />}>
+            <DownloadIcon /> Export CSV
+          </Button>
+        ) : null}
+      </PageHeader>
       <PageBody>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <form className="relative w-full max-w-sm" action="/contacts">

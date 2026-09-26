@@ -361,7 +361,7 @@ export async function listContacts(
         where v.contact_id = c.id order by t.occurred_at limit 1
       ) ft on true
       where ${where}
-      order by c.first_seen_at desc
+      order by c.first_seen_at desc, c.id
       limit ${q.limit ?? 50} offset ${q.offset ?? 0}`),
   );
   return {
