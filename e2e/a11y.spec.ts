@@ -156,7 +156,8 @@ test("a11y: mobile navigation opens as a labelled dialog", async ({ browser }) =
   const ctx = await browser.newContext({ storageState: storage, viewport: { width: 375, height: 812 } });
   const page = await ctx.newPage();
   await page.goto("/");
-  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+  // Phones drop the header's sidebar toggle; the tab bar's "More" opens navigation.
+  await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "More" }).click();
   const dialog = page.getByRole("dialog", { name: "Navigation" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("link", { name: "Performance" })).toBeVisible();

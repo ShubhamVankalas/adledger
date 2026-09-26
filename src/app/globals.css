@@ -132,24 +132,68 @@
   }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    /* Anchored headings and focused fields land below the sticky page header. */
+    scroll-padding-top: 5rem;
   }
-  /* Comfortable tap targets (>= 36px) on phones and touch screens. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* One visible focus ring for plain links and custom controls; components that draw their own
+     ring (buttons, inputs, selects) set outline-none and keep theirs. */
+  :where(a, summary, [role="button"], [role="radio"], [role="tab"]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  /* Comfortable tap targets (>= 40px) on phones and touch screens. */
   @media (pointer: coarse), (max-width: 767px) {
     [data-slot="button"],
     [data-slot="sidebar-trigger"] {
-      min-height: 2.25rem;
-      min-width: 2.25rem;
+      min-height: 2.5rem;
+      min-width: 2.5rem;
     }
     [data-slot="select-trigger"],
     [data-slot="input"],
     [data-slot="tabs-trigger"],
     [data-slot="toggle-group-item"],
-    [data-sidebar="menu-button"],
+    [data-slot="dropdown-menu-item"],
     [role="menuitem"],
     [role="menuitemradio"],
+    [role="menuitemcheckbox"],
     [role="option"] {
-      min-height: 2.25rem;
+      min-height: 2.5rem;
     }
+    /* The icon rail keeps its square buttons; the expanded sidebar and the phone sheet get tall rows. */
+    [data-state="expanded"] [data-sidebar="menu-button"],
+    [data-mobile="true"] [data-sidebar="menu-button"] {
+      min-height: 2.5rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+/* iOS zooms the page when a form field under 16px gets focus. Unlayered so it beats text-sm. */
+@media (max-width: 767px) {
+  select,
+  textarea,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]) {
+    font-size: 1rem;
   }
 }
 @layer utilities {

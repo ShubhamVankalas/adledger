@@ -87,6 +87,27 @@ test("pages fit a phone-width screen without clipped content", async ({ page }) 
   }
 });
 
+test("report filters collapse into one button that opens a bottom sheet", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/performance");
+  // The inline desktop pickers are hidden; one summary button replaces them.
+  await expect(page.getByRole("combobox", { name: "Date range" })).toBeHidden();
+  const filters = page.getByRole("button", { name: /^Filters:/ });
+  await expect(filters).toHaveAccessibleName(/30 days · Linear/);
+  await filters.click();
+  const sheet = page.getByRole("dialog", { name: "Filters" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("radio", { name: "90 days" }).click();
+  await sheet.getByRole("radio", { name: /First touch/ }).click();
+  await sheet.getByLabel("Ad platform").selectOption("meta");
+  await sheet.getByRole("button", { name: "Show results" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page).toHaveURL(/range=90d/);
+  await expect(page).toHaveURL(/model=first_touch/);
+  await expect(page).toHaveURL(/platform=meta/);
+  await expect(filters).toHaveAccessibleName(/90 days · Meta · First touch/);
+});
+
 test("tab bar is hidden on desktop widths", async ({ page }) => {
   await signIn(page);
   await page.setViewportSize({ width: 1280, height: 800 });
