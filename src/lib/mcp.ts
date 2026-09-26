@@ -462,6 +462,7 @@ export function buildMcpHandler(ws: Workspace) {
           return text(
             [
               header(ws, p),
+              ...(p.platform ? [`Spend and Attributed are for ${p.platform} only; Revenue and Leads are for all sources.`] : []),
               `Totals: spend ${money(spend)} · revenue ${money(sum("revenueMinor"))} · attributed to ads ${money(attributed)} · ROAS ${x(spend > 0 ? attributed / spend : null)} · leads ${sum("leads")}`,
               "",
               "| Date | Spend | Revenue | Attributed | Leads |",

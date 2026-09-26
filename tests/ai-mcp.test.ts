@@ -141,8 +141,15 @@ describe("MCP server", () => {
     expect(text).toContain("attribution model linear");
     expect(text).toContain("Totals: spend $");
     expect(text.split("\n").filter((l) => /^\| 2026-\d\d-\d\d \|/.test(l))).toHaveLength(7);
+    expect(text).not.toContain("for all sources");
+    const meta = await callTool(ws, "get_timeseries", { start: "2026-08-26", end: "2026-09-01", platform: "meta" });
+    expect(meta.result.content[0].text).toContain("Spend and Attributed are for meta only; Revenue and Leads are for all sources.");
     const bad = await callTool(ws, "get_timeseries", { start: "2026-09-01", end: "2026-08-01" });
     expect(bad.result.isError).toBe(true);
+    const impossible = await callTool(ws, "get_timeseries", { start: "2026-02-31", end: "2026-03-02" });
+    expect(impossible.result.isError).toBe(true);
+    const tooLong = await callTool(ws, "get_timeseries", { start: "2024-01-01", end: "2026-09-01" });
+    expect(tooLong.result.isError).toBe(true);
   });
 
   it("search_campaigns finds campaigns by fuzzy name with ids and metrics", async () => {
