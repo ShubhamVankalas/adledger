@@ -45,6 +45,13 @@ describe("landing page", () => {
     expect(row("Payments &amp; stores")).toBe(7);
   });
 
+  it("has a target for every in-page link", () => {
+    const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+    const anchors = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]).filter((a) => !a.startsWith("i-"));
+    expect(anchors).toContain("faq");
+    for (const a of anchors) expect(ids.has(a), a).toBe(true);
+  });
+
   it("is self-contained apart from fonts and GitHub links", () => {
     const external = [...html.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].map((m) => new URL(m[1]).hostname);
     for (const host of external) expect(["fonts.googleapis.com", "fonts.gstatic.com", "github.com", "raw.githubusercontent.com"]).toContain(host);
@@ -58,6 +65,22 @@ describe("FAQ", () => {
     for (const q of ["Where does my data go?", "iOS", "How accurate is it?", "What does self-hosting cost?", "Do I need developer accounts?"]) {
       expect(faq).toContain(q);
       expect(html).toContain(q);
+    }
+  });
+
+  it("only links to docs files and headings that exist", () => {
+    // GitHub's heading anchors: lowercase, punctuation dropped, spaces become hyphens.
+    const slug = (h: string) => h.trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
+    const anchorsOf = (file: string) =>
+      new Set([...readFileSync(file, "utf8").matchAll(/^#{1,6} (.+)$/gm)].map((m) => slug(m[1])));
+    const faq = readFileSync("docs/FAQ.md", "utf8");
+    const links = [...faq.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1]).filter((l) => !/^https?:/.test(l));
+    expect(links.length).toBeGreaterThan(5);
+    for (const link of links) {
+      const [path, anchor] = link.split("#");
+      const file = path ? `docs/${path}` : "docs/FAQ.md";
+      expect(existsSync(file), link).toBe(true);
+      if (anchor) expect(anchorsOf(file).has(anchor), link).toBe(true);
     }
   });
 });

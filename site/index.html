@@ -464,7 +464,7 @@
           </ul>
         </div>
       </div>
-      <p class="intg-note">Brand marks from Simple Icons (CC0) and the app's own drawings. Trademarks belong to their owners and are shown only to identify integrations. Connectors other than Meta, Google Ads and Stripe are in beta.</p>
+      <p class="intg-note">Brand marks from Simple Icons (CC0) and the app's own drawings. Trademarks belong to their owners and are shown only to identify integrations. Ad and payment connectors other than Meta, Google Ads and Stripe are in beta.</p>
     </div>
   </section>
 
@@ -479,7 +479,7 @@
         <div class="line"><h3>7 payment sources</h3><p>Stripe, Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay and PayPal through signed webhooks. For Stripe you paste one key and the webhook is created for you.</p></div>
         <div class="line"><h3>CSV or API for the rest</h3><p>Any other ad network or checkout comes in through a CSV upload, the Spend API or the Conversions API. Zapier, Make and n8n work too.</p></div>
         <div class="line"><h3>Site plugins</h3><p>A WordPress and WooCommerce plugin, a Shopify custom pixel, a Google Tag Manager tag, and guides for Webflow, Wix, Squarespace and Framer.</p></div>
-        <div class="line"><h3>Teams &amp; client access</h3><p>One workspace per brand or client, invitations, and five roles from Owner to Client, plus an audit log. Clients see only their own workspace. Seats are unlimited.</p></div>
+        <div class="line"><h3>Teams &amp; client access</h3><p>One workspace per brand or client, invitations, and five roles from Owner to Client, plus an audit log. Clients see only the workspaces you give them. Seats are unlimited.</p></div>
         <div class="line"><h3>Notifications</h3><p>Weekly report, daily digest, wasted-spend alerts, sync failures and large payments, sent by email, Slack, Discord, Microsoft Teams, SMS or a signed webhook.</p></div>
         <div class="line"><h3>Guided setup</h3><p>Pick your site builder, payment tool and ad platforms, then follow a checklist that ticks itself off as data arrives.</p></div>
         <div class="line"><h3>Exact money math</h3><p>Every amount is stored in whole cents. Split revenue always adds up to the payment, to the cent.</p></div>
@@ -571,7 +571,7 @@ ShubhamVankalas/adledger/main/install.sh \
             <tr><td>Teams, roles, client access</td><td class="yes">Yes, unlimited seats</td><td>Paid tiers</td><td>Paid tiers</td><td>Paid tiers</td></tr>
             <tr><td>AI with your own model</td><td class="yes">Yes, including local</td><td class="no">No</td><td class="no">Built-in only</td><td class="no">Built-in only</td></tr>
             <tr><td>MCP server for AI agents</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-            <tr><td>Conversions API upload</td><td>On the roadmap</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Send conversions back to Meta and Google</td><td>On the roadmap</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
           </tbody>
         </table>
       </div>
@@ -604,8 +604,8 @@ ShubhamVankalas/adledger/main/install.sh \
           <summary>How accurate is it?</summary>
           <div class="a">
             <p><strong>Exact about the money it can see, and open about what it can't.</strong> Every payment is stored to the cent, and split credit always adds up to the payment.</p>
-            <p>It counts clicks, not views. Someone who saw an ad and later typed your address directly isn't credited to that ad, and there are no estimated or modelled conversions. So your numbers won't match Meta's or Google's reports, which include view-throughs, modelled conversions and their own attribution windows. Ad blockers and strict browsers can hide some visits. Journeys across devices are joined only when the person uses the same email on each one. Revenue without a tracked click is shown as unattributed rather than guessed.</p>
-            <p>There are three rule-based models (first touch, last touch and linear), with no data-driven model yet. Connectors other than Meta, Google Ads and Stripe are in beta.</p>
+            <p>It counts clicks, not views. Someone who saw an ad and later typed your address directly isn't credited to that ad, and there are no estimated or modelled conversions. So your numbers won't match Meta's or Google's reports, which include view-throughs, modelled conversions and their own attribution windows. Ad blockers and strict browsers can hide some visits. Journeys across devices are joined only when the person leaves the same email (or phone number) on each one. Revenue without a tracked click is shown as unattributed rather than guessed.</p>
+            <p>There are three rule-based models (first touch, last touch and linear), with no data-driven model yet. Ad and payment connectors other than Meta, Google Ads and Stripe are in beta.</p>
           </div>
         </details>
         <details>
@@ -631,7 +631,7 @@ ShubhamVankalas/adledger/main/install.sh \
 <footer>
   <div class="wrap">
     <span><strong style="color:var(--ink)">AdLedger</strong> · open-source ad attribution · AGPL-3.0</span>
-    <span><a href="https://github.com/ShubhamVankalas/adledger">GitHub</a> · <a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs">Docs</a> · <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/FAQ.md">FAQ</a> ·<a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/SELF_HOSTING.md">Self-hosting guide</a></span>
+    <span><a href="https://github.com/ShubhamVankalas/adledger">GitHub</a> · <a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs">Docs</a> · <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/FAQ.md">FAQ</a> · <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/SELF_HOSTING.md">Self-hosting guide</a></span>
   </div>
 </footer>
 

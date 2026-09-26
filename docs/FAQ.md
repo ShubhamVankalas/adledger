@@ -53,10 +53,11 @@ the cent, and split credit always adds up to the payment.
 - **Your numbers won't match Meta's or Google's reports.** Those include view-throughs, modelled
   conversions and their own attribution windows.
 - **Some visits are invisible.** Ad blockers and strict browsers can stop the pixel.
-- **Cross-device journeys** are joined only when the person uses the same email on each device.
+- **Cross-device journeys** are joined only when the person leaves the same email (or phone
+  number) on each device.
 - **Revenue without a tracked click** is shown as unattributed rather than guessed.
 - **Three rule-based models:** first touch, last touch and linear. There is no data-driven model yet.
-- **Connectors other than Meta, Google Ads and Stripe are in beta.** See
+- **Ad and payment connectors other than Meta, Google Ads and Stripe are in beta.** See
   [CONNECTORS.md](CONNECTORS.md#all-integrations).
 
 ## What does self-hosting cost?
