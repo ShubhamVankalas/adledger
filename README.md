@@ -138,7 +138,9 @@ claude mcp add --transport http adledger https://your-adledger/api/mcp --header 
 > **You:** Which campaigns made money last month and which wasted spend?
 > **Claude:** *(calls `get_performance` and `find_wasted_spend`)* Lookalike 1% returned 3.47x on $13.7k and Brand search 12.98x…
 
-Tools: `get_overview`, `get_performance`, `find_wasted_spend`, `compare_periods`, `list_contacts`, `get_contact_journey`, `get_latest_insights`, `get_sync_status` — all read-only. Claude Desktop and Cursor configs are in [docs/MCP.md](docs/MCP.md).
+Tools: `get_overview`, `get_performance`, `find_wasted_spend`, `compare_periods`, `get_platform_breakdown`, `get_timeseries`, `search_campaigns`, `list_contacts`, `get_contact_journey`, `get_latest_insights`, `get_sync_status`, `list_integrations` — all read-only. Claude Desktop and Cursor configs are in [docs/MCP.md](docs/MCP.md).
+
+The REST API is described by an OpenAPI 3.1 spec served at `/api/v1/openapi.json`; see [docs/API.md](docs/API.md).
 
 ## Architecture
 
