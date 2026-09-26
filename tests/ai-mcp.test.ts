@@ -5,8 +5,8 @@ import { unverifiedNumbers } from "@/lib/ai/numbers";
 import { generateReport, templateReport } from "@/lib/ai/report";
 import { rows, type DB } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
-import { buildMcpHandler, MCP_TOOL_NAMES } from "@/lib/mcp";
-import type { Workspace } from "@/lib/settings";
+import { buildMcpHandler, fuzzyScore, MCP_TOOL_NAMES } from "@/lib/mcp";
+import { saveConnection, type Workspace } from "@/lib/settings";
 import { setupWorkspace } from "./helpers";
 
 let db: DB;
@@ -82,7 +82,10 @@ describe("MCP server", () => {
       rows<{ t: string; n: string }>(
         await db.execute(sql`select 'contacts' t, count(*) n from contacts union all select 'credits', count(*) from attribution_credits
           union all select 'revenue', count(*) from revenue_events union all select 'reports', count(*) from ai_reports
-          union all select 'insights', count(*) from ad_insights_daily union all select 'runs', count(*) from sync_runs`),
+          union all select 'insights', count(*) from ad_insights_daily union all select 'runs', count(*) from sync_runs
+          union all select 'campaigns', count(*) from campaigns union all select 'events', count(*) from events
+          union all select 'connections', count(*) from connections
+          union all select 'last_synced', coalesce(extract(epoch from max(last_synced_at)), 0)::bigint from connections`),
       );
     const before = await snapshot();
     const [contact] = rows<{ id: string }>(await db.execute(sql`select id from contacts where lifecycle = 'customer' limit 1`));
@@ -95,7 +98,13 @@ describe("MCP server", () => {
       ["get_contact_journey", { contactId: contact.id }],
       ["get_latest_insights", {}],
       ["get_sync_status", {}],
+      ["get_platform_breakdown", {}],
+      ["list_integrations", {}],
+      ["get_timeseries", { platform: "meta" }],
+      ["search_campaigns", { query: "retargeting" }],
     ];
+    // Every registered tool must be exercised here.
+    expect(calls.map(([n]) => n).sort()).toEqual([...MCP_TOOL_NAMES].sort());
     for (const [name, args] of calls) {
       const r = await callTool(ws, name, args);
       expect(r.error, name).toBeUndefined();
@@ -113,5 +122,70 @@ describe("MCP server", () => {
     const list = await callTool(ws, "list_contacts", { limit: 5 });
     expect(list.result.content[0].text).toMatch(/•/);
     expect(list.result.content[0].text).not.toMatch(/[a-z]+\.[a-z]+\d+@example/);
+  });
+
+  it("get_platform_breakdown returns one row per ad platform with totals", async () => {
+    const r = await callTool(ws, "get_platform_breakdown", { start: "2026-08-01", end: "2026-09-01", model: "first_touch" });
+    const text = r.result.content[0].text as string;
+    expect(text).toContain("2026-08-01 → 2026-09-01");
+    expect(text).toContain("currency USD");
+    expect(text).toContain("attribution model first_touch");
+    expect(text).toMatch(/\| meta \| \$[\d,.]+ \|/);
+    expect(text).toMatch(/\| google \| \$[\d,.]+ \|/);
+    expect(text).toMatch(/\| Total \| \$[\d,.]+ \| \$[\d,.]+ \| [\d.]+x \|/);
+  });
+
+  it("get_timeseries returns one line per day", async () => {
+    const r = await callTool(ws, "get_timeseries", { start: "2026-08-26", end: "2026-09-01" });
+    const text = r.result.content[0].text as string;
+    expect(text).toContain("attribution model linear");
+    expect(text).toContain("Totals: spend $");
+    expect(text.split("\n").filter((l) => /^\| 2026-\d\d-\d\d \|/.test(l))).toHaveLength(7);
+    const bad = await callTool(ws, "get_timeseries", { start: "2026-09-01", end: "2026-08-01" });
+    expect(bad.result.isError).toBe(true);
+  });
+
+  it("search_campaigns finds campaigns by fuzzy name with ids and metrics", async () => {
+    const r = await callTool(ws, "search_campaigns", { query: "retargetng site", start: "2026-08-01", end: "2026-09-01" });
+    const text = r.result.content[0].text as string;
+    expect(text).toContain("currency USD");
+    expect(text).toMatch(/^- [0-9a-f-]{36} · Retargeting – Site Visitors 30d \(meta/m);
+    expect(text).toMatch(/spend \$[\d,.]+ · revenue \$[\d,.]+ · ROAS/);
+    const google = await callTool(ws, "search_campaigns", { query: "search", platform: "google" });
+    const lines = (google.result.content[0].text as string).split("\n").filter((l) => l.startsWith("- "));
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    for (const l of lines) expect(l).toContain("(google");
+    const none = await callTool(ws, "search_campaigns", { query: "zzzz nothing like this" });
+    expect(none.result.content[0].text).toContain("0 campaign(s)");
+  });
+
+  it("list_integrations shows connections and sync health but never secrets", async () => {
+    await saveConnection(ws.id, "notify_discord", { secrets: { webhookUrl: "https://discord.com/api/webhooks/1/SUPERSECRETVALUE" } }, db);
+    const r = await callTool(ws, "list_integrations");
+    const text = r.result.content[0].text as string;
+    expect(text).toMatch(/Meta Ads \(meta, ads\) · mock · health (ok|stale)/);
+    expect(text).toContain("(stripe, revenue)");
+    expect(text).toMatch(/Discord \(notify_discord, notifications\) · live · health active/);
+    expect(text).toContain("Website pixel · 1 site(s)");
+    expect(text).not.toContain("SUPERSECRETVALUE");
+    expect(text).not.toContain("demoAnchor");
+  });
+});
+
+describe("fuzzyScore", () => {
+  it("ranks exact > prefix > substring > word matches > typos, and rejects non-matches", () => {
+    const name = "Retargeting – Summer Sale 2026";
+    expect(fuzzyScore("retargeting – summer sale 2026", name)).toBe(100);
+    expect(fuzzyScore("Retargeting summer", name)).toBe(90);
+    expect(fuzzyScore("summer sale", name)).toBe(80);
+    const words = fuzzyScore("sale retargeting", name);
+    const prefix = fuzzyScore("sale retarget", name);
+    const typo = fuzzyScore("sale retargetng", name);
+    expect(words).toBeLessThan(80);
+    expect(prefix).toBeLessThan(words);
+    expect(typo).toBeGreaterThan(0);
+    expect(typo).toBeLessThan(prefix);
+    expect(fuzzyScore("winter", name)).toBe(0);
+    expect(fuzzyScore("", name)).toBe(0);
   });
 });

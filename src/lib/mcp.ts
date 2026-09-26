@@ -1,10 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { buildFacts } from "./ai/facts";
+import { getIntegration } from "./connectors/registry";
 import { AD_PLATFORMS } from "./connectors/types";
 import { templateReport } from "./ai/report";
-import { getDb, schema } from "./db";
+import { getDb, rows, schema } from "./db";
 import { formatMoney } from "./money";
 import {
   compare,
@@ -14,7 +15,9 @@ import {
   maskEmail,
   overview,
   performance,
+  platforms,
   syncStatus,
+  timeseries,
   wastedSpend,
   type ReportParams,
 } from "./reports";
@@ -52,7 +55,74 @@ export const MCP_TOOL_NAMES = [
   "get_contact_journey",
   "get_latest_insights",
   "get_sync_status",
+  "get_platform_breakdown",
+  "list_integrations",
+  "get_timeseries",
+  "search_campaigns",
 ] as const;
+
+const DAY_MS = 86_400_000;
+const MAX_SERIES_DAYS = 400;
+const STALE_AFTER_MS = 48 * 3_600_000;
+
+const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Levenshtein distance, giving up (returns max + 1) once it exceeds `max`. */
+function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      best = Math.min(best, cur[j]);
+    }
+    if (best > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/**
+ * How well `name` matches `query` (0 = no match, 100 = identical). Case, accents and
+ * punctuation are ignored; every query word must match a name word exactly, by prefix,
+ * as a substring or with a small typo, so "retarget sumer" finds "Retargeting – Summer Sale".
+ */
+export function fuzzyScore(query: string, name: string): number {
+  const q = normalize(query);
+  const n = normalize(name);
+  if (!q || !n) return 0;
+  if (q === n) return 100;
+  if (n.includes(q)) return n.startsWith(q) ? 90 : 80;
+  const words = n.split(" ");
+  const tokens = q.split(" ");
+  let points = 0;
+  for (const t of tokens) {
+    if (words.includes(t)) points += 3;
+    else if (words.some((w) => w.startsWith(t) || (t.length >= 4 && w.includes(t)))) points += 2;
+    else if (t.length >= 4 && words.some((w) => editDistance(t, w.slice(0, t.length + 1), 2) <= (t.length >= 7 ? 2 : 1))) points += 1;
+    else return 0;
+  }
+  return 20 + Math.round((points / (3 * tokens.length)) * 50);
+}
+
+type Health = "ok" | "error" | "stale" | "never_synced" | "disabled" | "active";
+
+/** Health of one connection; `syncs` is false for push-only integrations (notifications, LLM). */
+function connectionHealth(c: { enabled: boolean; lastSyncedAt: Date | null; lastError: string | null }, syncs: boolean, now: number): Health {
+  if (!c.enabled) return "disabled";
+  if (c.lastError) return "error";
+  if (!syncs) return "active";
+  if (!c.lastSyncedAt) return "never_synced";
+  return now - c.lastSyncedAt.getTime() > STALE_AFTER_MS ? "stale" : "ok";
+}
 
 export function buildMcpHandler(ws: Workspace) {
   const money = (v: number | null) => (v === null ? "n/a" : formatMoney(v, ws.reportingCurrency));
@@ -255,6 +325,166 @@ export function buildMcpHandler(ws: Workspace) {
           const db = await getDb();
           const s = await syncStatus(db, ws);
           return text(JSON.stringify(s, null, 2));
+        },
+      );
+
+      server.registerTool(
+        "get_platform_breakdown",
+        {
+          title: "Spend and revenue per ad platform",
+          description: "Ad spend, ad-attributed revenue, ROAS, leads and customers per ad platform (Meta, Google, TikTok, …) for a period.",
+          inputSchema: z.object({ ...period }),
+          annotations: ro,
+        },
+        async (args) => {
+          const db = await getDb();
+          const p = await resolvePeriod(ws, args);
+          const list = await platforms(db, ws, p);
+          const spend = list.reduce((s, r) => s + r.spendMinor, 0);
+          const revenue = list.reduce((s, r) => s + r.revenueMinor, 0);
+          return text(
+            [
+              header(ws, p),
+              "",
+              "| Platform | Spend | Revenue | ROAS | Leads | Customers |",
+              "|---|---|---|---|---|---|",
+              ...list.map((r) => `| ${r.platform} | ${money(r.spendMinor)} | ${money(r.revenueMinor)} | ${x(r.roas)} | ${r.leads} | ${r.customers} |`),
+              `| Total | ${money(spend)} | ${money(revenue)} | ${x(spend > 0 ? revenue / spend : null)} | | |`,
+              ...(list.length ? [] : ["No ad spend or ad-attributed conversions in this period."]),
+            ].join("\n"),
+          );
+        },
+      );
+
+      server.registerTool(
+        "list_integrations",
+        {
+          title: "Connected integrations",
+          description:
+            "Every connected integration (ad platforms, revenue sources, notification channels) with mode, sync health, last sync run and last error, plus pixel activity. Never returns credentials.",
+          inputSchema: z.object({}),
+          annotations: ro,
+        },
+        async () => {
+          const db = await getDb();
+          // Non-secret columns only: secrets_enc and config are never read here.
+          const conns = await db
+            .select({
+              provider: schema.connections.provider,
+              mode: schema.connections.mode,
+              enabled: schema.connections.enabled,
+              lastSyncedAt: schema.connections.lastSyncedAt,
+              lastError: schema.connections.lastError,
+            })
+            .from(schema.connections)
+            .where(eq(schema.connections.workspaceId, ws.id))
+            .orderBy(schema.connections.provider);
+          const lastRuns = rows<{ provider: string; status: string; started_at: string; rows_upserted: number | string | null }>(
+            await db.execute(sql`select distinct on (provider) provider, status, started_at, rows_upserted from sync_runs
+              where workspace_id = ${ws.id} order by provider, started_at desc`),
+          );
+          const runOf = new Map(lastRuns.map((r) => [r.provider, r]));
+          const [pixel] = rows<{ sites: string; events_24h: string; last_event_at: string | null }>(
+            await db.execute(sql`select
+              (select count(*) from pixel_sites where workspace_id = ${ws.id}) sites,
+              (select count(*) from events where workspace_id = ${ws.id} and occurred_at > now() - interval '24 hours') events_24h,
+              (select max(occurred_at) from events where workspace_id = ${ws.id}) last_event_at`),
+          );
+          const now = Date.now();
+          const iso = (v: Date | string | null | undefined) => (v ? new Date(v).toISOString() : "never");
+          const lines = conns.map((c) => {
+            const meta = getIntegration(c.provider);
+            const syncs = meta?.category === "ads" || meta?.category === "revenue";
+            const run = runOf.get(c.provider);
+            return [
+              `- ${meta?.name ?? c.provider} (${c.provider}, ${meta?.category ?? "other"})`,
+              c.mode,
+              `health ${connectionHealth(c, syncs, now)}`,
+              ...(syncs ? [`last synced ${iso(c.lastSyncedAt)}`] : []),
+              ...(run ? [`last run ${run.status} at ${iso(run.started_at)} (${Number(run.rows_upserted ?? 0)} rows)`] : []),
+              ...(c.lastError ? [`last error: ${c.lastError.replace(/\s+/g, " ").slice(0, 160)}`] : []),
+            ].join(" · ");
+          });
+          return text(
+            [
+              `${conns.length} connected integration(s) · times in UTC · credentials are never shown`,
+              ...lines,
+              `- Website pixel · ${Number(pixel?.sites ?? 0)} site(s) · ${Number(pixel?.events_24h ?? 0)} events in the last 24h · last event ${iso(pixel?.last_event_at)}`,
+            ].join("\n"),
+          );
+        },
+      );
+
+      server.registerTool(
+        "get_timeseries",
+        {
+          title: "Daily spend vs revenue",
+          description: `Day-by-day ad spend, total revenue, ad-attributed revenue and leads for a period (at most ${MAX_SERIES_DAYS} days).`,
+          inputSchema: z.object({ ...period, platform }),
+          annotations: ro,
+        },
+        async (args) => {
+          const db = await getDb();
+          const p = await resolvePeriod(ws, args);
+          const days = Math.round((Date.parse(`${p.end}T00:00:00Z`) - Date.parse(`${p.start}T00:00:00Z`)) / DAY_MS) + 1;
+          if (!(days >= 1 && days <= MAX_SERIES_DAYS)) {
+            return { ...text(`Invalid period ${p.start} → ${p.end}: choose 1–${MAX_SERIES_DAYS} days with start on or before end.`), isError: true };
+          }
+          const series = await timeseries(db, ws, p);
+          const sum = (k: "spendMinor" | "revenueMinor" | "attributedRevenueMinor" | "leads") => series.reduce((s, r) => s + r[k], 0);
+          const spend = sum("spendMinor");
+          const attributed = sum("attributedRevenueMinor");
+          return text(
+            [
+              header(ws, p),
+              `Totals: spend ${money(spend)} · revenue ${money(sum("revenueMinor"))} · attributed to ads ${money(attributed)} · ROAS ${x(spend > 0 ? attributed / spend : null)} · leads ${sum("leads")}`,
+              "",
+              "| Date | Spend | Revenue | Attributed | Leads |",
+              "|---|---|---|---|---|",
+              ...series.map((r) => `| ${r.date} | ${money(r.spendMinor)} | ${money(r.revenueMinor)} | ${money(r.attributedRevenueMinor)} | ${r.leads} |`),
+            ].join("\n"),
+          );
+        },
+      );
+
+      server.registerTool(
+        "search_campaigns",
+        {
+          title: "Find campaigns by name",
+          description:
+            "Fuzzy search of campaign names (partial words and small typos are fine). Returns campaign ids with spend, revenue, ROAS, leads and customers for the period. Use the id with other tools or the REST API.",
+          inputSchema: z.object({
+            query: z.string().trim().min(1).max(200).describe("Part of a campaign name, e.g. 'retargeting summer'."),
+            ...period,
+            platform,
+            limit: z.number().int().min(1).max(50).optional().describe("Default 10."),
+          }),
+          annotations: ro,
+        },
+        async (args) => {
+          const db = await getDb();
+          const p = await resolvePeriod(ws, args);
+          const all = await db
+            .select({ id: schema.campaigns.id, name: schema.campaigns.name, platform: schema.campaigns.platform, status: schema.campaigns.status })
+            .from(schema.campaigns)
+            .where(eq(schema.campaigns.workspaceId, ws.id));
+          const matches = all
+            .filter((c) => !p.platform || c.platform === p.platform)
+            .map((c) => ({ ...c, score: fuzzyScore(args.query, c.name) }))
+            .filter((c) => c.score > 0)
+            .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+            .slice(0, args.limit ?? 10);
+          const perf = new Map((matches.length ? await performance(db, ws, { ...p, level: "campaign" }) : []).map((r) => [r.id, r]));
+          return text(
+            [
+              header(ws, p),
+              `${matches.length} campaign(s) matching "${args.query}"`,
+              ...matches.map((c) => {
+                const r = perf.get(c.id);
+                return `- ${c.id} · ${c.name} (${c.platform}${c.status ? `, ${c.status}` : ""}) · spend ${money(r?.spendMinor ?? 0)} · revenue ${money(r?.revenueMinor ?? 0)} · ROAS ${x(r?.roas ?? null)} · leads ${r?.leads ?? 0} · customers ${r?.customers ?? 0}`;
+              }),
+            ].join("\n"),
+          );
         },
       );
     },
