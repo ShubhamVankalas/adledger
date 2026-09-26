@@ -17,7 +17,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
   const zones = TIMEZONES.includes(workspace.timezone) ? TIMEZONES : [workspace.timezone, ...TIMEZONES];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader>
           <CardTitle>Workspace details</CardTitle>

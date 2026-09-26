@@ -7,7 +7,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   return (
     <>
       <PageHeader title="Settings" description={`${user.organization.name} · ${user.workspace.name}`} />
-      <div className="mx-auto grid w-full max-w-[1600px] gap-6 p-4 md:grid-cols-[220px_minmax(0,1fr)] md:p-6 xl:gap-10">
+      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-6 p-4 lg:grid-cols-[220px_minmax(0,1fr)] md:p-6 xl:gap-10">
         <SettingsNav
           workspaceName={user.workspace.name}
           organizationName={user.organization.name}

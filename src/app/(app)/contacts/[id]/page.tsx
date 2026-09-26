@@ -46,7 +46,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
         />
       </PageHeader>
       <PageBody>
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Journey</CardTitle>
@@ -86,7 +86,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                               {i.ad ? ` › ${i.ad}` : ""}
                             </div>
                           ) : null}
-                          {i.landingUrl ? <div className="truncate font-mono text-[11px] text-muted-foreground/80">{i.landingUrl.replace(/^https?:\/\//, "").slice(0, 110)}</div> : null}
+                          {i.landingUrl ? <div className="truncate font-mono text-[11px] text-muted-foreground">{i.landingUrl.replace(/^https?:\/\//, "").slice(0, 110)}</div> : null}
                         </div>
                       ) : i.kind === "lead" ? (
                         <div className="mt-0.5 text-sm font-medium">

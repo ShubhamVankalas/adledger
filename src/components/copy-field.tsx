@@ -28,7 +28,7 @@ export function useCopy() {
 export function CopyButton({ value, className, label }: { value: string; className?: string; label?: string }) {
   const { copied, copy } = useCopy();
   return (
-    <Button type="button" variant="outline" size={label ? "sm" : "icon-sm"} className={className} onClick={() => copy(value)} aria-label="Copy">
+    <Button type="button" variant="outline" size={label ? "sm" : "icon-sm"} className={className} onClick={() => copy(value)} aria-label={label ? undefined : "Copy"}>
       {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
       {label ? (copied ? "Copied" : label) : null}
     </Button>
@@ -47,7 +47,7 @@ export function CopyField({ value, mono = true, className }: { value: string; mo
 export function CodeBlock({ code, className }: { code: string; className?: string }) {
   return (
     <div className={cn("group relative", className)}>
-      <pre className="overflow-x-auto rounded-lg border bg-muted/50 p-3 pr-12 font-mono text-xs leading-relaxed">{code}</pre>
+      <pre tabIndex={0} className="overflow-x-auto rounded-lg border bg-muted/50 p-3 pr-12 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50">{code}</pre>
       <CopyButton value={code} className="absolute top-2 right-2" />
     </div>
   );

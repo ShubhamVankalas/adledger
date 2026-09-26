@@ -13,7 +13,9 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <Card className="shadow-xl shadow-primary/5">
       <CardHeader>
-        <CardTitle className="text-xl">Welcome back</CardTitle>
+        <CardTitle className="text-xl">
+          <h1>Welcome back</h1>
+        </CardTitle>
         <CardDescription>Sign in to see which ads are making you money.</CardDescription>
       </CardHeader>
       <CardContent>

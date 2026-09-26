@@ -17,7 +17,9 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">This invitation isn&apos;t valid</CardTitle>
+          <CardTitle className="text-xl">
+            <h1>This invitation isn&apos;t valid</h1>
+          </CardTitle>
           <CardDescription>It may have expired, been revoked, or already been used. Ask the person who invited you for a new link.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -36,7 +38,9 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   return (
     <Card className="shadow-xl shadow-primary/5">
       <CardHeader>
-        <CardTitle className="text-xl">Join {organization.name}</CardTitle>
+        <CardTitle className="text-xl">
+          <h1>Join {organization.name}</h1>
+        </CardTitle>
         <CardDescription>
           You&apos;ve been invited as <strong>{roleLabel(invitation.role)}</strong> with <strong>{invitation.email}</strong>.
         </CardDescription>

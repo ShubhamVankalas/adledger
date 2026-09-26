@@ -53,14 +53,15 @@ export function IntegrationsCatalog({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-0.5">
+        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-0.5" role="group" aria-label="Category">
           {CATEGORIES.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => setCat(c.key)}
+              aria-pressed={cat === c.key}
               className={cn(
-                "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:py-1",
                 cat === c.key && "bg-background text-foreground shadow-sm",
               )}
             >
@@ -69,8 +70,8 @@ export function IntegrationsCatalog({
           ))}
         </div>
         <div className="relative w-full max-w-xs">
-          <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search integrations…" className="h-8 pl-8" />
+          <SearchIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search integrations…" aria-label="Search integrations" className="h-8 pl-8" />
         </div>
       </div>
 

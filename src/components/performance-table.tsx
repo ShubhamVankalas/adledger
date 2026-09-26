@@ -3,6 +3,7 @@
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, DownloadIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { NativeSelect } from "@/components/native-select";
 import { PlatformBadge } from "@/components/platform-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,26 @@ const COLS: { key: Key; label: string; className?: string }[] = [
   { key: "revenueMinor", label: "Revenue" },
   { key: "roas", label: "ROAS" },
 ];
+
+const SORT_BUTTON = "inline-flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
+
+const MOBILE_SORTS: [Key, 1 | -1, string][] = [
+  ["spendMinor", -1, "Highest spend"],
+  ["revenueMinor", -1, "Highest revenue"],
+  ["roas", -1, "Best ROAS"],
+  ["roas", 1, "Worst ROAS"],
+  ["leads", -1, "Most leads"],
+  ["name", 1, "Name (A–Z)"],
+];
+
+function MobileStat({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={cn("tabular truncate text-sm", className)}>{value}</dd>
+    </div>
+  );
+}
 
 export function PerformanceTable({
   rows,
@@ -96,10 +117,11 @@ export function PerformanceTable({
   };
 
   const Th = ({ k, label, className }: { k: Key; label: string; className?: string }) => (
-    <TableHead className={cn("text-right", className)}>
+    <TableHead className={cn("text-right", className)} aria-sort={sort.key === k ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
       <button
+        type="button"
         onClick={() => setSort((s) => ({ key: k, dir: s.key === k ? (s.dir === 1 ? -1 : 1) : -1 }))}
-        className={cn("inline-flex items-center gap-1 hover:text-foreground", sort.key === k && "text-foreground")}
+        className={cn(SORT_BUTTON, sort.key === k && "text-foreground")}
       >
         {label}
         {sort.key === k ? sort.dir === -1 ? <ArrowDownIcon className="size-3" /> : <ArrowUpIcon className="size-3" /> : null}
@@ -110,17 +132,28 @@ export function PerformanceTable({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Input placeholder={`Filter ${levelLabel.toLowerCase()}…`} value={q} onChange={(e) => setQ(e.target.value)} className="h-8 max-w-64" />
+        <Input
+          placeholder={`Filter ${levelLabel.toLowerCase()}…`}
+          aria-label={`Filter ${levelLabel.toLowerCase()}`}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="h-8 min-w-0 flex-1 sm:max-w-64"
+        />
         <Button variant="outline" size="sm" onClick={exportCsv}>
           <DownloadIcon /> Export CSV
         </Button>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card">
+
+      <div className="hidden overflow-hidden rounded-xl border bg-card sm:block">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="min-w-56">
-                <button onClick={() => setSort((s) => ({ key: "name", dir: s.key === "name" ? (s.dir === 1 ? -1 : 1) : 1 }))} className="hover:text-foreground">
+              <TableHead className="min-w-56" aria-sort={sort.key === "name" ? (sort.dir === 1 ? "ascending" : "descending") : undefined}>
+                <button
+                  type="button"
+                  onClick={() => setSort((s) => ({ key: "name", dir: s.key === "name" ? (s.dir === 1 ? -1 : 1) : 1 }))}
+                  className={cn(SORT_BUTTON, sort.key === "name" && "text-foreground")}
+                >
                   {levelLabel}
                 </button>
               </TableHead>
@@ -195,6 +228,78 @@ export function PerformanceTable({
             </TableFooter>
           ) : null}
         </Table>
+      </div>
+
+      {/* Phones: one card per row with the four numbers that matter. */}
+      <div className="space-y-2 sm:hidden">
+        <NativeSelect
+          aria-label="Sort by"
+          value={`${sort.key}:${sort.dir}`}
+          onChange={(e) => {
+            const [key, dir] = e.target.value.split(":");
+            setSort({ key: key as Key, dir: Number(dir) === 1 ? 1 : -1 });
+          }}
+        >
+          {/* A sort picked from the table header (e.g. before rotating the phone) may not be in the list. */}
+          {MOBILE_SORTS.some(([k, dir]) => k === sort.key && dir === sort.dir) ? null : (
+            <option value={`${sort.key}:${sort.dir}`} disabled hidden>
+              Custom order
+            </option>
+          )}
+          {MOBILE_SORTS.map(([k, dir, label]) => (
+            <option key={`${k}:${dir}`} value={`${k}:${dir}`}>
+              {label}
+            </option>
+          ))}
+        </NativeSelect>
+        {sorted.length === 0 ? (
+          <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">No {levelLabel.toLowerCase()} with spend or conversions in this period.</p>
+        ) : null}
+        <ul className="space-y-2" aria-label={levelLabel}>
+          {sorted.map((r) => {
+            const href = hrefFor(r.id);
+            const good = (r.roas ?? 0) >= 1;
+            const name = (
+              <>
+                <span className="line-clamp-2 font-medium break-words">{r.name}</span>
+                {r.parentName ? <span className="block truncate text-xs text-muted-foreground">{r.parentName}</span> : null}
+              </>
+            );
+            return (
+              <li key={r.id} className="rounded-xl border bg-card p-3">
+                <div className="flex items-start gap-2">
+                  <PlatformBadge platform={r.platform} />
+                  {href ? (
+                    <Link href={href} className="-my-1 flex min-h-9 min-w-0 flex-1 items-center gap-1 text-sm hover:text-primary">
+                      <span className="min-w-0 flex-1">{name}</span>
+                      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  ) : (
+                    <div className="min-w-0 flex-1 text-sm">{name}</div>
+                  )}
+                </div>
+                <dl className="mt-3 grid grid-cols-4 gap-2 text-xs">
+                  <MobileStat label="Spend" value={money(r.spendMinor, currency, true)} />
+                  <MobileStat label="Leads" value={num(r.leads, 1)} />
+                  <MobileStat label="Revenue" value={money(r.revenueMinor, currency, true)} />
+                  <MobileStat
+                    label="ROAS"
+                    value={roas(r.roas)}
+                    className={cn("font-semibold", good ? "text-success" : r.spendMinor > 0 ? "text-destructive" : "")}
+                  />
+                </dl>
+              </li>
+            );
+          })}
+        </ul>
+        {sorted.length > 1 ? (
+          <div className="flex items-center justify-between rounded-xl border bg-muted/50 px-3 py-2 text-xs font-medium">
+            <span>Total ({sorted.length})</span>
+            <span className="tabular">
+              {money(totals.spend, currency, true)} → {money(totals.rev, currency, true)} · {roas(totals.spend ? totals.rev / totals.spend : null)}
+            </span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -24,12 +24,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage") }}
         setupLeft={setup ? setup.steps.length - setup.done : 0}
       />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         {user.workspace.isDemo ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-t-xl border-b bg-primary/10 px-4 py-2 text-center text-xs text-foreground/80">
+          <div className="flex flex-wrap items-center justify-center gap-x-2 rounded-t-xl border-b bg-primary/10 px-4 py-1 text-center md:py-2 text-xs text-foreground/80">
             <span>You&apos;re exploring demo data.</span>
             {user.can("workspace.data") ? (
-              <Link href="/settings/workspace" className="font-medium text-primary underline-offset-4 hover:underline">
+              <Link href="/settings/workspace" className="inline-flex min-h-9 items-center font-medium text-primary underline-offset-4 hover:underline md:min-h-0">
                 Clear it and connect your real accounts →
               </Link>
             ) : null}

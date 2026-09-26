@@ -21,7 +21,7 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
   const mcpUrl = `${origin}/api/mcp`;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

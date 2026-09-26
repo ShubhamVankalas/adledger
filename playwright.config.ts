@@ -17,7 +17,11 @@ export default defineConfig({
     colorScheme: "light",
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    { name: "chromium", testIgnore: /a11y\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    // Runs after the smoke journey (which creates the account) and reuses its database.
+    { name: "a11y", testMatch: /a11y\.spec\.ts/, dependencies: ["chromium"], use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+  ],
   webServer: {
     command: "node scripts/e2e-server.mjs",
     url: `http://localhost:${PORT}/api/v1/health`,

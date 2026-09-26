@@ -65,7 +65,7 @@ export function Onboarding({ status }: { status: SetupStatus }) {
         </Link>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Progress value={(status.done / status.steps.length) * 100} />
+        <Progress aria-label="Setup progress" value={(status.done / status.steps.length) * 100} />
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {status.steps
             .filter((s) => !s.optional)
