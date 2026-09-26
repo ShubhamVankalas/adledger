@@ -4,6 +4,7 @@ import { SettingsHeader } from "@/components/settings/section";
 import { requireUser } from "@/lib/auth";
 import { allIntegrations } from "@/lib/connectors/registry";
 import { getDb, schema } from "@/lib/db";
+import { oauthConfigured } from "@/lib/oauth/flow";
 import { getConnection, secretKeysOf } from "@/lib/settings";
 import { publicUrl } from "@/lib/url";
 
@@ -34,6 +35,7 @@ export default async function IntegrationsPage() {
       lastRun: last ? { status: last.status, rows: last.rowsUpserted, at: last.startedAt.toISOString() } : null,
       webhookUrl:
         i.category === "revenue" ? (i.provider === "stripe" ? `${origin}/api/v1/webhooks/stripe/${ws.id}` : `${origin}/api/v1/webhooks/${i.provider}/${ws.id}`) : null,
+      oauthReady: i.oauth ? oauthConfigured(i.provider) : false,
     };
   }
   const connectedCount = Object.values(states).filter((s) => s.connected).length;

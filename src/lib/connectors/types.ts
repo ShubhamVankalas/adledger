@@ -47,6 +47,21 @@ export type FieldDef = {
   optional?: boolean;
 };
 
+/**
+ * One-click connect ("Connect with Meta"). The install's admin registers an OAuth app with the
+ * platform and sets `env`; users then sign in instead of pasting tokens. See `src/lib/oauth`.
+ */
+export type OAuthMeta = {
+  /** Button label: "Connect with {label}". */
+  label: string;
+  /** Env vars that must all be set to enable it: [client id, client secret, ...extras]. */
+  env: string[];
+  /** Env vars read when set but not required (e.g. META_LOGIN_CONFIG_ID). */
+  optionalEnv?: string[];
+  /** Scopes requested at sign-in (empty = the scopes configured on the platform's app). */
+  scopes: string[];
+};
+
 /** Metadata shown in the Integrations catalog and used to build the connect form. */
 export type IntegrationMeta = {
   provider: string; // stable id stored in connections.provider, e.g. "tiktok_ads"
@@ -58,6 +73,7 @@ export type IntegrationMeta = {
   docsUrl: string;
   status: "stable" | "beta";
   color: string; // brand-ish hex for the logo badge
+  oauth?: OAuthMeta;
 };
 
 /**

@@ -195,6 +195,7 @@ export const linkedinConnector: AdsConnector = {
     status: "beta",
     color: "#0a66c2",
     docsUrl: "https://learn.microsoft.com/en-us/linkedin/marketing/integrations/ads-reporting/ads-reporting",
+    oauth: { label: "LinkedIn", env: ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"], scopes: ["r_ads", "r_ads_reporting"] },
     fields: [
       { name: "adAccountIds", label: "Ad account IDs", placeholder: "508000001", hint: "Comma-separated. Campaign Manager → the number in the account URL." },
       { name: "accessToken", label: "Access token", secret: true, hint: "OAuth token with r_ads and r_ads_reporting scopes (valid 60 days)." },
