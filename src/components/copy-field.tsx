@@ -43,12 +43,3 @@ export function CopyField({ value, mono = true, className }: { value: string; mo
     </div>
   );
 }
-
-export function CodeBlock({ code, className }: { code: string; className?: string }) {
-  return (
-    <div className={cn("group relative", className)}>
-      <pre tabIndex={0} className="overflow-x-auto rounded-lg border bg-muted/50 p-3 pr-12 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50">{code}</pre>
-      <CopyButton value={code} className="absolute top-2 right-2" />
-    </div>
-  );
-}

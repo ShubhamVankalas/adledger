@@ -66,7 +66,7 @@ export function SettingsNav({
   const visible = groups.map((g) => ({ ...g, items: g.items.filter((i) => i.show !== false) }));
   const active = (href: string) => (href === "/settings/workspace" || href === "/settings/organization" ? pathname === href : pathname.startsWith(href));
 
-  // Keep the current page visible in the horizontal strip (phones and tablets).
+  // Keep the current page visible in the horizontal strip (phones and tablets); edges fade so a cut-off pill reads as "scroll for more".
   useEffect(() => {
     const el = strip.current;
     const cur = el?.querySelector<HTMLElement>("[aria-current=page]");
@@ -80,7 +80,7 @@ export function SettingsNav({
       <nav aria-label="Settings" className="-mx-4 border-b md:-mx-6 lg:hidden">
         <div
           ref={strip}
-          className="relative flex items-center gap-1 overflow-x-auto overscroll-x-contain px-4 pb-3 [scrollbar-width:none] md:px-6 [&::-webkit-scrollbar]:hidden"
+          className="relative flex items-center gap-1 overflow-x-auto overscroll-x-contain px-4 pb-3 [mask-image:linear-gradient(to_right,transparent,black_1rem,black_calc(100%-1rem),transparent)] [scrollbar-width:none] md:px-6 [&::-webkit-scrollbar]:hidden"
         >
           {visible.map((g, gi) => (
             <Fragment key={g.title}>
@@ -116,7 +116,7 @@ export function SettingsNav({
             <div key={g.title} className="min-w-0">
               <div className="px-2.5 pb-1.5">
                 <div className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{g.title}</div>
-                {g.subtitle ? <div className="truncate text-xs text-muted-foreground/80">{g.subtitle}</div> : null}
+                {g.subtitle ? <div className="truncate text-xs text-muted-foreground">{g.subtitle}</div> : null}
               </div>
               <ul className="flex flex-col gap-0.5">
                 {g.items.map((i) => {

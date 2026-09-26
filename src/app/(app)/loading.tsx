@@ -18,14 +18,23 @@ export default function Loading() {
         </div>
       </div>
       <div className="mx-auto w-full max-w-[1760px] space-y-4 p-4 sm:space-y-6 md:p-6 2xl:px-8">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[7.25rem] rounded-xl" />
-          ))}
+        {/* Same shape as Overview: 2-up KPIs on phones, one row of 6 on wide screens, then main + side columns from xl. */}
+        <div className="@container">
+          <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3 @4xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-[7.25rem] rounded-xl" />
+            ))}
+          </div>
         </div>
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-          <Skeleton className="h-72 rounded-xl md:h-96 lg:col-span-2" />
-          <Skeleton className="h-72 rounded-xl md:h-96" />
+        <div className="grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:items-start 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="space-y-4 md:space-y-6">
+            <Skeleton className="h-72 rounded-xl md:h-96" />
+            <Skeleton className="hidden h-80 rounded-xl xl:block" />
+          </div>
+          <div className="space-y-4 md:space-y-6">
+            <Skeleton className="h-56 rounded-xl" />
+            <Skeleton className="hidden h-64 rounded-xl xl:block" />
+          </div>
         </div>
       </div>
       <span className="sr-only">Loading…</span>

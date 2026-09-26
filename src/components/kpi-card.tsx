@@ -37,7 +37,14 @@ export function KpiCard({
           {label}
         </span>
         {/* The icon is decoration: drop it in very narrow cards (6-up on small laptops) so the label never truncates. */}
-        <span className={cn("hidden size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground @[8rem]/kpi:flex", accent && "bg-primary/15 text-primary")}>
+        <span
+          className={cn(
+            "hidden size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground",
+            // Long labels ("Journey starters") keep the icon only when the card has room for both.
+            label.length > 13 ? "@[12rem]/kpi:flex" : "@[8rem]/kpi:flex",
+            accent && "bg-primary/15 text-primary",
+          )}
+        >
           <Icon className="size-3.5" />
         </span>
       </div>
@@ -64,7 +71,7 @@ export function KpiCard({
             {Math.abs(delta * 100).toFixed(1)}%
           </span>
         ) : null}
-        {sub ? <span className="tabular max-w-full min-w-0 truncate text-muted-foreground">{sub}</span> : null}
+        {sub ? <span className="tabular line-clamp-2 max-w-full min-w-0 break-words text-muted-foreground" title={sub}>{sub}</span> : null}
       </div>
     </Card>
   );

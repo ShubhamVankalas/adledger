@@ -76,7 +76,7 @@ export default async function OAuthConnectPage({
           <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             <CircleAlertIcon className="mt-0.5 size-4 shrink-0" /> {problem}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button render={<a href={startHref} />}>Connect with {label}</Button>
             <Button variant="outline" render={<a href={INTEGRATIONS} />}>
               Back to integrations

@@ -158,7 +158,7 @@ export function hasBrandIcon(id: string) {
 }
 
 /** Just the glyph (brand-coloured), for inline use in badges and chips. */
-export function BrandGlyph({ id, className, onWhite }: { id: string; className?: string; onWhite?: boolean }) {
+export function BrandGlyph({ id, name, className, onWhite }: { id: string; name?: string; className?: string; onWhite?: boolean }) {
   const key = ICON_FOR[id] ?? id;
   const si = SIMPLE_ICONS[key];
   if (si) {
@@ -178,7 +178,13 @@ export function BrandGlyph({ id, className, onWhite }: { id: string; className?:
     );
   }
   const Generic = GENERIC[key];
-  return Generic ? <Generic className={cn("size-4 shrink-0 text-primary", className)} /> : null;
+  if (Generic) return <Generic className={cn("size-4 shrink-0 text-primary", className)} />;
+  // No mark for this brand: its initial, so a logo slot is never left empty.
+  return (
+    <span aria-hidden className={cn("flex size-4 shrink-0 items-center justify-center text-[10px] leading-none font-bold text-primary", className)}>
+      {(name ?? id).slice(0, 1).toUpperCase()}
+    </span>
+  );
 }
 
 /** App-icon style tile with the brand mark, used in the integrations catalog. */

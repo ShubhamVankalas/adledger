@@ -182,7 +182,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                             )}
                           >
                             <span className="flex min-w-0 items-center gap-2">
-                              <PlatformBadge platform={t.platform} compact="auto" />
+                              <PlatformBadge platform={t.platform} compact />
                               <span className="truncate text-sm font-medium" title={t.name}>
                                 {t.name}
                               </span>

@@ -53,7 +53,7 @@ export default async function InsightsPage() {
   const meta = (r: Report) => (
     <>
       Generated <span className="whitespace-nowrap">{fmt.format(r.createdAt)}</span> ·{" "}
-      <span className="break-all">{r.modelName === "template" ? "rule-based" : r.modelName}</span>
+      <span className="[overflow-wrap:anywhere]">{r.modelName === "template" ? "rule-based" : r.modelName}</span>
     </>
   );
   const [latest, ...older] = reports;

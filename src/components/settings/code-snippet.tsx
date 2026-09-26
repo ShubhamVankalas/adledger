@@ -15,7 +15,7 @@ export function Snippet({ code, label, wrap = false, className }: { code: string
   return (
     <div className={cn("min-w-0 overflow-hidden rounded-lg border bg-muted/40 dark:bg-muted/30", className)}>
       <div className="flex min-h-9 items-center justify-between gap-2 border-b bg-muted/50 py-1 pr-1 pl-3 dark:bg-muted/40">
-        <span className="min-w-0 truncate text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="min-w-0 py-1 text-xs font-medium text-muted-foreground">{label}</span>
         <Button type="button" variant="ghost" size="sm" onClick={() => copy(code)} aria-label={copied ? "Copied" : "Copy code"} className="text-muted-foreground">
           {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
           {copied ? "Copied" : "Copy"}

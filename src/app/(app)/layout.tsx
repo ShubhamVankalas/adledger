@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {user.can("workspace.data") ? (
               <Link
                 href="/settings/workspace"
-                className="inline-flex min-h-9 shrink-0 items-center rounded-sm font-medium text-primary underline-offset-4 hover:underline"
+                className="inline-flex min-h-10 shrink-0 items-center rounded-sm font-medium text-primary md:min-h-9 underline-offset-4 hover:underline"
               >
                 <span className="sm:hidden">Use real data →</span>
                 <span className="hidden sm:inline">Clear it and connect your real accounts →</span>

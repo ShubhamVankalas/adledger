@@ -49,18 +49,18 @@ export function OAuthAccountPicker({
       <ul className="divide-y rounded-lg border">
         {accounts.map((a) => (
           <li key={a.id}>
-            <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted/50">
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-muted/50">
               <input
                 type="checkbox"
                 name="account"
                 value={a.id}
                 checked={selected.has(a.id)}
                 onChange={() => toggle(a.id)}
-                className="size-4 accent-primary"
+                className="size-4 shrink-0 accent-primary"
               />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{a.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block text-sm font-medium break-words">{a.name}</span>
+                <span className="block text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   {a.id}
                   {a.currency ? ` · ${a.currency}` : ""}
                   {a.note ? ` · ${a.note}` : ""}
@@ -70,8 +70,8 @@ export function OAuthAccountPicker({
           </li>
         ))}
       </ul>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={save.pending || selected.size === 0}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <Button type="submit" className="max-sm:w-full" disabled={save.pending || selected.size === 0}>
           Import {selected.size === 1 ? "1 account" : `${selected.size} accounts`}
         </Button>
         <p className="text-xs text-muted-foreground">

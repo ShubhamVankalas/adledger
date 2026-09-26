@@ -84,6 +84,11 @@ test("pages fit a phone-width screen without clipped content", async ({ page }) 
         .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)}`);
     });
     expect(clipped, `${path} has content wider than the screen`).toEqual([]);
+    const shot = { "/performance": "mobile-performance", "/settings/workspace/integrations": "mobile-settings" }[path];
+    if (process.env.SCREENSHOTS && shot) {
+      await page.waitForTimeout(900);
+      await page.screenshot({ path: `docs/screenshots/${shot}.png` });
+    }
   }
 });
 

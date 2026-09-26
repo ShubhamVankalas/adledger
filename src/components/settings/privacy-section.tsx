@@ -22,7 +22,7 @@ export function PrivacySection({ retention, canData, minDays, maxDays }: { reten
         </CardTitle>
         <CardDescription>Your data is yours: download all of it at any time, and decide how long raw website events are kept.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6 lg:grid-cols-2">
+      <CardContent className="grid gap-6 @3xl/settings:grid-cols-2">
         <div className="space-y-2">
           <div className="text-sm font-medium">Export all workspace data</div>
           <p className="text-xs text-muted-foreground">
@@ -30,7 +30,7 @@ export function PrivacySection({ retention, canData, minDays, maxDays }: { reten
             never included. Money is in minor units (cents).
           </p>
           {canData ? (
-            <Button variant="outline" size="sm" render={<a href="/api/v1/exports/workspace" download />}>
+            <Button variant="outline" render={<a href="/api/v1/exports/workspace" download />}>
               <DownloadIcon /> Download export (.json)
             </Button>
           ) : (
@@ -59,7 +59,7 @@ export function PrivacySection({ retention, canData, minDays, maxDays }: { reten
             />
             <span className="text-sm text-muted-foreground">days</span>
             {canData ? (
-              <Button type="submit" size="sm" disabled={save.pending}>
+              <Button type="submit" className="md:h-9" disabled={save.pending}>
                 Save
               </Button>
             ) : null}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { saveOnboardingAction } from "@/app/actions/settings";
-import { CopyButton } from "@/components/copy-field";
+import { Snippet } from "@/components/settings/code-snippet";
 import { BrandGlyph } from "@/components/brand-icon";
 import { IntegrationLogo } from "@/components/settings/integration-logo";
 import { Badge } from "@/components/ui/badge";
@@ -32,18 +32,6 @@ const BUILDERS = [
 ];
 
 /** Code or URL to copy. Wraps instead of scrolling sideways (unreadable on phones); the copy button sits in its own header row. */
-function Snippet({ label, value, className }: { label: string; value: string; className?: string }) {
-  return (
-    <div className={cn("min-w-0 overflow-hidden rounded-lg border bg-muted/40", className)}>
-      <div className="flex items-center justify-between gap-2 border-b bg-muted/40 py-1 pr-1 pl-3">
-        <span className="min-w-0 text-xs font-medium text-muted-foreground">{label}</span>
-        <CopyButton value={value} label="Copy" className="h-10 shrink-0 px-3 sm:h-7 sm:px-2.5" />
-      </div>
-      <pre className="p-3 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">{value}</pre>
-    </div>
-  );
-}
-
 function StepCard({ id, n, title, done, children, detail }: { id: string; n: number; title: string; done: boolean; detail?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Card id={id} className={cn("scroll-mt-20", done && "ring-success/30")}>
@@ -206,7 +194,7 @@ export function OnboardingWizard({
                       >
                         {/* Brand marks sit on a white disc so dark logos stay visible in dark mode. */}
                         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-black/5">
-                          <BrandGlyph id={it.key} onWhite className="size-3.5" />
+                          <BrandGlyph id={it.key} name={it.label} onWhite className="size-3.5 text-emerald-700" />
                         </span>
                         {it.label}
                         {on ? <CheckCircle2Icon className="-mr-1 size-3.5 opacity-80" /> : null}
@@ -243,13 +231,13 @@ export function OnboardingWizard({
               </a>
             </div>
           ) : null}
-          <Snippet label="Paste into the <head> of every page" value={snippetFor(origin, siteKey)} />
+          <Snippet wrap label="Paste into the <head> of every page" code={snippetFor(origin, siteKey)} />
         </StepCard>
 
         <StepCard id="leads" n={2} title="Capture leads" done={step("leads").done} detail="So AdLedger knows who signed up, and from which ad.">
           <div className="grid gap-4 2xl:grid-cols-2">
-            <Snippet label="Forms on your site: add one attribute" value={`<form data-adledger-lead="Book a demo"> … </form>`} />
-            <Snippet label="Typeform, Tally, Jotform, Zapier…: webhook URL" value={leadWebhookUrl} />
+            <Snippet wrap label="Forms on your site: add one attribute" code={`<form data-adledger-lead="Book a demo"> … </form>`} />
+            <Snippet wrap label="Typeform, Tally, Jotform, Zapier…: webhook URL" code={leadWebhookUrl} />
           </div>
         </StepCard>
 

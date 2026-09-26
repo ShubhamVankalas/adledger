@@ -53,7 +53,7 @@ export function MobileNav() {
       <nav
         aria-label="Primary"
         data-slot="mobile-nav"
-        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.12)] backdrop-blur-md supports-[backdrop-filter]:bg-background/75 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.12)] md:hidden"
       >
         <ul className="mx-auto flex h-16 max-w-lg items-stretch gap-0.5 px-1.5 py-1">
           {TABS.map(({ href, label, icon }) => {
