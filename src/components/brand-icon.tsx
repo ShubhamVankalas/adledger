@@ -134,6 +134,7 @@ export const ICON_FOR: Record<string, string> = {
   google_gemini: "googlegemini",
   openrouter: "openrouter",
   deepseek: "deepseek",
+  phonepe: "phonepe",
 };
 
 function luminance(hex: string) {

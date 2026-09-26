@@ -1,0 +1,51 @@
+{
+  "event": "checkout.order.completed",
+  "payload": {
+    "orderId": "OMO2609171147221234567890",
+    "merchantId": "M22ADLEDGERUAT",
+    "merchantOrderId": "AL-ORD-20260917-0042",
+    "state": "COMPLETED",
+    "amount": 149900,
+    "expireAt": 1790159442000,
+    "metaInfo": {
+      "udf1": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+      "udf2": "annual",
+      "udf3": "",
+      "udf4": ""
+    },
+    "paymentDetails": [
+      {
+        "paymentMode": "UPI_COLLECT",
+        "timestamp": 1790158410000,
+        "amount": 149900,
+        "transactionId": "OM2609171146501234",
+        "state": "FAILED",
+        "errorCode": "AUTHORIZATION_ERROR",
+        "detailedErrorCode": "ZM",
+        "splitInstruments": []
+      },
+      {
+        "paymentMode": "UPI_QR",
+        "transactionId": "OM2609171147221234",
+        "timestamp": 1790158642000,
+        "amount": 149900,
+        "state": "COMPLETED",
+        "splitInstruments": [
+          {
+            "amount": 149900,
+            "rail": {
+              "type": "UPI",
+              "upiTransactionId": "upi626012345678",
+              "vpa": "98****70@ybl"
+            },
+            "instrument": {
+              "type": "ACCOUNT",
+              "accountType": "SAVINGS",
+              "accountNumber": "******4321"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

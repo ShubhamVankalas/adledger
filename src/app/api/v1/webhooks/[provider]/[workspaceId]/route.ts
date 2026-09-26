@@ -34,7 +34,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   if (!valid) return json({ error: "invalid signature" }, 401);
 
   try {
-    const payload = rawBody ? JSON.parse(rawBody) : {};
+    // Form-encoded sources (Instamojo) get their fields as an object; everything else is JSON.
+    const form = /application\/x-www-form-urlencoded/i.test(req.headers.get("content-type") ?? "");
+    const payload = !rawBody ? {} : form ? Object.fromEntries(new URLSearchParams(rawBody)) : JSON.parse(rawBody);
     const events = connector.parseWebhook(payload, request);
     const stored = events.length ? await ingestRevenue(db, ws.id, connector.source, events) : 0;
     if (stored) await requestAttribution(ws.id);
