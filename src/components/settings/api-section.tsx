@@ -4,13 +4,14 @@ import { KeyRoundIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { createApiKeyAction, revokeApiKeyAction } from "@/app/actions/settings";
 import { ActionButton, useFormAction } from "@/components/action-button";
-import { CodeBlock, CopyField } from "@/components/copy-field";
+import { CopyField } from "@/components/copy-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { timeAgo } from "@/lib/format";
+import { Snippet } from "./code-snippet";
 
 type Key = { id: string; name: string; prefix: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 
@@ -21,8 +22,8 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
   const mcpUrl = `${origin}/api/mcp`;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      <Card className="lg:col-span-2">
+    <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @4xl/settings:grid-cols-5">
+      <Card className="@4xl/settings:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <KeyRoundIcon className="size-4 text-muted-foreground" /> API keys
@@ -37,20 +38,23 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
             </div>
           ) : null}
           <form action={create.submit} className="flex gap-2">
-            <Input name="name" placeholder="Key name, e.g. Claude Desktop" />
-            <Button type="submit" disabled={create.pending}>
+            <Input name="name" placeholder="Key name, e.g. Claude Desktop" aria-label="Key name" />
+            <Button type="submit" disabled={create.pending} className="md:h-9">
               <PlusIcon /> Create
             </Button>
           </form>
           <div className="divide-y rounded-lg border">
-            {keys.length === 0 ? <p className="p-3 text-sm text-muted-foreground">No keys yet.</p> : null}
+            {keys.length === 0 ? (
+              <p className="px-3 py-5 text-center text-sm text-muted-foreground">No keys yet. Name one above to create it — you&apos;ll see it once.</p>
+            ) : null}
             {keys.map((k) => (
-              <div key={k.id} className="flex items-center justify-between gap-2 p-3">
+              <div key={k.id} className="flex items-center justify-between gap-2 py-2 pr-2 pl-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    {k.name} {k.revoked ? <Badge variant="outline">revoked</Badge> : null}
+                  <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    <span className={k.revoked ? "truncate text-muted-foreground line-through" : "truncate"}>{k.name}</span>
+                    {k.revoked ? <Badge variant="outline">revoked</Badge> : null}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="truncate text-xs text-muted-foreground">
                     <code>{k.prefix}…</code> · used {timeAgo(k.lastUsedAt)}
                   </div>
                 </div>
@@ -65,7 +69,7 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
         </CardContent>
       </Card>
 
-      <Card className="lg:col-span-3">
+      <Card className="min-w-0 @4xl/settings:col-span-3">
         <CardHeader>
           <CardTitle>Ask Claude (or any AI agent) about your ads</CardTitle>
           <CardDescription>
@@ -77,19 +81,31 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
             <div className="text-xs font-medium text-muted-foreground">MCP server URL</div>
             <CopyField value={mcpUrl} />
           </div>
-          <Tabs defaultValue="code">
-            <TabsList>
-              <TabsTrigger value="code">Claude Code</TabsTrigger>
-              <TabsTrigger value="desktop">Claude Desktop</TabsTrigger>
-              <TabsTrigger value="cursor">Cursor</TabsTrigger>
-              <TabsTrigger value="rest">REST API</TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="code" className="min-w-0">
+            {/* Scrolls sideways on narrow screens rather than squeezing the labels. */}
+            <div className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList className="max-md:h-10">
+                <TabsTrigger value="code" className="flex-none px-2.5">
+                  Claude Code
+                </TabsTrigger>
+                <TabsTrigger value="desktop" className="flex-none px-2.5">
+                  Claude Desktop
+                </TabsTrigger>
+                <TabsTrigger value="cursor" className="flex-none px-2.5">
+                  Cursor
+                </TabsTrigger>
+                <TabsTrigger value="rest" className="flex-none px-2.5">
+                  REST API
+                </TabsTrigger>
+              </TabsList>
+            </div>
             <TabsContent value="code" className="pt-2">
-              <CodeBlock code={`claude mcp add --transport http adledger ${mcpUrl} \\\n  --header "Authorization: Bearer ${key}"`} />
+              <Snippet label="Terminal" code={`claude mcp add --transport http adledger ${mcpUrl} \\\n  --header "Authorization: Bearer ${key}"`} />
             </TabsContent>
             <TabsContent value="desktop" className="space-y-2 pt-2">
               <p className="text-xs text-muted-foreground">Settings → Developer → Edit config, then restart Claude Desktop:</p>
-              <CodeBlock
+              <Snippet
+                label="claude_desktop_config.json"
                 code={JSON.stringify(
                   { mcpServers: { adledger: { command: "npx", args: ["-y", "mcp-remote", mcpUrl, "--header", `Authorization: Bearer ${key}`] } } },
                   null,
@@ -101,16 +117,16 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
               <p className="text-xs text-muted-foreground">
                 Add to <code>~/.cursor/mcp.json</code>:
               </p>
-              <CodeBlock code={JSON.stringify({ mcpServers: { adledger: { url: mcpUrl, headers: { Authorization: `Bearer ${key}` } } } }, null, 2)} />
+              <Snippet label="~/.cursor/mcp.json" code={JSON.stringify({ mcpServers: { adledger: { url: mcpUrl, headers: { Authorization: `Bearer ${key}` } } } }, null, 2)} />
             </TabsContent>
             <TabsContent value="rest" className="space-y-2 pt-2">
-              <CodeBlock code={`curl "${origin}/api/v1/reports/performance?start=2026-09-01&end=2026-09-30&model=linear&level=campaign" \\\n  -H "Authorization: Bearer ${key}"`} />
+              <Snippet label="Terminal" code={`curl "${origin}/api/v1/reports/performance?start=2026-09-01&end=2026-09-30&model=linear&level=campaign" \\\n  -H "Authorization: Bearer ${key}"`} />
               <p className="text-xs text-muted-foreground">
                 Reports: <code>overview</code>, <code>performance</code>, <code>timeseries</code>, <code>channels</code>, <code>wasted-spend</code>, <code>compare</code>. Also <code>/api/v1/contacts</code>.
               </p>
             </TabsContent>
           </Tabs>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs break-words text-muted-foreground">
             Tools: get_overview, get_performance, find_wasted_spend, compare_periods, list_contacts, get_contact_journey (emails masked), get_latest_insights, get_sync_status. All read-only.
           </p>
         </CardContent>

@@ -52,29 +52,37 @@ export function IntegrationsCatalog({
           <code>CONNECTOR_MODE=mock</code> is set on the server, so every connector returns demo data. Remove it to use live APIs.
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-0.5">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setCat(c.key)}
-              className={cn(
-                "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
-                cat === c.key && "bg-background text-foreground shadow-sm",
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3 @3xl/settings:flex-row @3xl/settings:items-center @3xl/settings:justify-between">
+        <div className="relative @3xl/settings:order-2 @3xl/settings:w-64 @5xl/settings:w-72">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search integrations…" aria-label="Search integrations" className="pl-8" />
         </div>
-        <div className="relative w-full max-w-xs">
-          <SearchIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search integrations…" className="h-8 pl-8" />
+        {/* Scrolls sideways on phones instead of wrapping into a tall block. */}
+        <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
+          <div role="group" aria-label="Category" className="flex w-max gap-1 rounded-lg border bg-muted/40 p-0.5">
+            {CATEGORIES.map((c) => {
+              const n = c.key === "all" ? integrations.length : integrations.filter((i) => i.category === c.key || (c.key === "website" && i.category === "leads")).length;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  aria-pressed={cat === c.key}
+                  onClick={() => setCat(c.key)}
+                  className={cn(
+                    "flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground md:h-8",
+                    cat === c.key && "bg-background text-foreground shadow-sm dark:bg-input/50",
+                  )}
+                >
+                  {c.label}
+                  <span className="text-xs text-muted-foreground tabular-nums">{n}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 @xl/settings:grid-cols-2 @4xl/settings:grid-cols-3 @7xl/settings:grid-cols-4">
         {list.map((i) => {
           const st = states[i.provider];
           const builtIn = i.fields.length === 0;
@@ -84,7 +92,7 @@ export function IntegrationsCatalog({
                 <IntegrationLogo provider={i.provider} name={i.name} color={i.color} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-medium">{i.name}</span>
+                    <span className="leading-snug font-medium">{i.name}</span>
                     {i.status === "beta" ? (
                       <Badge variant="outline" className="h-4 px-1 text-[10px]">
                         Beta
@@ -94,15 +102,15 @@ export function IntegrationsCatalog({
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{i.description}</p>
                 </div>
               </div>
-              <div className="mt-auto flex items-center justify-between pt-3 text-xs">
+              <div className="mt-auto flex items-center justify-between gap-2 pt-3 text-xs">
                 {st ? <StatusBadge state={st} forcedMock={forcedMock} /> : <span />}
-                <span className="inline-flex items-center gap-1 font-medium text-primary">
+                <span className="inline-flex shrink-0 items-center gap-1 font-medium text-primary">
                   {builtIn ? "Open" : st?.connected ? "Manage" : "Connect"} <ArrowRightIcon className="size-3" />
                 </span>
               </div>
             </>
           );
-          const cls = "flex h-full flex-col rounded-xl border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm";
+          const cls = "flex h-full min-w-0 flex-col rounded-xl border bg-card p-4 text-left transition-all outline-none hover:border-primary/40 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50";
           return builtIn ? (
             <Link key={i.provider} href={i.docsUrl} className={cls}>
               {body}
@@ -115,7 +123,7 @@ export function IntegrationsCatalog({
         })}
         {list.length === 0 ? (
           <p className="col-span-full rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No integration matches “{q}”. You can still bring the data in with a CSV file or the Spend &amp; Conversions API under{" "}
+            {q.trim() ? `No integration matches “${q.trim()}”.` : "Nothing in this category yet."} You can still bring the data in with a CSV file or the Spend &amp; Conversions API under{" "}
             <Link href="/settings/workspace/import" className="font-medium text-primary hover:underline">
               Import data
             </Link>

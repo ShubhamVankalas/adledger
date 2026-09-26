@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { SettingsNav } from "@/components/settings/settings-nav";
+import { TOUCH_TARGETS } from "@/components/settings/touch";
 import { requireUser } from "@/lib/auth";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +8,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   return (
     <>
       <PageHeader title="Settings" description={`${user.organization.name} · ${user.workspace.name}`} />
-      <div className="mx-auto grid w-full max-w-[1600px] gap-6 p-4 md:grid-cols-[220px_minmax(0,1fr)] md:p-6 xl:gap-10">
+      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-4 px-4 pt-3 pb-10 md:px-6 md:pt-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8 lg:pt-6 xl:gap-10 2xl:px-8">
         <SettingsNav
           workspaceName={user.workspace.name}
           organizationName={user.organization.name}
@@ -16,7 +17,8 @@ export default async function SettingsLayout({ children }: { children: React.Rea
           canMembers={user.can("members.manage")}
           canAudit={user.can("audit.view")}
         />
-        <div className="min-w-0 space-y-6">{children}</div>
+        {/* Container queries (@…/settings) let each page adapt to the width it actually gets. */}
+        <div className={`@container/settings min-w-0 space-y-5 md:space-y-6 ${TOUCH_TARGETS}`}>{children}</div>
       </div>
     </>
   );

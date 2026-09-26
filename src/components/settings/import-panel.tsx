@@ -4,12 +4,12 @@ import { DownloadIcon, FileSpreadsheetIcon, UploadIcon } from "lucide-react";
 import Link from "next/link";
 import { importRevenueCsvAction, importSpendCsvAction } from "@/app/actions/imports";
 import { useFormAction } from "@/components/action-button";
-import { CodeBlock } from "@/components/copy-field";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Snippet } from "./code-snippet";
 
 const PLATFORMS = [
   ["other", "Other / mixed (use a platform column)"],
@@ -28,7 +28,7 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
   const spend = useFormAction(importSpendCsvAction);
   const revenue = useFormAction(importRevenueCsvAction);
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:gap-6 @4xl/settings:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -51,12 +51,12 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
                 ))}
               </NativeSelect>
             </div>
-            <Input name="file" type="file" accept=".csv,text/csv" required />
+            <Input name="file" type="file" accept=".csv,text/csv" required aria-label="CSV file" className="cursor-pointer" />
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={spend.pending}>
+              <Button type="submit" disabled={spend.pending} className="max-md:flex-1">
                 <UploadIcon /> Import spend
               </Button>
-              <Button variant="ghost" size="sm" render={<a href="/api/v1/import/template?kind=spend" />}>
+              <Button variant="outline" render={<a href="/api/v1/import/template?kind=spend" />}>
                 <DownloadIcon /> Template
               </Button>
             </div>
@@ -76,12 +76,12 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
         </CardHeader>
         <CardContent>
           <form action={revenue.submit} className="grid gap-3">
-            <Input name="file" type="file" accept=".csv,text/csv" required />
+            <Input name="file" type="file" accept=".csv,text/csv" required aria-label="CSV file" className="cursor-pointer" />
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={revenue.pending}>
+              <Button type="submit" disabled={revenue.pending} className="max-md:flex-1">
                 <UploadIcon /> Import payments &amp; leads
               </Button>
-              <Button variant="ghost" size="sm" render={<a href="/api/v1/import/template?kind=revenue" />}>
+              <Button variant="outline" render={<a href="/api/v1/import/template?kind=revenue" />}>
                 <DownloadIcon /> Template
               </Button>
             </div>
@@ -89,7 +89,7 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
         </CardContent>
       </Card>
 
-      <Card className="xl:col-span-2">
+      <Card className="@4xl/settings:col-span-2">
         <CardHeader>
           <CardTitle>Automate it: Spend &amp; Conversions API</CardTitle>
           <CardDescription>
@@ -100,10 +100,9 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             . Zapier and Make can call these with their Webhooks / HTTP steps, which covers hundreds of tools. Requests are idempotent: sending the same row or event again updates it.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground">Send ad spend</div>
-            <CodeBlock
+        <CardContent className="grid grid-cols-1 gap-4 @5xl/settings:grid-cols-2">
+          <Snippet
+              label="Send ad spend"
               code={`curl -X POST ${origin}/api/v1/spend \\
   -H "Authorization: Bearer al_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
@@ -112,10 +111,8 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
     "date":"2026-09-01","spend":"125.40","currency":"USD",
     "impressions":48210,"clicks":312}]}'`}
             />
-          </div>
-          <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground">Send a payment, refund or lead</div>
-            <CodeBlock
+          <Snippet
+              label="Send a payment, refund or lead"
               code={`curl -X POST ${origin}/api/v1/conversions \\
   -H "Authorization: Bearer al_YOUR_KEY" \\
   -H "Content-Type: application/json" \\
@@ -123,7 +120,6 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
     "amount":"249.00","currency":"USD","email":"jane@example.com",
     "visitor_id":"<adledger.getVisitorId()>","source":"shop"}]}'`}
             />
-          </div>
         </CardContent>
       </Card>
     </div>

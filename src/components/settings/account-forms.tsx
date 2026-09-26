@@ -28,7 +28,7 @@ export function AccountForms({
   const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 md:gap-6 @4xl/settings:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
@@ -43,7 +43,7 @@ export function AccountForms({
             <div className="grid gap-1.5">
               <Label htmlFor="profile-email">Email</Label>
               <Input id="profile-email" value={email} disabled />
-              <p className="text-[11px] text-muted-foreground">Your email is your login. To use a different one, ask an admin to invite that address.</p>
+              <p className="text-xs text-muted-foreground">Your email is your login. To use a different one, ask an admin to invite that address.</p>
             </div>
             <div>
               <Button type="submit" disabled={profile.pending}>
@@ -92,9 +92,10 @@ export function AccountForms({
             <button
               key={t.v}
               type="button"
+              aria-pressed={theme === t.v}
               onClick={() => setTheme(t.v)}
               className={cn(
-                "flex flex-col items-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:border-primary/40",
+                "flex min-h-16 flex-col items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:border-primary/40",
                 theme === t.v && "border-primary bg-primary/5 ring-1 ring-primary/30",
               )}
             >
@@ -112,15 +113,15 @@ export function AccountForms({
         </CardHeader>
         <CardContent className="divide-y">
           {memberships.map((m) => (
-            <div key={m.org} className="flex items-center justify-between py-2 text-sm">
-              <span className="font-medium">{m.org}</span>
+            <div key={m.org} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+              <span className="min-w-0 truncate font-medium">{m.org}</span>
               <Badge variant="secondary">{m.role}</Badge>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      <Card className="xl:col-span-2">
+      <Card className="@4xl/settings:col-span-2">
         <CardHeader>
           <CardTitle>Signed-in devices</CardTitle>
           <CardDescription>Sessions last 30 days. Sign out any you don&apos;t recognise.</CardDescription>
@@ -128,14 +129,17 @@ export function AccountForms({
         <CardContent className="space-y-3">
           <div className="divide-y rounded-lg border">
             {sessions.map((s) => (
-              <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
-                <div className="flex items-center gap-3">
-                  <MonitorIcon className="size-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-sm font-medium">
-                      Signed in {fmt.format(new Date(s.createdAt))} {s.current ? <Badge className="ml-1">This device</Badge> : null}
+              <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <MonitorIcon className="size-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                      <span>Signed in {fmt.format(new Date(s.createdAt))}</span>
+                      {s.current ? <Badge>This device</Badge> : null}
                     </div>
-                    <div className="text-xs text-muted-foreground">Last workspace: {s.workspace}</div>
+                    <div className="truncate text-xs text-muted-foreground">Last workspace: {s.workspace}</div>
                   </div>
                 </div>
                 {!s.current ? (
