@@ -162,7 +162,10 @@ excluded from totals, with a warning in the API/UI. FX conversion is v0.2.
 
 **Reporting.** `overview`, `performance` (campaign / ad_group / ad, drill-down by parent),
 `timeseries`, `channels`, `wasted-spend`, `compare`, contacts list and journey. Date filters
-are inclusive and use the workspace timezone for day boundaries.
+are inclusive and use the workspace timezone for day boundaries. `reports-advanced.ts` adds
+`model-comparison` (first-touch vs last-touch vs linear revenue/ROAS per campaign, with each
+campaign flagged as a journey starter or closer) and `ltv` (first-payment-month cohorts with
+monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
 
 **AI insights.** `ai/facts.ts` builds a JSON facts pack (current vs previous period, top and
 wasted campaigns, biggest movers, channel mix) with pre-formatted money. `ai/report.ts` calls the

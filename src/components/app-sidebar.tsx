@@ -7,11 +7,13 @@ import {
   CableIcon,
   CheckIcon,
   ChevronsUpDownIcon,
+  GitCompareArrowsIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
+  PiggyBankIcon,
   PlusIcon,
   SettingsIcon,
   SparklesIcon,
@@ -56,6 +58,8 @@ import {
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboardIcon },
   { href: "/performance", label: "Performance", icon: BarChart3Icon },
+  { href: "/reports/models", label: "Model comparison", icon: GitCompareArrowsIcon },
+  { href: "/reports/ltv", label: "Customer LTV", icon: PiggyBankIcon },
   { href: "/contacts", label: "Contacts", icon: UsersIcon },
   { href: "/insights", label: "AI insights", icon: SparklesIcon },
 ];

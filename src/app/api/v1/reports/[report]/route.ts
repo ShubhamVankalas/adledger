@@ -2,8 +2,9 @@ import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { json, withAuth } from "@/lib/http";
 import { channels, compare, overview, performance, reportParams, timeseries, wastedSpend } from "@/lib/reports";
+import { ltv, modelComparison } from "@/lib/reports-advanced";
 
-// GET /api/v1/reports/{overview|performance|timeseries|channels|wasted-spend|compare}
+// GET /api/v1/reports/{overview|performance|timeseries|channels|wasted-spend|compare|model-comparison|ltv}
 //   ?start=YYYY-MM-DD&end=YYYY-MM-DD&model=first_touch|last_touch|linear[&platform=meta|google][&level=campaign|ad_group|ad]
 
 const levelSchema = z.object({
@@ -30,6 +31,12 @@ export const GET = withAuth<{ params: Promise<{ report: string }> }>(async (req,
       return json({ ...meta, data: await wastedSpend(db, ws, { ...p, level: levelSchema.parse(q).level }) });
     case "compare":
       return json({ ...meta, data: await compare(db, ws, p) });
+    case "model-comparison":
+      // All three models side by side (?model is ignored).
+      return json({ ...meta, data: await modelComparison(db, ws, p) });
+    case "ltv":
+      // Cohorts = customers whose first payment is in [start, end]; ?model picks the acquiring-channel credit.
+      return json({ ...meta, data: await ltv(db, ws, p) });
     default:
       return json({ error: "unknown report" }, 404);
   }
