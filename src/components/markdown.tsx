@@ -67,5 +67,6 @@ export function Markdown({ source, className }: { source: string; className?: st
   }
   flushPara();
   flushList();
-  return <div className={cn("space-y-3 text-sm leading-relaxed text-foreground/85", className)}>{blocks}</div>;
+  // overflow-wrap keeps long URLs / campaign names from pushing the page wider than a phone screen.
+  return <div className={cn("space-y-3 text-sm leading-relaxed text-foreground/85 [overflow-wrap:anywhere]", className)}>{blocks}</div>;
 }

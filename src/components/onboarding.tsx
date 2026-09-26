@@ -5,7 +5,7 @@ import { getLlmConfig } from "@/lib/ai/report";
 import { rows, type DB } from "@/lib/db";
 import type { Workspace } from "@/lib/settings";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 
 export type SetupStep = { key: string; done: boolean; optional?: boolean; label: string; desc: string; href: string };
@@ -48,41 +48,58 @@ export async function getSetupStatus(db: DB, ws: Workspace) {
   };
 }
 
-/** Compact banner for the Overview page. */
+/** Compact banner for the Overview page. On phones only the next step keeps its description. */
 export function Onboarding({ status }: { status: SetupStatus }) {
   const next = status.steps.find((s) => !s.done && !s.optional) ?? status.steps.find((s) => !s.done);
+  const required = status.steps.filter((s) => !s.optional);
   return (
-    <Card className="border-primary/25">
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-        <div>
-          <CardTitle>Finish setting up</CardTitle>
-          <CardDescription>
-            {status.done} of {status.steps.length} done. Numbers get accurate once the pixel, payments and ad spend are all connected.
-          </CardDescription>
-        </div>
-        <Link href="/onboarding" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-          Open setup checklist <ArrowRightIcon className="size-3.5" />
-        </Link>
+    <Card className="ring-primary/25">
+      <CardHeader>
+        <CardTitle>Finish setting up</CardTitle>
+        <CardDescription>
+          <span className="tabular">
+            {status.done} of {status.steps.length} done.
+          </span>{" "}
+          <span className="max-sm:hidden">Numbers get accurate once the pixel, payments and ad spend are all connected.</span>
+        </CardDescription>
+        <CardAction>
+          <Link
+            href="/onboarding"
+            className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-sm font-medium text-primary hover:bg-primary/10 sm:h-7"
+          >
+            <span className="sm:hidden">Checklist</span>
+            <span className="max-sm:hidden">Open setup checklist</span>
+            <ArrowRightIcon className="size-3.5" />
+          </Link>
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Progress value={(status.done / status.steps.length) * 100} />
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {status.steps
-            .filter((s) => !s.optional)
-            .map((s) => (
-              <Link
-                key={s.key}
-                href={s.href}
-                className={cn("rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-accent/40", s.done && "opacity-60", next?.key === s.key && "border-primary/50 bg-primary/5")}
-              >
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {s.done ? <CheckCircle2Icon className="size-4 text-success" /> : <CircleIcon className="size-4 text-muted-foreground" />}
-                  {s.label}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{s.desc}</p>
-              </Link>
-            ))}
-        </div>
+        <Progress value={(status.done / status.steps.length) * 100} aria-label="Setup progress" />
+        <ol className="grid gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4">
+          {required.map((s) => {
+            const isNext = next?.key === s.key;
+            return (
+              <li key={s.key}>
+                <Link
+                  href={s.href}
+                  aria-current={isNext ? "step" : undefined}
+                  className={cn(
+                    "flex h-full min-h-11 flex-col justify-center rounded-lg border px-3 py-2 transition-colors hover:border-primary/40 hover:bg-accent/40 sm:p-3",
+                    s.done && "opacity-60",
+                    isNext && "border-primary/50 bg-primary/5",
+                  )}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <CircleIcon className={cn("size-4 shrink-0", isNext ? "text-primary" : "text-muted-foreground")} />}
+                    <span className={cn(s.done && "line-through decoration-muted-foreground/40")}>{s.label}</span>
+                    {isNext ? <ArrowRightIcon className="ml-auto size-3.5 shrink-0 text-primary sm:hidden" /> : null}
+                  </span>
+                  <span className={cn("mt-1 pl-6 text-xs text-muted-foreground sm:block", isNext ? "block" : "hidden")}>{s.desc}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
       </CardContent>
     </Card>
   );
