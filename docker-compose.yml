@@ -27,6 +27,8 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      ALLOW_PRIVATE_URLS: ${ALLOW_PRIVATE_URLS:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
     extra_hosts:
       # Lets AdLedger reach Ollama / LM Studio running on your computer.
       - "host.docker.internal:host-gateway"

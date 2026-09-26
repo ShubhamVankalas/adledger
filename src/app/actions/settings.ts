@@ -10,6 +10,7 @@ import { recomputeAttribution } from "@/lib/attribution";
 import { audit, createApiKey } from "@/lib/auth";
 import { getIntegration } from "@/lib/connectors/registry";
 import { ensureStripeWebhook } from "@/lib/connectors/stripe";
+import { checkOutboundUrl } from "@/lib/net";
 import { publicUrl } from "@/lib/url";
 import { randomToken } from "@/lib/crypto";
 import { getDb, schema } from "@/lib/db";
@@ -123,6 +124,8 @@ export async function saveIntegrationAction(provider: string, form: FormData): P
     const hadSecrets = existing[0]?.mode === "live" && existing[0]?.secretsEnc;
     const missing = meta.fields.filter((f) => !f.optional && !(f.secret ? secrets[f.name] || hadSecrets : config[f.name]));
     if (missing.length) return fail(`Fill in: ${missing.map((f) => f.label).join(", ")}.`);
+    const blocked = await checkIntegrationUrls(meta.fields, config, secrets);
+    if (blocked) return fail(blocked);
     if (provider === "stripe" && secrets.apiKey && !/^(sk|rk)_(test|live)_/.test(secrets.apiKey)) {
       return fail("That doesn't look like a Stripe secret or restricted key (sk_… / rk_…).");
     }
@@ -145,6 +148,21 @@ export async function saveIntegrationAction(provider: string, form: FormData): P
     void syncProvider(db, wsId, provider).then(() => undefined, () => undefined);
     return ok(`Connected. Importing your data now — this can take a minute.${note}`);
   });
+}
+
+/** URL / host fields (webhook URLs, store URLs, SMTP host) must not point at private networks. */
+async function checkIntegrationUrls(fields: { name: string; label: string }[], config: Record<string, string>, secrets: Record<string, string>) {
+  for (const f of fields) {
+    const v = config[f.name] || secrets[f.name];
+    if (!v) continue;
+    const err = /(^url$|Url$)/.test(f.name)
+      ? await checkOutboundUrl(/^[a-z][a-z0-9+.-]*:/i.test(v) ? v : `https://${v}`)
+      : f.name === "host"
+        ? await checkOutboundUrl(`https://${v}`)
+        : null;
+    if (err) return `${f.label}: ${err}`;
+  }
+  return null;
 }
 
 export async function syncNowAction(provider: string): Promise<ActionResult> {
@@ -182,7 +200,12 @@ export async function saveAiAction(form: FormData): Promise<ActionResult> {
     if (!(provider in LLM_PROVIDERS)) return fail("Pick a provider.");
     const model = str(form, "model");
     if (!model) return fail("Enter a model name.");
-    await saveConnection(user.workspace.id, "llm", { mode: "live", enabled: true, config: { provider, model, baseUrl: str(form, "baseUrl") }, secrets: { apiKey: str(form, "apiKey") } });
+    const baseUrl = str(form, "baseUrl");
+    if (baseUrl) {
+      const err = await checkOutboundUrl(baseUrl, "llm");
+      if (err) return fail(`Base URL: ${err}`);
+    }
+    await saveConnection(user.workspace.id, "llm", { mode: "live", enabled: true, config: { provider, model, baseUrl }, secrets: { apiKey: str(form, "apiKey") } });
     await audit(user, "ai_model.saved", `${provider}/${model}`);
     revalidatePath("/settings", "layout");
     return ok("AI model saved.");
@@ -285,11 +308,15 @@ export async function saveOnboardingAction(patch: { platforms?: string[]; dismis
   return run(async () => {
     const user = await guard("reports.view");
     const db = await getDb();
+    // Arguments of a server action come straight from the client: keep only well-formed values.
+    const platforms = Array.isArray(patch?.platforms)
+      ? patch.platforms.filter((p): p is string => typeof p === "string" && /^[a-z0-9_:.-]{1,60}$/i.test(p)).slice(0, 40)
+      : undefined;
     const next = {
       ...user.workspace.onboarding,
-      ...(patch.platforms ? { platforms: patch.platforms.slice(0, 40) } : {}),
-      ...(patch.dismissed !== undefined ? { dismissed: patch.dismissed } : {}),
-      ...(patch.completed ? { completedAt: new Date().toISOString() } : {}),
+      ...(platforms ? { platforms } : {}),
+      ...(typeof patch?.dismissed === "boolean" ? { dismissed: patch.dismissed } : {}),
+      ...(patch?.completed === true ? { completedAt: new Date().toISOString() } : {}),
     };
     await db.update(schema.workspaces).set({ onboarding: next }).where(eq(schema.workspaces.id, user.workspace.id));
     revalidatePath("/", "layout");

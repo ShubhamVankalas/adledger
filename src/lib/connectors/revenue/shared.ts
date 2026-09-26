@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { safeFetch } from "../../net";
 
 // Small helpers shared by the webhook-based revenue connectors in this folder.
 
@@ -60,7 +61,8 @@ export function intMinor(v: unknown): number | null {
 }
 
 export async function fetchJson<T = unknown>(url: string, init: RequestInit, what: string): Promise<{ body: T; res: Response }> {
-  const res = await fetch(url, { ...init, headers: { Accept: "application/json", ...(init.headers as Record<string, string>) } });
+  // Store URLs (e.g. WooCommerce) are user-supplied: block private/metadata addresses.
+  const res = await safeFetch(url, { ...init, headers: { Accept: "application/json", ...(init.headers as Record<string, string>) } });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`${what} failed: HTTP ${res.status} ${text.slice(0, 300)}`);

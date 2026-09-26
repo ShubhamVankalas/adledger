@@ -2,6 +2,7 @@
 // Message text is "markdown-lite": **bold**, "- " bullets, blank lines between paragraphs.
 
 import type { NotificationMessage } from "../connectors/types";
+import { BlockedUrlError, safeFetch } from "../net";
 
 export type Severity = NotificationMessage["severity"];
 
@@ -146,13 +147,15 @@ export async function postOrThrow(
 ): Promise<Response> {
   let res: Response;
   try {
-    res = await fetch(url, {
+    // User-supplied URL: private/metadata addresses are blocked and redirects are not followed.
+    res = await safeFetch(url, {
       method: "POST",
       headers: { "User-Agent": "AdLedger-Notify/1.0", ...init.headers },
       body: init.body,
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
   } catch (err) {
+    if (err instanceof BlockedUrlError) throw new Error(`${channel} request blocked: ${err.message}`);
     const e = err as Error;
     const why = e?.name === "TimeoutError" ? `timed out after ${HTTP_TIMEOUT_MS / 1000}s` : (e?.message ?? String(err));
     throw new Error(`${channel} request failed: ${redact(why, [url, ...secrets])}`);

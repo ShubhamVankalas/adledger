@@ -2,12 +2,17 @@ import { eq } from "drizzle-orm";
 import { getRevenueConnector } from "@/lib/connectors/registry";
 import { ingestRevenue } from "@/lib/connectors/revenue/ingest";
 import { getDb, schema } from "@/lib/db";
-import { clientIp, json, rateLimit } from "@/lib/http";
+import { BodyTooLargeError, clientIp, json, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
 import { log } from "@/lib/log";
 import { getConnection } from "@/lib/settings";
 
 // Revenue webhooks for every non-Stripe source: /api/v1/webhooks/{shopify|woocommerce|paddle|…}/{workspaceId}
+// Signatures are HMACs compared in constant time (see connectors/revenue/shared.ts); schemes that
+// sign a timestamp (Paddle, PayPal) also reject old events. Ingestion is idempotent on the
+// provider's order/event id, so replaying an HMAC-only delivery cannot double-count revenue.
+
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export async function POST(req: Request, { params }: { params: Promise<{ provider: string; workspaceId: string }> }) {
   const { provider, workspaceId } = await params;
@@ -21,7 +26,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ provide
   const conn = await getConnection(ws.id, provider, db);
   if (!conn || !conn.enabled) return json({ error: `${connector.meta.name} is not connected in this workspace` }, 400);
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextLimited(req, MAX_BODY_BYTES);
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) return json({ error: "payload too large" }, 413);
+    throw err;
+  }
   // WooCommerce pings a new webhook with a form body `webhook_id=N`; acknowledge it so it activates.
   if (/^webhook_id=\d+$/.test(rawBody.trim())) return json({ received: true, ping: true });
   const request = { rawBody, headers: req.headers, url: req.url };

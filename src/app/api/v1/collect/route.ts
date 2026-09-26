@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { clientIp, rateLimit } from "@/lib/http";
+import { BodyTooLargeError, clientIp, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
 import { collectSchema, isBot, processCollect } from "@/lib/tracking/collect";
 
@@ -27,12 +27,12 @@ export async function POST(req: Request) {
   const ua = req.headers.get("user-agent");
   if (isBot(ua)) return new Response(null, { status: 204, headers });
 
-  const raw = await req.text();
-  if (raw.length > 64_000) return new Response("payload too large", { status: 413, headers });
   let payload;
   try {
-    payload = collectSchema.parse(JSON.parse(raw));
-  } catch {
+    // Never buffer more than 64 KB from an anonymous caller.
+    payload = collectSchema.parse(JSON.parse(await readTextLimited(req, 64_000)));
+  } catch (err) {
+    if (err instanceof BodyTooLargeError) return new Response("payload too large", { status: 413, headers });
     return new Response("invalid payload", { status: 400, headers });
   }
   if (!rateLimit(`collect-site:${payload.site}`, 20_000)) return new Response("rate limited", { status: 429, headers });

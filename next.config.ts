@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -14,15 +15,19 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {
         source: "/((?!p/|api/v1/collect|api/v1/webhooks).*)",
-        headers: [
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
+        headers: SECURITY_HEADERS,
+      },
+      {
+        // HSTS only when the request reached us over HTTPS (the reverse proxy sets X-Forwarded-Proto),
+        // so plain-HTTP installs on localhost or a LAN keep working.
+        source: "/:path*",
+        has: [{ type: "header", key: "x-forwarded-proto", value: "https" }],
+        headers: [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }],
       },
     ];
   },
