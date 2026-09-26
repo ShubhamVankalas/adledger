@@ -240,6 +240,12 @@ export function PerformanceTable({
             setSort({ key: key as Key, dir: Number(dir) === 1 ? 1 : -1 });
           }}
         >
+          {/* A sort picked from the table header (e.g. before rotating the phone) may not be in the list. */}
+          {MOBILE_SORTS.some(([k, dir]) => k === sort.key && dir === sort.dir) ? null : (
+            <option value={`${sort.key}:${sort.dir}`} disabled hidden>
+              Custom order
+            </option>
+          )}
           {MOBILE_SORTS.map(([k, dir, label]) => (
             <option key={`${k}:${dir}`} value={`${k}:${dir}`}>
               {label}

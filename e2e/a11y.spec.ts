@@ -125,6 +125,33 @@ for (const [name, path] of PUBLIC_PAGES) {
   });
 }
 
+test("responsive: performance shows sortable cards on a phone and the table on a desktop", async ({ browser }) => {
+  const ctx = await browser.newContext({ storageState: storage, viewport: { width: 375, height: 812 } });
+  const page = await ctx.newPage();
+  await page.goto("/performance?range=90d");
+  await expect(page.locator("table")).toBeHidden();
+  const cards = page.getByRole("list", { name: "Campaigns" }).getByRole("listitem");
+  await expect(cards.first()).toBeVisible();
+  const sortBy = page.getByRole("combobox", { name: "Sort by" });
+  await expect(sortBy).toHaveValue("spendMinor:-1");
+
+  const names = () => cards.locator("a > span > span:first-child").allInnerTexts();
+  await sortBy.selectOption({ label: "Name (A–Z)" });
+  const byName = await names();
+  expect(byName.length).toBeGreaterThan(1);
+  expect(byName).toEqual([...byName].sort((a, b) => a.localeCompare(b)));
+
+  // A sort chosen in the desktop table that the phone picker doesn't offer must not
+  // be shown as one of the picker's options.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator("table")).toBeVisible();
+  await page.locator("thead").getByRole("button", { name: "Clicks" }).click();
+  await expect(page.locator("thead th[aria-sort]")).toHaveAttribute("aria-sort", "descending");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(sortBy).toHaveValue("clicks:-1");
+  await ctx.close();
+});
+
 test("a11y: mobile navigation opens as a labelled dialog", async ({ browser }) => {
   const ctx = await browser.newContext({ storageState: storage, viewport: { width: 375, height: 812 } });
   const page = await ctx.newPage();
