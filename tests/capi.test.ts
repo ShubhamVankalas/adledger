@@ -11,7 +11,7 @@ import {
   normalizeGoogleEmail,
   type GoogleUploadConfig,
 } from "@/lib/capi/google";
-import { buildMetaEvent, classifyMetaResponse, metaEventId, metaUploadConfig, sendMetaEvents, type MetaServerEvent } from "@/lib/capi/meta";
+import { buildMetaEvent, classifyMetaResponse, metaEventId, metaUploadConfig, pageUrl, sendMetaEvents, type MetaServerEvent } from "@/lib/capi/meta";
 import { hashEmail, hashPhone, sha256 } from "@/lib/crypto";
 import { schema, type DB } from "@/lib/db";
 import { fromDecimalString, toDecimalString } from "@/lib/money";
@@ -73,7 +73,7 @@ describe("Meta CAPI payload", () => {
     expect(e.user_data.ph).toEqual([sha256("14155550100")]);
     expect(e.user_data.external_id).toEqual([sha256(ctx().contactId!)]);
     expect(e.user_data).toMatchObject({ fbc: ctx().fbc, fbp: ctx().fbp, client_ip_address: "203.0.113.0", client_user_agent: "Mozilla/5.0 (Macintosh)" });
-    expect(e.event_source_url).toBe(ctx().sourceUrl);
+    expect(e.event_source_url).toBe("https://shop.example/landing"); // query string never leaves
     expect(e.custom_data).toBeUndefined();
     expect(JSON.stringify(e)).not.toContain("jane");
   });
@@ -96,6 +96,18 @@ describe("Meta CAPI payload", () => {
     expect(b.payload.action_source).toBe("system_generated");
     expect(b.payload.event_source_url).toBeUndefined();
   });
+  it("strips query strings from the page URL and needs one for website events", () => {
+    const b = buildMetaEvent(ctx({ sourceUrl: "https://shop.example/thanks?email=jane%40gmail.com#done" }), NOW);
+    if (!("payload" in b)) throw new Error("expected payload");
+    expect(b.payload.event_source_url).toBe("https://shop.example/thanks");
+    expect(JSON.stringify(b.payload)).not.toContain("jane");
+    expect(pageUrl("not a url")).toBeNull();
+    expect(pageUrl("javascript:alert(1)")).toBeNull();
+    const noUrl = buildMetaEvent(ctx({ sourceUrl: null }), NOW);
+    if (!("payload" in noUrl)) throw new Error("expected payload");
+    expect(noUrl.payload.action_source).toBe("system_generated");
+    expect(noUrl.payload.user_data.client_user_agent).toBe(ctx().userAgent);
+  });
   it("skips events with nothing to match on, too old, or without a value", () => {
     expect(buildMetaEvent(ctx({ email: null, phoneHash: null, fbc: null, fbp: null }), NOW)).toHaveProperty("skip");
     expect(buildMetaEvent(ctx({ occurredAt: ago(8 * 24 * HOUR) }), NOW)).toHaveProperty("skip");
@@ -116,6 +128,12 @@ describe("Meta CAPI payload", () => {
     expect(classifyMetaResponse(400, fixture("meta/capi_error_invalid_parameter.json"), 1)).toMatchObject({ ok: false, retryable: false });
     expect(classifyMetaResponse(400, { error: { code: 613, message: "rate" } }, 1)).toMatchObject({ retryable: true });
     expect(classifyMetaResponse(503, null, 1)).toMatchObject({ retryable: true });
+    // Token / permission / unknown pixel errors are retried (bounded) so fixing the setup lets them through.
+    expect(classifyMetaResponse(400, { error: { code: 190, message: "token" } }, 1)).toMatchObject({ retryable: true });
+    expect(classifyMetaResponse(403, { error: { code: 10, message: "permission" } }, 1)).toMatchObject({ retryable: true });
+    expect(classifyMetaResponse(403, { error: { code: 200, message: "permission" } }, 1)).toMatchObject({ retryable: true });
+    expect(classifyMetaResponse(400, { error: { code: 100, error_subcode: 33, message: "no pixel" } }, 1)).toMatchObject({ retryable: true });
+    expect(classifyMetaResponse(400, { error: { code: 100, message: "invalid" } }, 1)).toMatchObject({ retryable: false });
   });
   it("isolates a bad event when Meta rejects the batch", async () => {
     const events = ["a", "b", "c"].map((id) => ({ event_id: id }) as MetaServerEvent);
@@ -394,6 +412,34 @@ describe("conversion uploads (database)", () => {
     expect(calls).toBe(MAX_ATTEMPTS * 2); // one batch per platform per attempt
     const stats = await uploadStats(db, ws.id);
     expect(stats.meta).toMatchObject({ failed: 3, skipped: 1, sent: 0, pending: 0 });
+  });
+
+  it("re-sends uploads that mock mode only recorded once the platform runs live", async () => {
+    process.env.CONNECTOR_MODE = "mock";
+    const mock = await runConversionUploads(db, ws.id, { now: NOW });
+    expect(mock).toMatchObject({ sent: 6, skipped: 2 });
+
+    process.env.CONNECTOR_MODE = "";
+    const sentIds: string[] = [];
+    const fetchImpl = async (url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (url.startsWith("https://graph.facebook.com/")) {
+        sentIds.push(...body.data.map((e: MetaServerEvent) => e.event_id));
+        return Response.json({ events_received: body.data.length });
+      }
+      sentIds.push(...body.conversions.map((c: { orderId: string }) => c.orderId));
+      return Response.json({ results: body.conversions.map(() => ({})) });
+    };
+    const opts = { now: new Date(NOW.getTime() + MIN), fetch: fetchImpl, googleAccessToken: async () => "tok" };
+    const live = await runConversionUploads(db, ws.id, opts);
+    expect(live).toMatchObject({ sent: 6, failed: 0 });
+    expect(sentIds).toHaveLength(6);
+    expect((await byConv("meta")).get(ids.leadA)).toMatchObject({ status: "sent", mock: false, attempts: 1 });
+    expect((await byConv("meta")).get(ids.payOrphan)).toMatchObject({ status: "skipped" });
+
+    // Nothing is sent twice.
+    await runConversionUploads(db, ws.id, { ...opts, now: new Date(NOW.getTime() + 2 * HOUR) });
+    expect(sentIds).toHaveLength(6);
   });
 
   it("does nothing while uploads are switched off", async () => {

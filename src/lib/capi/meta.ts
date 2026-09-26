@@ -50,6 +50,20 @@ export function metaUploadConfig(conn: ConnectionLike): MetaUploadConfig | null 
   };
 }
 
+/**
+ * The page URL without query string or fragment: stored URLs are not PII-redacted, and a
+ * query like `?email=…` must never reach Meta. Meta only needs the page for domain matching.
+ */
+export function pageUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Deterministic event id, so retries and re-runs are de-duplicated by Meta. */
 export function metaEventId(c: Pick<ConversionContext, "type" | "id">): string {
   return `${c.type}_${c.id}`;
@@ -69,16 +83,17 @@ export function buildMetaEvent(c: ConversionContext, now = new Date()): Built<Me
   if (c.ip) user.client_ip_address = c.ip;
   if (c.userAgent) user.client_user_agent = c.userAgent;
   if (!user.em && !user.ph && !user.fbc && !user.fbp) return { skip: "No email, phone or Meta click/browser ID to match on" };
+  const sourceUrl = c.sourceUrl ? pageUrl(c.sourceUrl) : null;
 
   const event: MetaServerEvent = {
     event_name: c.type === "purchase" ? "Purchase" : "Lead",
     event_time: Math.floor(c.occurredAt.getTime() / 1000),
     event_id: metaEventId(c),
-    // Meta requires client_user_agent for website events; server-only conversions are system_generated.
-    action_source: c.userAgent ? "website" : "system_generated",
+    // Meta requires client_user_agent and event_source_url for website events; anything else is system_generated.
+    action_source: c.userAgent && sourceUrl ? "website" : "system_generated",
     user_data: user,
   };
-  if (c.sourceUrl && c.userAgent) event.event_source_url = c.sourceUrl;
+  if (c.userAgent && sourceUrl) event.event_source_url = sourceUrl;
   if (c.type === "purchase") {
     if (c.amountMinor == null || !c.currency || c.amountMinor <= 0) return { skip: "Purchase has no positive amount" };
     // Major units from integer minor units via an exact decimal string (12345 USD -> 123.45).
@@ -93,8 +108,17 @@ export function metaRequestBody(cfg: MetaUploadConfig, events: MetaServerEvent[]
 
 type MetaError = { message?: string; code?: number; error_subcode?: number; is_transient?: boolean };
 
-// Throttling, temporary and token errors are retried (a fixed token lets pending uploads through).
-const RETRYABLE_CODES = new Set([1, 2, 4, 17, 32, 190, 341, 613, 80004]);
+// Throttling, temporary, token and permission errors are retried (bounded by MAX_ATTEMPTS), so
+// fixing the token, pixel ID or dataset access lets pending uploads through.
+const RETRYABLE_CODES = new Set([1, 2, 4, 10, 17, 32, 190, 341, 613, 80004]);
+
+function retryableMetaError(e: MetaError): boolean {
+  if (e.is_transient === true) return true;
+  if (e.code === undefined) return false;
+  if (RETRYABLE_CODES.has(e.code)) return true;
+  if (e.code >= 200 && e.code <= 299) return true; // permission errors
+  return e.code === 100 && e.error_subcode === 33; // pixel doesn't exist or the token can't access it
+}
 
 /** Classify a CAPI HTTP response into a per-batch outcome. */
 export function classifyMetaResponse(status: number, body: unknown, expected: number): SendOutcome {
@@ -106,7 +130,7 @@ export function classifyMetaResponse(status: number, body: unknown, expected: nu
     return { ok: true };
   }
   const e = b.error ?? {};
-  const retryable = status === 429 || status >= 500 || e.is_transient === true || (e.code !== undefined && RETRYABLE_CODES.has(e.code));
+  const retryable = status === 429 || status >= 500 || retryableMetaError(e);
   return { ok: false, retryable, error: `Meta API error (${status}${e.code ? `/${e.code}` : ""}): ${(e.message ?? "unknown error").slice(0, 300)}` };
 }
 

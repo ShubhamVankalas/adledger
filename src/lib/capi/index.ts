@@ -203,9 +203,28 @@ export type UploadRunResult = { enqueued: number; sent: number; retrying: number
 
 type Opts = { now?: Date; fetch?: FetchLike; googleAccessToken?: (c: ConnectionLike) => Promise<string> };
 
+/**
+ * Mock mode only records uploads, nothing reaches the platform. Once the platform runs live,
+ * put those rows back in the queue (inside the look-back window) so they are really sent.
+ */
+async function requeueMockUploads(db: DB, workspaceId: string, platform: UploadPlatform, now: Date) {
+  await db
+    .update(schema.conversionUploads)
+    .set({ status: "pending", mock: false, attempts: 0, error: null, sentAt: null, nextAttemptAt: now })
+    .where(
+      and(
+        eq(schema.conversionUploads.workspaceId, workspaceId),
+        eq(schema.conversionUploads.platform, platform),
+        eq(schema.conversionUploads.mock, true),
+        gte(schema.conversionUploads.conversionAt, new Date(now.getTime() - LOOKBACK_MS[platform])),
+      ),
+    );
+}
+
 /** Send due pending uploads for one platform. */
 async function processPlatform(db: DB, workspaceId: string, setup: PlatformSetup, opts: Opts, result: UploadRunResult) {
   const now = opts.now ?? new Date();
+  if (!setup.mock) await requeueMockUploads(db, workspaceId, setup.platform, now);
   const due = await db
     .select()
     .from(schema.conversionUploads)
@@ -254,10 +273,17 @@ async function processPlatform(db: DB, workspaceId: string, setup: PlatformSetup
   }
 }
 
-/** Enqueue and send conversions for every platform with uploads switched on. Never throws per platform. */
+/** Enqueue and send conversions for every platform with uploads switched on. Never throws. */
 export async function runConversionUploads(db: DB, workspaceId: string, opts: Opts = {}): Promise<UploadRunResult> {
   const result: UploadRunResult = { enqueued: 0, sent: 0, retrying: 0, failed: 0, skipped: 0 };
-  for (const setup of await uploadSetups(db, workspaceId)) {
+  let setups: PlatformSetup[];
+  try {
+    setups = await uploadSetups(db, workspaceId);
+  } catch (err) {
+    log.error("conversion upload setup failed", err);
+    return result;
+  }
+  for (const setup of setups) {
     try {
       result.enqueued += await enqueueConversions(db, workspaceId, setup.platform, setup.types, opts.now);
       await processPlatform(db, workspaceId, setup, opts, result);

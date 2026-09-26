@@ -191,13 +191,16 @@ their bidding learns from real revenue. Switched on per connection (Meta: `capiE
 IDs). An hourly job enqueues recent conversions (Meta: 7 days, its limit; Google: 30 days) into
 `conversion_uploads` (`on conflict do nothing`, so re-runs are idempotent) and sends due rows in batches.
 Meta events carry `event_id = {lead|purchase}_{id}` for de-duplication, SHA-256 `em`/`ph`/`external_id`,
-fbc/fbp, the stored (truncated) IP and user agent, and `value` in exact major units; without a user agent
-the `action_source` is `system_generated`. Google gets `uploadClickConversions` with the latest
+fbc/fbp, the stored (truncated) IP and user agent, the page URL without its query string (stored URLs
+are not PII-redacted), and `value` in exact major units; without a user agent and page URL the
+`action_source` is `system_generated`. Google gets `uploadClickConversions` with the latest
 gclid/gbraid/wbraid within 90 days, or for leads without a click id an enhanced conversion with the
 Google-normalized hashed email; `orderId` = our id; `partialFailure` errors map back per conversion.
 Failures retry with backoff (15 min, 1 h, 4 h, 16 h) and are marked failed after 5 attempts; permanent
-errors fail at once; a Meta batch rejected permanently is re-sent event by event. Mock mode marks rows
-sent (`mock = true`) without network calls. The Meta / Google Ads dialogs show 7-day upload counts.
+errors fail at once (token, permission and unknown-pixel errors are retried so a fixed setup applies); a
+Meta batch rejected permanently is re-sent event by event. Mock mode marks rows sent (`mock = true`)
+without network calls; once the platform runs live, those rows (inside the look-back window) are queued
+again and really sent. The Meta / Google Ads dialogs show 7-day upload counts.
 
 **Imports.** The Spend API (`POST /api/v1/spend`), Conversions API (`POST /api/v1/conversions`) and
 CSV uploads share `src/lib/imports.ts`, so any ad network or checkout without a native connector can be
