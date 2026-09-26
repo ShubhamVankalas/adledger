@@ -1,6 +1,6 @@
 import { arr, hmacSha256, obj, safeEqual, str, type Json } from "../revenue/shared";
 import type { ConnectionLike, WebhookRequest } from "../types";
-import { contactFromAnswers, parseTime, type Answers } from "./shared";
+import { contactFromAnswers, parseJsonLossless, parseTime, type Answers } from "./shared";
 import type { LeadConnector, NativeLeadInput } from "./types";
 
 // TikTok Lead Generation (Instant Forms) via a TikTok API for Business webhook subscription
@@ -26,15 +26,17 @@ export function verifyTikTokSignature(rawBody: string, secret: string | undefine
 function leadObjects(payload: unknown): Json[] {
   const p = obj(payload);
   if (!p) return [];
-  if (Array.isArray(p.leads)) return p.leads.map(obj).filter((x): x is Json => Boolean(x));
+  const list = (a: unknown[]) => a.map(obj).filter((x): x is Json => Boolean(x));
+  if (Array.isArray(p.leads)) return list(p.leads);
   let inner: unknown = p.lead ?? p.data ?? p.content;
   if (typeof inner === "string") {
     try {
-      inner = JSON.parse(inner);
+      inner = parseJsonLossless(inner);
     } catch {
       inner = null;
     }
   }
+  if (Array.isArray(inner)) return list(inner);
   const o = obj(inner);
   if (o) return Array.isArray(o.leads) ? leadObjects(o) : [o];
   return p.lead_id ? [p] : [];

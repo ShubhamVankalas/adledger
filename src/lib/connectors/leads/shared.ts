@@ -10,13 +10,28 @@ export function secretEquals(expected: string | undefined | null, given: string 
   return safeEqual(h(expected), h(given));
 }
 
+type SourceReviver = (this: unknown, key: string, value: unknown, ctx?: { source?: string }) => unknown;
+
 /**
- * Read a numeric id field as a string straight from the raw JSON, so int64 ids above 2^53
- * survive (JSON.parse would round them). Falls back to the parsed value.
+ * JSON.parse that keeps integers above 2^53 exact by returning their source digits as a string
+ * (ad platforms send int64 ids, sometimes as bare numbers). Uses the reviver's source-text
+ * context (Node 21+); on older runtimes it behaves like plain JSON.parse.
+ */
+export function parseJsonLossless(text: string): unknown {
+  const reviver: SourceReviver = (_key, value, ctx) =>
+    typeof value === "number" && !Number.isSafeInteger(value) && ctx?.source && /^-?\d+$/.test(ctx.source) ? ctx.source : value;
+  return JSON.parse(text, reviver as (this: unknown, key: string, value: unknown) => unknown);
+}
+
+/**
+ * A top-level numeric id as a string. String values (including big ids kept by
+ * parseJsonLossless) are used as-is; a bare number is re-read from the raw JSON so int64 ids
+ * above 2^53 survive on runtimes without source-text access.
  */
 export function rawId(rawBody: string, key: string, parsed: unknown): string | null {
-  const m = new RegExp(`"${key}"\\s*:\\s*"?(\\d+)"?`).exec(rawBody);
-  return m ? m[1] : str(parsed);
+  if (typeof parsed !== "number") return str(parsed);
+  const m = new RegExp(`"${key}"\\s*:\\s*(\\d+)\\s*[,}\\]]`).exec(rawBody);
+  return m && Number(m[1]) === parsed ? m[1] : str(parsed);
 }
 
 /** Parse a platform timestamp: unix seconds (number or digit string) or ISO-ish strings. */

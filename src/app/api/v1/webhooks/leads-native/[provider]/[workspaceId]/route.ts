@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getLeadConnector } from "@/lib/connectors/leads/index";
 import { ingestNativeLeads } from "@/lib/connectors/leads/ingest";
+import { parseJsonLossless } from "@/lib/connectors/leads/shared";
 import { getDb, schema } from "@/lib/db";
 import { clientIp, json, rateLimit } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
@@ -55,7 +56,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
   let payload: unknown;
   try {
-    payload = rawBody ? JSON.parse(rawBody) : {};
+    payload = rawBody ? parseJsonLossless(rawBody) : {};
   } catch {
     return json({ error: "invalid JSON" }, 400);
   }

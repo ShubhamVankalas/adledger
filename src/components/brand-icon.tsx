@@ -109,9 +109,6 @@ export const ICON_FOR: Record<string, string> = {
   lemonsqueezy: "lemonsqueezy",
   razorpay: "razorpay",
   paypal: "paypal",
-  meta_leads: "meta",
-  google_ads_leads: "googleads",
-  tiktok_leads: "tiktok",
   notify_email: "email",
   notify_slack: "slack",
   notify_discord: "discord",
@@ -137,6 +134,9 @@ export const ICON_FOR: Record<string, string> = {
   google_gemini: "googlegemini",
   openrouter: "openrouter",
   deepseek: "deepseek",
+  meta_leads: "meta",
+  google_ads_leads: "googleads",
+  tiktok_leads: "tiktok",
 };
 
 function luminance(hex: string) {

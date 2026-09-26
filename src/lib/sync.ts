@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { recomputeAttribution } from "./attribution";
 import type { AdDayRow, DateWindow } from "./connectors/types";
 import { ADS_CONNECTORS, getAdsConnector, getRevenueConnector } from "./connectors/registry";
+import { getLeadConnector } from "./connectors/leads/index";
 import { ingestRevenue } from "./connectors/revenue/ingest";
 import { backfillStripe } from "./connectors/stripe";
 import { schema, type DB } from "./db";
@@ -162,6 +163,8 @@ export async function syncProvider(
       const rows = mock ? ads.mock(window, ws.reportingCurrency) : await ads.fetchLive(conn, window);
       n = await upsertAdRows(db, workspaceId, rows);
       await matchTouchpoints(db, workspaceId);
+    } else if (getLeadConnector(provider)) {
+      n = 0; // native lead forms arrive by webhook only
     } else {
       throw new Error(`${provider} has nothing to sync`);
     }

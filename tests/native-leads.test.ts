@@ -9,12 +9,13 @@ import { googleLeadsConnector, parseGoogleLead } from "@/lib/connectors/leads/go
 import { LEAD_CONNECTORS, getLeadConnector } from "@/lib/connectors/leads/index";
 import { syntheticVisitorId } from "@/lib/connectors/leads/ingest";
 import { metaLeadgenValues, metaLeadsConnector, mockMetaLead, parseMetaLead, type MetaGraphLead } from "@/lib/connectors/leads/meta";
-import { parseTime, rawId, secretEquals } from "@/lib/connectors/leads/shared";
+import { parseJsonLossless, parseTime, rawId, secretEquals } from "@/lib/connectors/leads/shared";
 import { parseTikTokLeads, tiktokLeadsConnector, verifyTikTokSignature } from "@/lib/connectors/leads/tiktok";
 import type { ConnectionLike, WebhookRequest } from "@/lib/connectors/types";
 import { hashEmail } from "@/lib/crypto";
 import { schema, type DB } from "@/lib/db";
 import { saveConnection, type Workspace } from "@/lib/settings";
+import { syncProvider } from "@/lib/sync";
 import { setupWorkspace } from "./helpers";
 
 const raw = (p: string) => readFileSync(`fixtures/${p}`, "utf8");
@@ -55,6 +56,16 @@ describe("shared helpers", () => {
   it("rawId keeps int64 precision; parseTime handles Graph and unix formats", () => {
     expect(rawId('{"creative_id": 9007199254740993}', "creative_id", 9007199254740992)).toBe("9007199254740993");
     expect(rawId("{}", "x", 12)).toBe("12");
+    expect(rawId('{"a":{"form_id":5},"form_id":7}', "form_id", 7)).toBe("7");
+    expect(rawId('{"form_id":1}', "form_id", "9007199254740993")).toBe("9007199254740993");
+    expect(rawId('{"form_id":1}', "form_id", undefined)).toBeNull();
+    expect(parseJsonLossless('{"id":120210000000000301,"n":42,"f":1.5,"s":"x","a":[7420001112223334445]}')).toEqual({
+      id: "120210000000000301",
+      n: 42,
+      f: 1.5,
+      s: "x",
+      a: ["7420001112223334445"],
+    });
     expect(parseTime("2026-09-24T10:15:27+0000")).toEqual(new Date("2026-09-24T10:15:27Z"));
     expect(parseTime("1790150400")).toEqual(new Date(1790150400 * 1000));
     expect(parseTime(1790150400)).toEqual(new Date(1790150400 * 1000));
@@ -226,6 +237,14 @@ describe("TikTok Lead Generation", () => {
     expect(l.externalLeadId).toBe("7420001112223334445");
     expect(parseTikTokLeads({ content: "{bad" })).toEqual([]);
   });
+
+  it("keeps int64 ids sent as bare numbers exact, and accepts a `data` array", () => {
+    const content = '{"lead_id":7420001112223334445,"campaign_id":1810000000000000001,"ad_id":1810000000000001001,"user_info":[{"field_name":"email","field_value":"a@example.com"}]}';
+    const [l] = parseTikTokLeads({ content });
+    expect(l).toMatchObject({ externalLeadId: "7420001112223334445", campaignExternalId: "1810000000000000001", adExternalId: "1810000000000001001" });
+    const many = parseTikTokLeads({ data: [{ lead_id: "1" }, { lead_id: "2" }] });
+    expect(many.map((x) => x.externalLeadId)).toEqual(["1", "2"]);
+  });
 });
 
 describe("native lead webhook route", () => {
@@ -328,6 +347,37 @@ describe("native lead webhook route", () => {
     const res = await post(body, { "x-hub-signature-256": `sha256=${hmacHex(APP_SECRET, body)}` });
     expect(await res.json()).toMatchObject({ stored: 1 });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("int64 ids sent as bare JSON numbers stay exact (dedupe key and ad match)", async () => {
+    const body = raw("meta_leads/leadgen_webhook.json")
+      .replace('"leadgen_id": "1234567890123456"', '"leadgen_id": 1234567890123456789')
+      .replace('"ad_id": "120210000000000301"', '"ad_id": 120210000000000301');
+    expect(body).toContain('"leadgen_id": 1234567890123456789');
+    expect(body).toContain('"ad_id": 120210000000000301');
+    const headers = { "x-hub-signature-256": `sha256=${hmacHex(APP_SECRET, body)}` };
+    expect(await (await post(body, headers)).json()).toMatchObject({ stored: 1 });
+    const [visitor] = await db.select().from(schema.visitors).where(eq(schema.visitors.anonymousId, "lead:meta_leads:1234567890123456789"));
+    expect(visitor).toBeDefined();
+    const [tp] = await db.select().from(schema.touchpoints).where(eq(schema.touchpoints.visitorId, visitor.id));
+    expect(tp).toMatchObject({ utmContent: "120210000000000301", campaignId });
+    expect(tp.adId).not.toBeNull();
+    expect(await (await post(body, headers)).json()).toMatchObject({ stored: 0, duplicates: 1 });
+  });
+
+  it("saving a lead connection's first sync succeeds with nothing to pull (no false 'sync failed')", async () => {
+    const r = await syncProvider(db, ws.id, "meta_leads");
+    expect(r).toMatchObject({ status: "success", rows: 0 });
+  });
+
+  it("a connection in one workspace does not accept deliveries for another", async () => {
+    const [other] = await db
+      .insert(schema.workspaces)
+      .values({ organizationId: ws.organizationId, name: "Other", slug: `other-${Date.now()}`, reportingCurrency: "USD", timezone: "UTC" })
+      .returning();
+    const body = raw("meta_leads/leadgen_webhook.json");
+    const res = await post(body, { "x-hub-signature-256": `sha256=${hmacHex(APP_SECRET, body)}` }, params("meta_leads", other.id));
+    expect(res.status).toBe(400);
   });
 
   it("Google lead form: wrong key 401; valid key stores a paid_search lead", async () => {
