@@ -1,6 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { rows, type DB } from "./db";
 import type { AttributionModel, Channel, Platform } from "./db/schema";
+import { todayIn } from "./period";
 import type { ReportParams } from "./reports";
 import type { Workspace } from "./settings";
 
@@ -122,18 +123,20 @@ export async function modelComparison(db: DB, ws: Workspace, p: Omit<ReportParam
     };
   });
 
-  const sum = (pick: (r: ModelComparisonRow) => ModelResult) => out.reduce((a, r) => ({ rev: a.rev + pick(r).revenueMinor, cust: a.cust + pick(r).customers }), { rev: 0, cust: 0 });
+  // Totals from the unrounded SQL values (per-row customer counts are rounded to 2 dp).
   const spendMinor = out.reduce((a, r) => a + r.spendMinor, 0);
-  const total = (pick: (r: ModelComparisonRow) => ModelResult) => {
-    const t = sum(pick);
-    return result2(t.rev, t.cust, spendMinor);
-  };
+  const total = (prefix: "ft" | "lt" | "li") =>
+    result2(
+      result.reduce((a, r) => a + n(r[`${prefix}_rev`]), 0),
+      result.reduce((a, r) => a + n(r[`${prefix}_cust`]), 0),
+      spendMinor,
+    );
   return {
     currency: rc,
     start: p.start,
     end: p.end,
     rows: out,
-    totals: { spendMinor, firstTouch: total((r) => r.firstTouch), lastTouch: total((r) => r.lastTouch), linear: total((r) => r.linear) },
+    totals: { spendMinor, firstTouch: total("ft"), lastTouch: total("lt"), linear: total("li") },
   };
 }
 
@@ -208,8 +211,9 @@ export async function ltv(db: DB, ws: Workspace, p: ReportParams): Promise<LtvRe
         select cm, count(*) customers from cohort group by 1
       ), rev as (
         select c.cm,
-          ((extract(year from r.occurred_at at time zone ${tz}) - extract(year from c.cm)) * 12
-            + extract(month from r.occurred_at at time zone ${tz}) - extract(month from c.cm))::int month_idx,
+          -- greatest(0, …): a refund dated before the first payment (bad source data) lands in month 0
+          greatest(0, ((extract(year from r.occurred_at at time zone ${tz}) - extract(year from c.cm)) * 12
+            + extract(month from r.occurred_at at time zone ${tz}) - extract(month from c.cm))::int) month_idx,
           sum(r.amount_minor) revenue
         from cohort c
         join revenue_events r on r.contact_id = c.contact_id and r.workspace_id = ${ws.id}
@@ -221,7 +225,9 @@ export async function ltv(db: DB, ws: Workspace, p: ReportParams): Promise<LtvRe
       order by 1, 2`),
   );
 
-  const endMonth = p.end.slice(0, 7);
+  // Months after today carry no revenue: stop there (unless future-dated revenue exists), so
+  // an absurd ?end=9999-12-31 can't allocate a multi-thousand-month array per cohort.
+  const endMonth = [p.end.slice(0, 7), todayIn(tz).slice(0, 7)].sort()[0];
   const byCohort = new Map<string, { customers: number; rev: Map<number, number> }>();
   for (const r of cohortRows) {
     const c = byCohort.get(r.cohort) ?? { customers: n(r.customers), rev: new Map<number, number>() };
@@ -229,7 +235,7 @@ export async function ltv(db: DB, ws: Workspace, p: ReportParams): Promise<LtvRe
     byCohort.set(r.cohort, c);
   }
   const cohorts: LtvCohort[] = [...byCohort].map(([cohort, c]) => {
-    const months = Math.max(0, monthsBetween(cohort, endMonth)) + 1;
+    const months = Math.max(0, monthsBetween(cohort, endMonth), ...c.rev.keys()) + 1;
     const revenueMinor = Array.from({ length: months }, (_, i) => c.rev.get(i) ?? 0);
     let acc = 0;
     const cumulativeLtvMinor = revenueMinor.map((v) => {
@@ -262,13 +268,18 @@ export async function ltv(db: DB, ws: Workspace, p: ReportParams): Promise<LtvRe
       ), s as (
         select platform k, sum(spend_minor) spend from ad_insights_daily
         where workspace_id = ${ws.id} and date between ${p.start}::date and ${p.end}::date and currency = ${rc}
-        group by 1
+        group by 1 having sum(spend_minor) > 0
+      ), keys as (
+        -- Platforms that spent but acquired nobody still belong in LTV:CAC (their spend counts).
+        select k from cust union select k from rev union select k from s
       )
-      select coalesce(cust.k, rev.k) k, cust.channel, cust.platform, coalesce(cust.customers, 0) customers,
+      select keys.k, cust.channel, coalesce(cust.platform, s.k) platform, coalesce(cust.customers, 0) customers,
         coalesce(rev.revenue, 0) revenue, coalesce(s.spend, 0) spend
-      from cust full outer join rev on rev.k = cust.k
-      left join s on s.k = coalesce(cust.k, rev.k)
-      order by 5 desc, 1`),
+      from keys
+      left join cust on cust.k = keys.k
+      left join rev on rev.k = keys.k
+      left join s on s.k = keys.k
+      order by 5 desc, 6 desc, 1`),
   );
   const channels: LtvChannelRow[] = chRows.map((r) => {
     const customers = round2(n(r.customers));

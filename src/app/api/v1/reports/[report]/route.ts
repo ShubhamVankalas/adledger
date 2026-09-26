@@ -35,7 +35,8 @@ export const GET = withAuth<{ params: Promise<{ report: string }> }>(async (req,
       // All three models side by side (?model is ignored).
       return json({ ...meta, data: await modelComparison(db, ws, p) });
     case "ltv":
-      // Cohorts = customers whose first payment is in [start, end]; ?model picks the acquiring-channel credit.
+      // Cohorts = customers whose first payment is in [start, end]; ?model picks the acquiring-channel credit
+      // (?platform is ignored: the LTV:CAC table already has one row per platform).
       return json({ ...meta, data: await ltv(db, ws, p) });
     default:
       return json({ error: "unknown report" }, 404);
