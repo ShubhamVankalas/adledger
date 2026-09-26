@@ -109,6 +109,7 @@ export const ICON_FOR: Record<string, string> = {
   lemonsqueezy: "lemonsqueezy",
   razorpay: "razorpay",
   paypal: "paypal",
+  gumroad: "gumroad",
   notify_email: "email",
   notify_slack: "slack",
   notify_discord: "discord",

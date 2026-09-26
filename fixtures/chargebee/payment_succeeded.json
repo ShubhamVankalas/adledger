@@ -1,0 +1,92 @@
+{
+  "id": "ev_AzZTQnUQ8bV3q1rKc",
+  "occurred_at": 1758873612,
+  "source": "scheduled_job",
+  "object": "event",
+  "api_version": "v2",
+  "event_type": "payment_succeeded",
+  "webhook_status": "not_configured",
+  "content": {
+    "transaction": {
+      "id": "txn_AzZTQnUQ8bV2i1rKa",
+      "customer_id": "AzZTQnUQ8bUx81rJZ",
+      "subscription_id": "AzZTQnUQ8bV0I1rKX",
+      "gateway_account_id": "gw_AzZTQnUQ8bUpa1rJT",
+      "payment_source_id": "pm_AzZTQnUQ8bUyk1rK0",
+      "payment_method": "card",
+      "gateway": "stripe",
+      "type": "payment",
+      "date": 1758873610,
+      "exchange_rate": 1.0,
+      "amount": 4900,
+      "id_at_gateway": "ch_3SBkL2Ch9aX1bQ0r1N4pZ7yT",
+      "status": "success",
+      "updated_at": 1758873611,
+      "resource_version": 1758873611000,
+      "deleted": false,
+      "object": "transaction",
+      "masked_card_number": "************4242",
+      "currency_code": "USD",
+      "base_currency_code": "USD",
+      "amount_unused": 0,
+      "linked_invoices": [
+        {
+          "invoice_id": "1042",
+          "applied_amount": 4900,
+          "applied_at": 1758873610,
+          "invoice_date": 1758873609,
+          "invoice_total": 4900,
+          "invoice_status": "paid"
+        }
+      ],
+      "linked_credit_notes": [],
+      "linked_refunds": [],
+      "linked_payments": []
+    },
+    "invoice": {
+      "id": "1042",
+      "customer_id": "AzZTQnUQ8bUx81rJZ",
+      "subscription_id": "AzZTQnUQ8bV0I1rKX",
+      "recurring": true,
+      "status": "paid",
+      "price_type": "tax_exclusive",
+      "date": 1758873609,
+      "paid_at": 1758873610,
+      "total": 4900,
+      "amount_paid": 4900,
+      "amount_due": 0,
+      "currency_code": "USD",
+      "object": "invoice"
+    },
+    "customer": {
+      "id": "AzZTQnUQ8bUx81rJZ",
+      "first_name": "Priya",
+      "last_name": "Raman",
+      "email": "priya.raman@example.com",
+      "phone": "+14155550142",
+      "auto_collection": "on",
+      "net_term_days": 0,
+      "allow_direct_debit": false,
+      "created_at": 1758873400,
+      "taxability": "taxable",
+      "updated_at": 1758873609,
+      "locale": "en",
+      "resource_version": 1758873609000,
+      "deleted": false,
+      "object": "customer",
+      "card_status": "valid",
+      "primary_payment_source_id": "pm_AzZTQnUQ8bUyk1rK0",
+      "preferred_currency_code": "USD",
+      "cf_adledger_vid": "5d7e9a1b-2c3f-4a6b-8d9e-0f1a2b3c4d5e"
+    },
+    "subscription": {
+      "id": "AzZTQnUQ8bV0I1rKX",
+      "customer_id": "AzZTQnUQ8bUx81rJZ",
+      "status": "active",
+      "currency_code": "USD",
+      "billing_period": 1,
+      "billing_period_unit": "month",
+      "object": "subscription"
+    }
+  }
+}
