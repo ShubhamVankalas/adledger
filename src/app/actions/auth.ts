@@ -6,19 +6,25 @@ import { z } from "zod";
 import {
   acceptInvitation,
   audit,
+  clearPasswordFailures,
   createOrganizationWithOwner,
   createUser,
   endSession,
   findInvitation,
   getSessionUser,
   hasUsers,
+  InvitationError,
   login,
+  passwordAttemptsLocked,
+  recordPasswordFailure,
   startSession,
 } from "@/lib/auth";
 import { verifyPassword } from "@/lib/crypto";
 import { getDb, schema } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
+import { ipFromHeaders, rateLimit } from "@/lib/http";
 import { log } from "@/lib/log";
+import { safeRedirectPath } from "@/lib/url";
 import { eq } from "drizzle-orm";
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string>; values?: Record<string, string> } | undefined;
@@ -35,6 +41,8 @@ const setupSchema = z.object({
 
 const fieldErrors = (issues: { path: PropertyKey[]; message: string }[]) => Object.fromEntries(issues.map((i) => [String(i.path[0]), i.message]));
 
+let setupQueue: Promise<unknown> = Promise.resolve();
+
 export async function setupAction(_prev: FormState, form: FormData): Promise<FormState> {
   const db = await getDb();
   if (await hasUsers(db)) redirect("/login");
@@ -49,14 +57,22 @@ export async function setupAction(_prev: FormState, form: FormData): Promise<For
   } catch {
     return { values, fieldErrors: { timezone: "Unknown timezone" } };
   }
-  const { workspace, user, organization } = await createOrganizationWithOwner(db, {
-    organizationName: v.organizationName,
-    email: v.email,
-    password: v.password,
-    name: v.name,
-    reportingCurrency: v.currency,
-    timezone: v.timezone,
+  // First-run setup must happen once: serialize concurrent submissions and re-check.
+  const attempt = setupQueue.catch(() => null).then(async () => {
+    if (await hasUsers(db)) return null;
+    return createOrganizationWithOwner(db, {
+      organizationName: v.organizationName,
+      email: v.email,
+      password: v.password,
+      name: v.name,
+      reportingCurrency: v.currency,
+      timezone: v.timezone,
+    });
   });
+  setupQueue = attempt;
+  const created = await attempt;
+  if (!created) redirect("/login");
+  const { workspace, user, organization } = created;
   await audit({ id: user.id, organizationId: organization.id, workspaceId: workspace.id }, "organization.created", organization.name);
   if (v.start === "demo") {
     try {
@@ -70,17 +86,20 @@ export async function setupAction(_prev: FormState, form: FormData): Promise<For
 }
 
 async function clientIp() {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "local";
+  return ipFromHeaders(await headers());
 }
 
+const TOO_MANY = "Too many attempts. Try again in a few minutes.";
+
 export async function loginAction(_prev: FormState, form: FormData): Promise<FormState> {
-  const email = String(form.get("email") ?? "");
-  const password = String(form.get("password") ?? "");
-  const r = await login(email, password, await clientIp());
+  const email = String(form.get("email") ?? "").slice(0, 320);
+  const password = String(form.get("password") ?? "").slice(0, 1000);
+  const ip = await clientIp();
+  // Password spraying across many emails from one address.
+  if (!rateLimit(`login:${ip}`, 20)) return { error: TOO_MANY, values: { email } };
+  const r = await login(email, password, ip);
   if (!r.ok) return { error: r.error, values: { email } };
-  const next = String(form.get("next") ?? "/");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+  redirect(safeRedirectPath(form.get("next")));
 }
 
 export async function logoutAction() {
@@ -97,31 +116,49 @@ const acceptNewSchema = z.object({
 
 /** Accept an invitation: creates the account if needed (or verifies the existing password). */
 export async function acceptInviteAction(token: string, _prev: FormState, form: FormData): Promise<FormState> {
-  const found = await findInvitation(token);
+  const ip = await clientIp();
+  // Invitation tokens are unguessable, but don't let anyone hammer the endpoint.
+  if (!rateLimit(`invite:${ip}`, 10)) return { error: TOO_MANY };
+  const found = typeof token === "string" && token.length <= 200 ? await findInvitation(token) : null;
   if (!found) return { error: "This invitation has expired or was already used. Ask for a new one." };
   const db = await getDb();
   const { invitation } = found;
   const current = await getSessionUser();
-  let userId: string;
+  let knownUserId: string | null = null;
+  let newUser: { name: string; password: string } | null = null;
 
+  // The account is always the invited email: a different signed-in user never gets the membership.
   if (current && current.email === invitation.email) {
-    userId = current.id;
+    knownUserId = current.id;
   } else {
     const [existing] = await db.select().from(schema.users).where(eq(schema.users.email, invitation.email));
     if (existing) {
-      const password = String(form.get("password") ?? "");
+      if (passwordAttemptsLocked(invitation.email, ip)) return { error: TOO_MANY };
+      const password = String(form.get("password") ?? "").slice(0, 1000);
       if (!(await verifyPassword(password, existing.passwordHash))) {
+        recordPasswordFailure(invitation.email, ip);
         return { error: "That password doesn't match your existing AdLedger account." };
       }
-      userId = existing.id;
+      clearPasswordFailures(invitation.email, ip);
+      knownUserId = existing.id;
     } else {
       const parsed = acceptNewSchema.safeParse({ name: form.get("name"), password: form.get("password") });
       if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error.issues), values: { name: String(form.get("name") ?? "") } };
-      const user = await createUser(db, invitation.email, parsed.data.password, parsed.data.name);
-      userId = user.id;
+      newUser = parsed.data;
     }
   }
-  const workspaceId = await db.transaction((tx) => acceptInvitation(tx, invitation.id, userId));
+  let accepted: { userId: string; workspaceId: string | null };
+  try {
+    // Account creation and the (single-use) claim of the invitation succeed or fail together.
+    accepted = await db.transaction(async (tx) => {
+      const id = knownUserId ?? (await createUser(tx, invitation.email, newUser!.password, newUser!.name)).id;
+      return { userId: id, workspaceId: await acceptInvitation(tx, invitation.id, id) };
+    });
+  } catch (err) {
+    if (err instanceof InvitationError) return { error: err.message };
+    throw err;
+  }
+  const { userId, workspaceId } = accepted;
   if (!workspaceId) return { error: "You were invited, but no workspace is shared with you yet. Ask the admin to grant access." };
   await audit({ id: userId, organizationId: invitation.organizationId, workspaceId }, "member.joined", invitation.email, { role: invitation.role });
   await startSession(userId, workspaceId);

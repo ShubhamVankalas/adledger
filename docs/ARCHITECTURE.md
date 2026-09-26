@@ -247,14 +247,22 @@ not provided). Headless installs can set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (+ `DEMO
 ## 7. Security & privacy
 
 - Pixel keys are public and can only write events; everything else needs a session or API key.
-- Rate limits on `/collect`, webhooks and login (in-memory token buckets).
+  API keys are workspace-scoped; REST/MCP calls with a dashboard session are checked against the
+  member's role (writes need `workspace.settings`) and must be same-origin.
+- Rate limits on `/collect`, webhooks, login, invitations and the REST/MCP API (in-memory token
+  buckets), plus per-account password lockouts; request bodies are size-capped before parsing.
+- Outbound URLs typed into the dashboard go through `src/lib/net.ts` (no private, loopback,
+  link-local or metadata targets unless `ALLOW_PRIVATE_URLS=true`; LLM base URLs may use
+  `localhost` / `host.docker.internal`). See [SECURITY.md](../SECURITY.md).
 - IPs truncated; emails/phones hashed everywhere except `contacts`; PII redacted from stored
   form payloads and event properties.
 - Right to erasure, subject-access export, full data export and raw-event retention (see “Privacy &
   data ownership” above).
-- Sessions: random 256-bit tokens, stored hashed, httpOnly + SameSite=Lax cookies (Secure behind HTTPS).
+- Sessions: random 256-bit tokens, stored hashed, httpOnly + SameSite=Lax cookies (Secure behind HTTPS),
+  re-issued on every sign-in; a password change revokes all sessions.
 - Passwords: scrypt (N=2^15). Credentials: AES-256-GCM.
-- Security headers on dashboard routes; CORS open only on the pixel endpoint.
+- Security headers (CSP, frame/sniff/referrer/permissions policies, HSTS over HTTPS) on dashboard
+  routes; CORS open only on the pixel endpoint.
 
 ## 8. Testing
 

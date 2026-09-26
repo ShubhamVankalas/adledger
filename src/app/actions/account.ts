@@ -2,10 +2,12 @@
 
 import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { fail, guard, ok, run, str, type ActionResult } from "@/lib/actions";
-import { accessibleWorkspaces, audit } from "@/lib/auth";
+import { accessibleWorkspaces, audit, passwordAttemptsLocked, recordPasswordFailure, startSession } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/crypto";
 import { getDb, schema } from "@/lib/db";
+import { ipFromHeaders } from "@/lib/http";
 
 // Personal account actions: profile, password, sessions, workspace switching.
 
@@ -26,13 +28,20 @@ export async function changePasswordAction(form: FormData): Promise<ActionResult
     const current = String(form.get("current") ?? "");
     const next = String(form.get("next") ?? "");
     if (next.length < 8) return fail("New password must be at least 8 characters.");
+    if (next.length > 200) return fail("New password must be at most 200 characters.");
+    const ip = ipFromHeaders(await headers());
+    if (passwordAttemptsLocked(user.email, ip)) return fail("Too many attempts. Try again in a few minutes.");
     const db = await getDb();
     const [u] = await db.select().from(schema.users).where(eq(schema.users.id, user.id));
-    if (!u || !(await verifyPassword(current, u.passwordHash))) return fail("Current password is incorrect.");
+    if (!u || !(await verifyPassword(current.slice(0, 1000), u.passwordHash))) {
+      recordPasswordFailure(user.email, ip);
+      return fail("Current password is incorrect.");
+    }
     await db.update(schema.users).set({ passwordHash: await hashPassword(next) }).where(eq(schema.users.id, user.id));
-    // Sign out every other device.
-    await db.delete(schema.sessions).where(and(eq(schema.sessions.userId, user.id), ne(schema.sessions.id, user.sessionId)));
-    await audit(user, "account.password_changed", user.email);
+    // Sign out every device, then give this one a brand-new session token.
+    await db.delete(schema.sessions).where(eq(schema.sessions.userId, user.id));
+    await startSession(user.id, user.workspace.id);
+    await audit(user, "account.password_changed", null);
     return ok("Password changed. Other devices were signed out.");
   });
 }

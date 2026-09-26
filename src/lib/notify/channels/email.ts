@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import type { ConnectionLike, NotificationChannelDriver, NotificationMessage } from "../../connectors/types";
+import { assertSafeHost } from "../../net";
 import {
   BRAND_COLOR,
   HTTP_TIMEOUT_MS,
@@ -128,6 +129,15 @@ export async function sendEmail(opts: {
 }): Promise<void> {
   const to = (Array.isArray(opts.to) ? opts.to : [opts.to]).flatMap((t) => splitList(t));
   if (!to.length) throw new Error("Email: no recipients");
+  // An SMTP host typed into the dashboard must not point at internal services (SMTP_URL is trusted).
+  const host = (opts.conn?.config?.host ?? "").trim();
+  if (host) {
+    try {
+      await assertSafeHost(host);
+    } catch (err) {
+      throw new Error(`Email: ${err instanceof Error ? err.message : "SMTP host is not allowed"}`);
+    }
+  }
   const { transporter, from, secrets } = buildTransport(opts.conn);
   const rendered = renderEmail(opts.msg);
   try {

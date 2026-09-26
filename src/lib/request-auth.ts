@@ -1,5 +1,5 @@
 import { getSessionUser, workspaceFromApiKey } from "./auth";
-import { json } from "./http";
+import { isSameOriginRequest, json, rateLimit } from "./http";
 import type { Permission } from "./permissions";
 import type { Workspace } from "./settings";
 
@@ -24,13 +24,26 @@ export async function authorize(req: Request, permission: Permission, opts: { se
     if (opts.sessionOnly) return json({ error: "forbidden", hint: "Download this from the dashboard (Settings → Workspace)." }, 403);
     const ws = await workspaceFromApiKey(bearer);
     if (!ws) return json({ error: "unauthorized" }, 401);
+    if (!withinRateLimit(req, ws.id)) return rateLimited();
     return { workspace: ws, via: "api_key", actor: { id: null, organizationId: ws.organizationId, workspaceId: ws.id } };
   }
   const user = await getSessionUser();
   if (!user) return json({ error: "unauthorized", hint: "Send `Authorization: Bearer al_...` (create a key in Settings → API keys)." }, 401);
   if (!user.can(permission)) return json({ error: "forbidden", hint: "Your role doesn't allow this. Ask an admin." }, 403);
+  // Same CSRF and rate-limit rules as withAuth() in ./http.
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase()) && !isSameOriginRequest(req)) {
+    return json({ error: "cross-site request blocked" }, 403);
+  }
+  if (!withinRateLimit(req, user.workspace.id)) return rateLimited();
   return { workspace: user.workspace, via: "session", actor: { id: user.id, organizationId: user.organization.id, workspaceId: user.workspace.id } };
 }
+
+function withinRateLimit(req: Request, workspaceId: string) {
+  const route = new URL(req.url).pathname.split("/").slice(0, 4).join("/");
+  return rateLimit(`api:${workspaceId}:${route}`, 300);
+}
+
+const rateLimited = () => json({ error: "rate limited", hint: "Slow down and retry in a minute." }, { status: 429, headers: { "Retry-After": "60" } });
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

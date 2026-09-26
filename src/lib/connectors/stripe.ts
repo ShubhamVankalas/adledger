@@ -171,9 +171,12 @@ export function stripeClient(apiKey?: string) {
   return new Stripe(apiKey || "sk_test_placeholder", { appInfo: { name: "AdLedger" } });
 }
 
+export const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
+
 export function verifyStripeSignature(rawBody: string, signature: string | null, secret: string) {
   if (!signature) throw new Error("Missing Stripe-Signature header");
-  return stripeClient().webhooks.constructEvent(rawBody, signature, secret);
+  // Constant-time HMAC check; events signed more than 5 minutes ago are rejected (replay window).
+  return stripeClient().webhooks.constructEvent(rawBody, signature, secret, STRIPE_WEBHOOK_TOLERANCE_SECONDS);
 }
 
 /** Demo charges from the demo world, shaped like Stripe Charge objects. */

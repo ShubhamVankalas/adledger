@@ -1,10 +1,10 @@
-import { and, asc, count, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, lte, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hashPassword, randomToken, sha256, verifyPassword } from "./crypto";
 import { getDb, schema, type DB } from "./db";
 import type { Role } from "./db/schema";
-import { roleCan, type Permission } from "./permissions";
+import { canAssignRole, roleCan, type Permission } from "./permissions";
 import type { Workspace } from "./settings";
 
 export const SESSION_COOKIE = "al_session";
@@ -57,13 +57,22 @@ export async function accessibleWorkspaces(db: Q, organizationId: string, worksp
   return workspaceIds ? all.filter((w) => workspaceIds.includes(w.id)) : all;
 }
 
+/**
+ * Issue a fresh session token (never reuse one the browser already had: prevents session
+ * fixation). Any session the browser was carrying is revoked first.
+ */
 export async function startSession(userId: string, workspaceId: string) {
   const db = await getDb();
+  const jar = await cookies();
+  const previous = jar.get(SESSION_COOKIE)?.value;
+  if (previous) await db.delete(schema.sessions).where(eq(schema.sessions.tokenHash, sha256(previous)));
+  // Housekeeping: drop expired sessions for this user.
+  await db.delete(schema.sessions).where(and(eq(schema.sessions.userId, userId), lte(schema.sessions.expiresAt, new Date())));
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
   await db.insert(schema.sessions).values({ userId, workspaceId, tokenHash: sha256(token), expiresAt });
   await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, userId));
-  (await cookies()).set(SESSION_COOKIE, token, {
+  jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: await isHttps(),
@@ -146,22 +155,60 @@ export async function defaultWorkspaceFor(userId: string): Promise<string | null
 
 // ---- login throttling (in-memory; the app runs as a single process per container)
 
-const attempts = new Map<string, { n: number; until: number }>();
+const failures = new Map<string, { n: number; until: number }>();
+const FAILURE_WINDOW_MS = 15 * 60_000;
+/** Failed password checks allowed per (IP, email) and per email from any IP, per 15 minutes. */
+export const MAX_FAILURES_PER_IP_EMAIL = 5;
+export const MAX_FAILURES_PER_EMAIL = 20;
 // Constant-time-ish path for unknown emails.
 const DUMMY_HASH = "scrypt$32768$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
+function failureKeys(email: string, ip: string) {
+  const e = email.trim().toLowerCase();
+  return [
+    { key: `ip:${ip}:${e}`, max: MAX_FAILURES_PER_IP_EMAIL },
+    // Per-account cap: client IPs come from proxy headers and can be spoofed or rotated.
+    { key: `email:${e}`, max: MAX_FAILURES_PER_EMAIL },
+  ];
+}
+
+/** True when password attempts for this email (from this IP, or overall) are locked out. */
+export function passwordAttemptsLocked(email: string, ip: string): boolean {
+  const now = Date.now();
+  return failureKeys(email, ip).some(({ key, max }) => {
+    const f = failures.get(key);
+    return Boolean(f && f.until > now && f.n >= max);
+  });
+}
+
+export function recordPasswordFailure(email: string, ip: string) {
+  const now = Date.now();
+  for (const { key } of failureKeys(email, ip)) {
+    const f = failures.get(key);
+    failures.set(key, { n: f && f.until > now ? f.n + 1 : 1, until: now + FAILURE_WINDOW_MS });
+  }
+  if (failures.size > 50_000) failures.clear();
+}
+
+export function clearPasswordFailures(email: string, ip: string) {
+  failures.delete(failureKeys(email, ip)[0].key);
+}
+
+/** Tests only. */
+export function resetPasswordThrottle() {
+  failures.clear();
+}
+
 export async function login(email: string, password: string, ip: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const key = `${ip}:${email.toLowerCase()}`;
-  const a = attempts.get(key);
-  if (a && a.n >= 5 && a.until > Date.now()) return { ok: false, error: "Too many attempts. Try again in a few minutes." };
+  if (passwordAttemptsLocked(email, ip)) return { ok: false, error: "Too many attempts. Try again in a few minutes." };
   const db = await getDb();
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email.trim().toLowerCase()));
   const ok = user ? await verifyPassword(password, user.passwordHash) : await verifyPassword(password, DUMMY_HASH).then(() => false);
   if (!ok || !user) {
-    attempts.set(key, { n: (a?.n ?? 0) + 1, until: Date.now() + 10 * 60_000 });
+    recordPasswordFailure(email, ip);
     return { ok: false, error: "Email or password is incorrect." };
   }
-  attempts.delete(key);
+  clearPasswordFailures(email, ip);
   const workspaceId = await defaultWorkspaceFor(user.id);
   if (!workspaceId) return { ok: false, error: "Your account isn't part of any workspace yet. Ask an admin to invite you again." };
   await startSession(user.id, workspaceId);
@@ -254,19 +301,39 @@ export async function workspaceFromApiKey(key: string): Promise<Workspace | null
   return row.workspace;
 }
 
+/**
+ * Who is calling a REST/MCP endpoint. API keys are workspace-scoped and carry the full API
+ * surface of that one workspace; a dashboard session carries its member's role (checked per route).
+ */
+export type Principal = { kind: "api_key"; workspace: Workspace } | { kind: "session"; workspace: Workspace; user: SessionUser };
+
 /** REST/MCP auth: `Authorization: Bearer al_...` or the dashboard session cookie. */
-export async function authenticateRequest(req: Request): Promise<Workspace | null> {
+export async function authenticatePrincipal(req: Request): Promise<Principal | null> {
   const auth = req.headers.get("authorization") ?? "";
   const bearer = /^Bearer\s+(.+)$/i.exec(auth)?.[1]?.trim();
-  if (bearer) return workspaceFromApiKey(bearer);
+  if (bearer) {
+    const workspace = await workspaceFromApiKey(bearer);
+    return workspace ? { kind: "api_key", workspace } : null;
+  }
   const cookie = req.headers.get("cookie") ?? "";
   const token = cookie
     .split(";")
     .map((c) => c.trim())
     .find((c) => c.startsWith(`${SESSION_COOKIE}=`))
     ?.slice(SESSION_COOKIE.length + 1);
-  const user = await userFromSessionToken(token ? decodeURIComponent(token) : undefined);
-  return user?.workspace ?? null;
+  let raw: string | undefined;
+  try {
+    raw = token ? decodeURIComponent(token) : undefined;
+  } catch {
+    return null;
+  }
+  const user = await userFromSessionToken(raw);
+  return user ? { kind: "session", workspace: user.workspace, user } : null;
+}
+
+/** The workspace a REST/MCP request may read, or null when unauthenticated. */
+export async function authenticateRequest(req: Request): Promise<Workspace | null> {
+  return (await authenticatePrincipal(req))?.workspace ?? null;
 }
 
 // ---- invitations
@@ -309,10 +376,45 @@ export async function findInvitation(token: string) {
   return row ?? null;
 }
 
-/** Add (or update) a user's membership from an invitation and mark it accepted. */
+export class InvitationError extends Error {}
+
+/**
+ * Add (or update) a user's membership from an invitation and mark it accepted.
+ * - Single use: the invitation is claimed atomically (a second, concurrent accept fails).
+ * - The inviter must still be allowed to grant the role (e.g. an owner demoted to admin
+ *   can no longer turn someone into an owner with an old link).
+ * - An invitation never demotes an existing owner.
+ */
 export async function acceptInvitation(db: Q, invitationId: string, userId: string) {
-  const [inv] = await db.select().from(schema.invitations).where(eq(schema.invitations.id, invitationId));
-  if (!inv) throw new Error("Invitation not found");
+  const now = new Date();
+  const [inv] = await db
+    .update(schema.invitations)
+    .set({ acceptedAt: now })
+    .where(and(eq(schema.invitations.id, invitationId), isNull(schema.invitations.acceptedAt), gt(schema.invitations.expiresAt, now)))
+    .returning();
+  if (!inv) throw new InvitationError("This invitation has expired or was already used. Ask for a new one.");
+
+  if (inv.invitedBy) {
+    const [inviter] = await db
+      .select({ role: schema.memberships.role })
+      .from(schema.memberships)
+      .where(and(eq(schema.memberships.organizationId, inv.organizationId), eq(schema.memberships.userId, inv.invitedBy)));
+    if (!inviter || !canAssignRole(inviter.role, inv.role)) {
+      throw new InvitationError("The person who invited you can no longer grant this role. Ask for a new invitation.");
+    }
+  } else if (inv.role === "owner") {
+    throw new InvitationError("This invitation is no longer valid. Ask for a new one.");
+  }
+
+  const [existing] = await db
+    .select()
+    .from(schema.memberships)
+    .where(and(eq(schema.memberships.organizationId, inv.organizationId), eq(schema.memberships.userId, userId)));
+  if (existing?.role === "owner") {
+    // Already an owner: keep full access rather than letting a stale link downgrade them.
+    const ws = await accessibleWorkspaces(db, inv.organizationId, existing.workspaceIds);
+    return ws[0]?.id ?? null;
+  }
   await db
     .insert(schema.memberships)
     .values({ organizationId: inv.organizationId, userId, role: inv.role, workspaceIds: inv.workspaceIds })
@@ -320,7 +422,6 @@ export async function acceptInvitation(db: Q, invitationId: string, userId: stri
       target: [schema.memberships.organizationId, schema.memberships.userId],
       set: { role: inv.role, workspaceIds: inv.workspaceIds },
     });
-  await db.update(schema.invitations).set({ acceptedAt: new Date() }).where(eq(schema.invitations.id, invitationId));
   const ws = await accessibleWorkspaces(db, inv.organizationId, inv.workspaceIds);
   return ws[0]?.id ?? null;
 }

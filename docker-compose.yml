@@ -38,6 +38,8 @@ services:
       TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET:-}
       LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
       LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      ALLOW_PRIVATE_URLS: ${ALLOW_PRIVATE_URLS:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
     extra_hosts:
       # Lets AdLedger reach Ollama / LM Studio running on your computer.
       - "host.docker.internal:host-gateway"

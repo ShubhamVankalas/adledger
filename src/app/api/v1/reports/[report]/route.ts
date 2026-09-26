@@ -41,4 +41,4 @@ export const GET = withAuth<{ params: Promise<{ report: string }> }>(async (req,
     default:
       return json({ error: "unknown report" }, 404);
   }
-});
+}, { permission: "reports.view" });

@@ -10,8 +10,11 @@ const q = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-export const GET = withAuth(async (req, ws) => {
-  const params = q.parse(Object.fromEntries(new URL(req.url).searchParams));
-  const db = await getDb();
-  return json(await listContacts(db, ws, params));
-});
+export const GET = withAuth(
+  async (req, ws) => {
+    const params = q.parse(Object.fromEntries(new URL(req.url).searchParams));
+    const db = await getDb();
+    return json(await listContacts(db, ws, params));
+  },
+  { permission: "reports.view" },
+);

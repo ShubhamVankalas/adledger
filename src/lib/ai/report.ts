@@ -5,6 +5,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, type LanguageModel } from "ai";
 import { schema, type DB } from "../db";
 import type { AttributionModel } from "../db/schema";
+import { guardedFetch } from "../net";
 import { getConnection, type Workspace } from "../settings";
 import { buildFacts, type Facts } from "./facts";
 import { unverifiedNumbers } from "./numbers";
@@ -21,7 +22,8 @@ export const LLM_PROVIDERS = {
 } as const;
 export type LlmProvider = keyof typeof LLM_PROVIDERS;
 
-export type LlmConfig = { provider: LlmProvider; model: string; baseUrl?: string; apiKey?: string };
+/** `trusted`: set by the server operator (LLM_* env vars), so the base URL skips the private-network check. */
+export type LlmConfig = { provider: LlmProvider; model: string; baseUrl?: string; apiKey?: string; trusted?: boolean };
 
 /** Settings from the dashboard, falling back to LLM_* environment variables. */
 export async function getLlmConfig(ws: Workspace, db?: DB): Promise<LlmConfig | null> {
@@ -42,6 +44,7 @@ export async function getLlmConfig(ws: Workspace, db?: DB): Promise<LlmConfig | 
       model: known ? rest.join("/") : process.env.LLM_MODEL,
       baseUrl: process.env.LLM_API_BASE || undefined,
       apiKey: process.env.LLM_API_KEY || undefined,
+      trusted: true,
     };
   }
   return null;
@@ -49,18 +52,21 @@ export async function getLlmConfig(ws: Workspace, db?: DB): Promise<LlmConfig | 
 
 export function languageModel(cfg: LlmConfig): LanguageModel {
   const base = cfg.baseUrl || LLM_PROVIDERS[cfg.provider]?.baseUrl || undefined;
+  // Base URLs typed into the dashboard may not reach private/metadata addresses (localhost and
+  // host.docker.internal stay allowed for local models). See src/lib/net.ts.
+  const fetch = cfg.trusted ? undefined : guardedFetch("llm");
   switch (cfg.provider) {
     case "openai":
-      return createOpenAI({ apiKey: cfg.apiKey, baseURL: base })(cfg.model);
+      return createOpenAI({ apiKey: cfg.apiKey, baseURL: base, fetch })(cfg.model);
     case "anthropic":
-      return createAnthropic({ apiKey: cfg.apiKey, baseURL: base })(cfg.model);
+      return createAnthropic({ apiKey: cfg.apiKey, baseURL: base, fetch })(cfg.model);
     case "google":
-      return createGoogle({ apiKey: cfg.apiKey, baseURL: base })(cfg.model);
+      return createGoogle({ apiKey: cfg.apiKey, baseURL: base, fetch })(cfg.model);
     default: {
       if (!base) throw new Error("Set a base URL for this provider (e.g. http://localhost:11434/v1)");
       // Ollama's OpenAI-compatible API lives under /v1; accept the bare host too.
       const url = cfg.provider === "ollama" && !/\/v1\/?$/.test(base) ? `${base.replace(/\/$/, "")}/v1` : base;
-      return createOpenAICompatible({ name: cfg.provider, baseURL: url, apiKey: cfg.apiKey })(cfg.model);
+      return createOpenAICompatible({ name: cfg.provider, baseURL: url, apiKey: cfg.apiKey, fetch })(cfg.model);
     }
   }
 }

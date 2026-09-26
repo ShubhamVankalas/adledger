@@ -162,6 +162,7 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 - API keys and sessions are stored hashed. The MCP server is read-only.
 - Your data is yours: export contacts as CSV, download the whole workspace as JSON (Settings → Workspace), and set a retention period for raw website events.
 - Erasure and access requests (GDPR/CCPA): **Delete contact** / **Export data** on a contact, or `DELETE /api/v1/contacts/{id}` and `GET /api/v1/contacts/{id}/export` with an API key. Erasure removes the email everywhere and keeps the revenue anonymously, so totals don't change.
+- Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.
 
 ## Development
 

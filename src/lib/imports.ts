@@ -154,12 +154,28 @@ export async function importConversions(db: DB, ws: Workspace, input: Conversion
 
 // ---- CSV
 
-/** Minimal RFC 4180 CSV parser (quotes, escaped quotes, CRLF). */
-export function parseCsv(text: string): Record<string, string>[] {
+/** Upper bounds for one CSV upload (the file itself is capped at 10 MB). */
+export const CSV_LIMITS = { rows: 100_000, columns: 100, fieldChars: 10_000 };
+
+export class CsvLimitError extends Error {}
+
+/** Minimal RFC 4180 CSV parser (quotes, escaped quotes, CRLF). Throws CsvLimitError past CSV_LIMITS. */
+export function parseCsv(text: string, limits = CSV_LIMITS): Record<string, string>[] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let quoted = false;
+  const pushField = () => {
+    if (field.length > limits.fieldChars) throw new CsvLimitError(`A value is longer than ${limits.fieldChars.toLocaleString()} characters. Check the file is a real CSV.`);
+    if (row.length >= limits.columns) throw new CsvLimitError(`Rows have more than ${limits.columns} columns.`);
+    row.push(field);
+  };
+  const pushRow = () => {
+    if (row.some((f) => f.trim() !== "")) {
+      if (rows.length > limits.rows) throw new CsvLimitError(`The file has more than ${limits.rows.toLocaleString()} rows. Split it into smaller files.`);
+      rows.push(row);
+    }
+  };
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (quoted) {
@@ -170,18 +186,18 @@ export function parseCsv(text: string): Record<string, string>[] {
       else field += c;
     } else if (c === '"') quoted = true;
     else if (c === "," || c === ";" || c === "\t") {
-      row.push(field);
+      pushField();
       field = "";
     } else if (c === "\n" || c === "\r") {
       if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
+      pushField();
       field = "";
-      if (row.some((f) => f.trim() !== "")) rows.push(row);
+      pushRow();
       row = [];
     } else field += c;
   }
-  row.push(field);
-  if (row.some((f) => f.trim() !== "")) rows.push(row);
+  pushField();
+  pushRow();
   if (rows.length < 2) return [];
   const header = rows[0].map((h) => normalizeHeader(h));
   return rows.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])));
