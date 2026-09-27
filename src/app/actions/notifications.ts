@@ -29,13 +29,16 @@ export async function sendTestNotificationAction(channel: string): Promise<Actio
   });
 }
 
-/** Save the whole rules grid: checkboxes named `rule:<event>:<channel>`, settings `setting:<event>:<key>`. */
+/**
+ * Save the whole rules grid: checkboxes named `rule:<event>:<channel>` (or selects named
+ * `choice:<event>:<channel>` for events with a per-channel choice), settings `setting:<event>:<key>`.
+ */
 export async function saveNotificationRulesAction(form: FormData): Promise<ActionResult> {
   return run(async () => {
     const user = await guard("workspace.settings");
     const db = await getDb();
     const channels = form.getAll("channels").map(String).filter((c) => c.startsWith("notify_"));
-    for (const { event, defaults } of EVENTS) {
+    for (const { event, defaults, perChannel } of EVENTS) {
       const settings: Record<string, string | number> = {};
       for (const key of Object.keys(defaults)) {
         const raw = String(form.get(`setting:${event}:${key}`) ?? defaults[key]);
@@ -43,7 +46,11 @@ export async function saveNotificationRulesAction(form: FormData): Promise<Actio
         settings[key] = Number.isFinite(n) ? Math.max(0, n) : defaults[key];
       }
       for (const channel of channels) {
-        const on = form.get(`rule:${event}:${channel}`) === "on";
+        // Per-channel choice (e.g. digest cadence): `choice:<event>:<channel>` = an option value, or "off".
+        const choice = perChannel ? String(form.get(`choice:${event}:${channel}`) ?? "off") : null;
+        const valid = perChannel && choice ? perChannel.options.some((o) => o.value === choice) : false;
+        const on = perChannel ? valid : form.get(`rule:${event}:${channel}`) === "on";
+        const ruleSettings = perChannel && valid && choice ? { ...settings, [perChannel.key]: choice } : settings;
         const where = and(
           eq(schema.notificationRules.workspaceId, user.workspace.id),
           eq(schema.notificationRules.event, event as NotificationEvent),
@@ -52,10 +59,10 @@ export async function saveNotificationRulesAction(form: FormData): Promise<Actio
         if (on) {
           await db
             .insert(schema.notificationRules)
-            .values({ workspaceId: user.workspace.id, event, channel, settings, enabled: true })
+            .values({ workspaceId: user.workspace.id, event, channel, settings: ruleSettings, enabled: true })
             .onConflictDoUpdate({
               target: [schema.notificationRules.workspaceId, schema.notificationRules.channel, schema.notificationRules.event],
-              set: { settings, enabled: true },
+              set: { settings: ruleSettings, enabled: true },
             });
         } else {
           await db.delete(schema.notificationRules).where(where);
