@@ -36,6 +36,18 @@ describe("channel rules", () => {
     expect(ch("https://a.com/?utm_source=tiktok&utm_medium=cpc")).toBe("paid_social");
     expect(ch("https://a.com/?ttclid=1")).toBe("paid_social");
   });
+  it("AI assistants get their own channel, split out of organic", () => {
+    for (const ref of ["https://chatgpt.com/", "https://chat.openai.com/c/1", "https://www.perplexity.ai/search?q=x", "https://gemini.google.com/app", "https://copilot.microsoft.com/", "https://claude.ai/chat/1"]) {
+      expect(ch("https://a.com/", ref)).toBe("ai_assistant");
+    }
+    expect(ch("https://a.com/pricing?utm_source=chatgpt.com")).toBe("ai_assistant"); // ChatGPT tags its links
+    expect(ch("https://a.com/?utm_source=perplexity")).toBe("ai_assistant");
+    // Google search is still organic; a paid campaign that names an AI source is still paid.
+    expect(ch("https://a.com/", "https://www.google.com/")).toBe("organic");
+    expect(ch("https://a.com/", "https://mail.google.com/")).toBe("organic");
+    expect(ch("https://a.com/?utm_source=chatgpt&utm_medium=cpc")).toBe("paid_search");
+    expect(ch("https://a.com/", "https://notclaude.ai/")).toBe("referral");
+  });
   it("email and organic", () => {
     expect(ch("https://a.com/?utm_source=newsletter&utm_medium=email")).toBe("email");
     expect(ch("https://a.com/", "https://www.google.com/")).toBe("organic");

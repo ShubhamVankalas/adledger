@@ -3,7 +3,7 @@ import { z } from "zod";
 import { redactPii } from "../crypto";
 import { schema, type DB } from "../db";
 import { matchTouchpoints } from "../matching";
-import { linkVisitor, recordLead, upsertContact, upsertVisitor } from "./identity";
+import { linkVisitor, recordLead, syncContactConsent, upsertContact, upsertVisitor } from "./identity";
 import { classify, fbcFromClickId, hostOf, parseMarketingParams, platformOf } from "./utm";
 
 const eventSchema = z.object({
@@ -22,13 +22,19 @@ const eventSchema = z.object({
     .optional(),
 });
 
-export const collectSchema = z.object({
-  site: z.string().min(8).max(64),
-  vid: z.string().min(8).max(64),
-  fbp: z.string().max(200).optional().nullable(),
-  fbc: z.string().max(400).optional().nullable(),
-  events: z.array(eventSchema).min(1).max(50),
-});
+export const collectSchema = z
+  .object({
+    site: z.string().min(8).max(64),
+    vid: z.string().min(8).max(64),
+    fbp: z.string().max(200).optional().nullable(),
+    fbc: z.string().max(400).optional().nullable(),
+    // Ads consent as the pixel knows it, and navigator.globalPrivacyControl. Older pixels send neither.
+    consent: z.enum(["granted", "denied", "unknown"]).optional(),
+    gpc: z.boolean().optional(),
+    events: z.array(eventSchema).max(50),
+  })
+  // An empty batch is only a consent withdrawal (adledger.consent(false)).
+  .refine((p) => p.events.length > 0 || p.consent === "denied", { message: "events required", path: ["events"] });
 export type CollectPayload = z.infer<typeof collectSchema>;
 
 const BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pingdom|uptime|monitor|curl\/|wget|python-requests|httpclient|axios\/|go-http-client|facebookexternalhit|preview/i;
@@ -75,6 +81,22 @@ export async function processCollect(
 
   const now = ctx.now ?? new Date();
   const workspaceId = site.workspaceId;
+  const done: CollectResult = { ok: true, workspaceId, newLeads: 0, contactsLinked: 0 };
+
+  if (payload.consent === "denied") {
+    // Withdrawal: remember the "no" on the visitor and its contact; store nothing else.
+    await db.transaction(async (tx) => {
+      const [v] = await tx
+        .update(schema.visitors)
+        .set({ consent: "denied" })
+        .where(and(eq(schema.visitors.workspaceId, workspaceId), eq(schema.visitors.anonymousId, payload.vid)))
+        .returning({ id: schema.visitors.id });
+      if (v) await syncContactConsent(tx, v.id, "denied");
+    });
+    return done;
+  }
+  // Strict mode is enforced here too, so an outdated snippet can't track before consent.
+  if (site.consentMode === "required" && payload.consent !== "granted") return done;
   const ipTrunc = truncateIp(ctx.ip);
   const ua = ctx.userAgent?.slice(0, 500) ?? null;
   // Clamp client clocks: never in the future, never older than 1 day.
@@ -87,7 +109,7 @@ export async function processCollect(
 
   await db.transaction(async (tx) => {
     const firstAt = at(Math.min(...payload.events.map((e) => e.ts ?? now.getTime())));
-    const visitor = await upsertVisitor(tx, workspaceId, payload.vid, firstAt);
+    const visitor = await upsertVisitor(tx, workspaceId, payload.vid, firstAt, { consent: payload.consent, gpc: payload.gpc });
 
     for (const e of payload.events) {
       const occurredAt = at(e.ts);
@@ -165,6 +187,8 @@ export async function processCollect(
         }
       }
     }
+    // A "yes" given in the banner also counts for the person this browser belongs to.
+    if (payload.consent === "granted") await syncContactConsent(tx, visitor.id, "granted");
   });
 
   if (touchpointIds.length) await matchTouchpoints(db, workspaceId, touchpointIds);
