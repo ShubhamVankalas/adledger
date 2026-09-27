@@ -32,10 +32,10 @@ function without<T extends object, K extends keyof T>(o: T, ...keys: K[]): Omit<
   for (const k of keys) delete copy[k];
   return copy;
 }
-const organizationColumns = without(getTableColumns(schema.organizations), "logo");
+const organizationColumns = without(getTableColumns(schema.organizations), "logo", "logoPng");
 const userColumns = without(getTableColumns(schema.users), "avatar", "passwordHash", "totpSecretEnc", "recoveryCodes", "totpLastStep");
 
-export type Organization = Omit<typeof schema.organizations.$inferSelect, "logo"> & { logoUrl: string | null };
+export type Organization = Omit<typeof schema.organizations.$inferSelect, "logo" | "logoPng"> & { logoUrl: string | null };
 export type SessionUser = {
   id: string;
   email: string;

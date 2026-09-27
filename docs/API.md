@@ -18,6 +18,7 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/health`](#get-apiv1health) | Health check | public |
 | GET | [`/api/v1/openapi.json`](#get-apiv1openapijson) | This OpenAPI document | public |
 | GET | [`/api/v1/reports/{report}`](#get-apiv1reportsreport) | Run a report | API key |
+| GET | [`/api/v1/reports/{report}/pdf`](#get-apiv1reportsreportpdf) | Download a PDF report | API key |
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
 | POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
@@ -72,6 +73,29 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/reports/{report}/pdf
+
+**Download a PDF report.** Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape) or `wasted-spend`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `report` | path | `executive-summary`, `weekly-performance`, `attribution-models`, `ltv-cohorts`, `wasted-spend` | yes | Which report. |
+| `start` | query | [Date](#date) | no | First day, YYYY-MM-DD (workspace timezone). Omit start and end for the report's default range ending on the latest day with data. |
+| `end` | query | [Date](#date) | no | Last day, inclusive, YYYY-MM-DD. At most two years after start. |
+| `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"linear"`) |
+| `compare` | query | `previous`, `none` | no | Compare with the previous period of equal length (executive summary and weekly performance). (default `"previous"`) |
+
+| Status | Response |
+|---|---|
+| 200 | The PDF (`Cache-Control: private, no-store`). `X-Export-Id` and `X-Report-Fingerprint` identify this export. — `application/pdf`: string (binary) |
+| 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
 ## Contacts
 

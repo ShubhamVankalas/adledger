@@ -117,18 +117,28 @@ function buildTransport(conn?: ConnectionLike): Transport {
   throw new Error("Email is not configured: set an SMTP host, or SMTP_URL in the environment");
 }
 
+export type EmailAttachment = { filename: string; content: Buffer; contentType: string };
+
+/** Total attachment size we send (scheduled PDFs are typically 50–300 KB). */
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
 /**
- * Send a notification email. Usable outside the channel system (e.g. invitations):
- * omit `conn` to use the SMTP_URL / SMTP_FROM environment fallback.
+ * Send a notification email. Usable outside the channel system (e.g. invitations, scheduled
+ * PDF reports): omit `conn` to use the SMTP_URL / SMTP_FROM environment fallback.
+ * `bcc: true` hides recipients from each other (scheduled reports to a team).
  */
 export async function sendEmail(opts: {
   to: string | string[];
   subject?: string;
   msg: NotificationMessage;
   conn?: ConnectionLike;
+  attachments?: EmailAttachment[];
+  bcc?: boolean;
 }): Promise<void> {
   const to = (Array.isArray(opts.to) ? opts.to : [opts.to]).flatMap((t) => splitList(t));
   if (!to.length) throw new Error("Email: no recipients");
+  const attachments = opts.attachments ?? [];
+  if (attachments.reduce((s, a) => s + a.content.byteLength, 0) > MAX_ATTACHMENT_BYTES) throw new Error("Email: attachments are larger than 10 MB");
   // An SMTP host typed into the dashboard must not point at internal services (SMTP_URL is trusted).
   const host = (opts.conn?.config?.host ?? "").trim();
   if (host) {
@@ -143,10 +153,11 @@ export async function sendEmail(opts: {
   try {
     await transporter.sendMail({
       from,
-      to: to.join(", "),
+      ...(opts.bcc ? { to: from, bcc: to.join(", ") } : { to: to.join(", ") }),
       subject: opts.subject ?? rendered.subject,
       html: rendered.html,
       text: rendered.text,
+      ...(attachments.length ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) } : {}),
     });
   } catch (err) {
     const e = err as Error & { responseCode?: number; response?: string };

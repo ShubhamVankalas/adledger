@@ -59,6 +59,8 @@ export const organizations = pgTable("organizations", {
   logoUpdatedAt: tstz("logo_updated_at"),
   /** Organization-wide security policy (2FA requirement, session limits…), see lib/security/policy.ts. */
   security: jsonb("security").$type<OrgSecurity>().notNull().default({}),
+  /** PNG copy of the logo for PDF reports (react-pdf reads only PNG/JPEG), written at upload. */
+  logoPng: bytea("logo_png"),
   createdAt: createdAt(),
 });
 /** Stored shape of organizations.security; every field is optional and parsed with defaults. */
@@ -694,5 +696,69 @@ export const dashboards = pgTable(
     updatedAt: tstz("updated_at").notNull().defaultNow(),
   },
   (t) => [unique("dashboards_scope_uq").on(t.workspaceId, t.userId).nullsNotDistinct()],
+);
+
+// ---------------------------------------------------------------- reports & exports
+
+/**
+ * Scheduled PDF reports emailed to workspace members (Reports → Schedule). The runner is the
+ * hourly `report-schedules` job in lib/jobs.ts; `hour` and `weekday` are in the workspace
+ * timezone.
+ */
+export const reportSchedules = pgTable(
+  "report_schedules",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    name: text("name").notNull(),
+    reportKind: text("report_kind").notNull(),
+    params: jsonb("params").$type<{ model: AttributionModel; compare: "previous" | "none" }>().notNull(),
+    cadence: text("cadence").$type<"weekly" | "monthly">().notNull(),
+    /** 1 = Monday … 7 = Sunday (weekly schedules). */
+    weekday: integer("weekday").notNull().default(1),
+    hour: integer("hour").notNull().default(8),
+    /** `all`: every member who can open the workspace; otherwise these user ids. */
+    recipients: jsonb("recipients").$type<{ all: boolean; userIds: string[] }>().notNull(),
+    /** Don't send when the period had no ad spend and no revenue. */
+    skipEmpty: boolean("skip_empty").notNull().default(true),
+    enabled: boolean("enabled").notNull().default(true),
+    lastRunAt: tstz("last_run_at"),
+    lastStatus: text("last_status").$type<"sent" | "skipped" | "error">(),
+    lastError: text("last_error"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId)],
+);
+
+/**
+ * One row per PDF produced (downloads, API calls, scheduled runs). IDs only, no personal data:
+ * who (user / API key / schedule), what (kind + params), when, and the fingerprint printed in
+ * the PDF footer so /verify can confirm a document came from this instance.
+ */
+export const exportLog = pgTable(
+  "export_log",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    scheduleId: uuid("schedule_id").references(() => reportSchedules.id, { onDelete: "set null" }),
+    via: text("via").$type<"session" | "api_key" | "schedule">().notNull(),
+    format: text("format").$type<"pdf">().notNull().default("pdf"),
+    reportKind: text("report_kind").notNull(),
+    params: jsonb("params").$type<Record<string, string>>().notNull().default({}),
+    /** SHA-256 over kind, params, report data, export id, exporter and issue time (unique per export). */
+    fingerprint: text("fingerprint").notNull(),
+    /** SHA-256 over kind, params and report data only (same numbers ⇒ same hash). */
+    dataHash: text("data_hash").notNull(),
+    bytes: integer("bytes").notNull().default(0),
+    pages: integer("pages"),
+    recipients: integer("recipients"),
+    status: text("status").$type<"ok" | "error">().notNull().default("ok"),
+    error: text("error"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("export_log_fingerprint_uq").on(t.fingerprint), index().on(t.workspaceId, t.createdAt)],
 );
 
