@@ -163,14 +163,14 @@ function RoleEditor({ role, roles, mine, onClose }: { role: RoleRow | null; role
 
   return (
     <Dialog open onOpenChange={(o) => !o && !pending && onClose()}>
-      <DialogContent className="gap-0 p-0 sm:max-w-2xl max-sm:p-0">
+      <DialogContent className="flex flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:p-0 max-sm:pb-0">
         <DialogHeader className="border-b p-4 sm:p-5">
           <DialogTitle>{role ? `Edit ${role.name}` : "New role"}</DialogTitle>
           <DialogDescription>Pick what people with this role can open and do. Changes apply on their next page load.</DialogDescription>
         </DialogHeader>
         <form
           id="role-form"
-          className="grid gap-5 p-4 sm:p-5"
+          className="grid min-h-0 flex-1 gap-5 overflow-y-auto overscroll-contain p-4 sm:p-5"
           onSubmit={(e) => {
             e.preventDefault();
             save();
@@ -270,7 +270,7 @@ function RoleEditor({ role, roles, mine, onClose }: { role: RoleRow | null; role
             );
           })}
         </form>
-        <DialogFooter className="sticky bottom-0 border-t bg-popover p-4 sm:p-5 max-sm:pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <DialogFooter className="m-0 px-4 py-3 max-sm:m-0 max-sm:px-4 max-sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-5">
           <DialogClose render={<Button variant="outline" className="h-10 sm:h-8" disabled={pending} />}>Cancel</DialogClose>
           <Button type="submit" form="role-form" className="h-10 sm:h-8" disabled={pending || !name.trim()}>
             {pending ? <Loader2Icon className="animate-spin" /> : null}

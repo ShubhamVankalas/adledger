@@ -308,7 +308,8 @@ An organization holds many workspaces and the people who can open them.
 | Page | What it does |
 |---|---|
 | **Organization & workspaces** | Organization name and logo (used on PDF reports), create and delete workspaces. |
-| **Members & roles** | Invite by link (expires after 7 days), change a member's role and client workspaces, remove members. Roles: **Owner**, **Admin**, **Analyst**, **Viewer**, **Client** (sees only the workspaces you pick). |
+| **Members & roles** | Invite by link (expires after 7 days), change a member's role and client workspaces, remove members. Roles: **Owner**, **Admin**, **Analyst**, **Viewer**, **Client** (sees only the workspaces you pick), plus any custom roles. |
+| **Roles & permissions** | Owners and admins edit the built-in roles or create custom ones (from scratch or as a copy), with a grouped checklist: **pages & dashboards** (hide Overview, Performance, Money pages, Contacts…), data & exports, CRM, workspace settings and organization. A role can be limited to selected workspaces. Blocked pages disappear from the sidebar, tab bar and ⌘K and show "You don't have access" with a link to the first page the role can open. Owner is fixed; nobody can grant a permission they don't hold; deleting a role in use moves its members to a role you pick. |
 | **Security policy** | A posture checklist for this install (encryption key storage, HTTPS, 2FA coverage, session limits, audit verification, API keys that can read emails, backups); **Require two-factor sign-in**; idle timeout and maximum session length; whether clients may download PDFs; 2FA status per member with reset. |
 | **Audit log** | Every sign-in, 2FA change, role change, key creation, export, reveal and settings change, with truncated IP and browser; filters, CSV export and **Verify chain**. |
 

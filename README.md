@@ -300,7 +300,7 @@ named precisely:
 |---|---|
 | **Sign-in** | Free two-factor sign-in (TOTP + recovery codes) that owners can require org-wide, with a documented break-glass for a locked-out owner. scrypt passwords under a NIST SP 800-63B-4 policy. |
 | **Sessions** | Hashed tokens, idle timeout and maximum lifetime, a device list with sign out one or everywhere, new-device emails. |
-| **Access** | Five roles (owner, admin, analyst, viewer, client). Contact emails **masked by role**, with every reveal audited. Separate permissions for aggregate CSVs, contact exports and PDFs. |
+| **Access** | Five built-in roles (owner, admin, analyst, viewer, client) plus **custom roles** with per-page and per-action permissions. Contact emails **masked by role**, with every reveal audited. Separate permissions for aggregate CSVs, contact exports and PDFs. |
 | **PII** | Raw emails only in the contacts table; SHA-256 hashes everywhere else. IPs truncated. Stored payloads redacted. |
 | **Secrets and keys** | Connector credentials and 2FA secrets encrypted with AES-256-GCM. API keys stored hashed, with **scopes** and optional expiry. |
 | **Audit** | Tamper-evident, **hash-chained audit log** with Verify, filters and CSV export. **Security alerts** for new keys, role changes, 2FA resets, bulk exports and new-device sign-ins. |
