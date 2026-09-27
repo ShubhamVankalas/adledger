@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 4 Pipeline | ✅ | Configurable stages (`pipeline_stages`, `contacts.stage_id`, `contact_stage_events`), kanban with drag (mouse, touch, keyboard), multi-select, optimistic moves + Undo, weighted totals, rotting; payments move contacts to Won; stage settings; funnel + cost per stage per campaign / ad set / ad; MCP `contact_stage_funnel`. Next: cost-per-stage columns in Performance, stage pill on the contact record, offline conversions per stage (off by default) |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).

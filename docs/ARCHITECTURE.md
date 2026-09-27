@@ -125,6 +125,12 @@ unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), reve
 conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
 error, mock, sent_at, skip_reason, consent_mode = the consent basis it was built with).
 
+**Pipeline** — `pipeline_stages` (name, position, kind open|won|lost, colour swatch key, rot_days,
+win probability 0–100; unique `(workspace_id, lower(name))`; the six defaults are created lazily per
+workspace and backfilled by migration 0007), `contacts.stage_id` + `stage_changed_at` (null stage = the
+first open stage, so no ingest path needs to write it), `contact_stage_events` (every change: from/to
+stage ids with names snapshotted, source manual|payment|system, user, occurred_at).
+
 **Overview layouts** — `dashboards` (name, preset, layout jsonb, version, updated_at; `user_id` null =
 the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
 nulls not distinct).
@@ -332,6 +338,26 @@ between loading, empty, error and data.
   `src/app/actions/dashboard.ts` use `guard("dashboard.edit")` (every role, for personal views; the
   workspace default also needs `workspace.settings`) and `audit()`; saves carry the row version and a
   stale save is rejected instead of overwriting a teammate's change.
+
+**Pipeline.** `src/lib/pipeline.ts` owns stages and moves (`src/lib/pipeline-shared.ts` holds the
+client-safe constants); `src/lib/reports-pipeline.ts` holds every pipeline number in SQL.
+- *Moves.* `moveContacts` updates `stage_id` / `stage_changed_at` for contacts of the workspace only and
+  writes one `contact_stage_events` row each. Undo (10 minutes, same user, manual events only) restores the
+  previous stage and age and deletes the history row, so a slip never counts as reaching a stage. A **new**
+  positive payment (`ingestRevenue`, not a replay or refund) moves the contact to the won stage
+  (`source = payment`). Deleting a stage reassigns its contacts first (`source = system`); a pipeline always
+  keeps one open and one won stage. Actions (`src/app/actions/pipeline.ts`): `pipeline.move` (owner, admin,
+  analyst) to move and undo, `workspace.settings` to configure; all audited with ids and counts only.
+- *Board.* `pipelineBoard` = column totals (count, net revenue, weighted value = Σ (revenue, or the average
+  customer value when there is none) × win probability, rotting = open contacts past `rot_days`) + the 50
+  newest cards per stage (first touch campaign and ad via a lateral join, masked email when there's no name);
+  "Show more" pages one stage. The kanban (`components/pipeline/board.tsx`) is optimistic (`useOptimistic`)
+  and settles on the action's revalidation; `@dnd-kit` handles mouse, long-press touch and keyboard
+  (handle → Space → ← / → between columns → Space); phones get a stage tab strip and a "Move to" menu.
+- *Funnel & cost.* "Reached a stage" = the furthest non-lost stage a contact has been in (current stage or
+  history) is at or past it; lost stages count current members. `stageFunnel` (cohort = contacts first seen in
+  the period) and `costPerStage` (spend of the campaign / ad set / ad in the period ÷ its first-touch contacts
+  that reached each stage) power `/pipeline?view=funnel` and the read-only MCP tool `contact_stage_funnel`.
 
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled

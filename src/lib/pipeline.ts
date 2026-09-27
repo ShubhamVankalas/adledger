@@ -207,6 +207,21 @@ export async function autoWinOnPayment(tx: Q, workspaceId: string, contactId: st
   return true;
 }
 
+/**
+ * One contact's stage and the workspace's stages (for the record page's stage pill), or null when
+ * the contact isn't in this workspace.
+ */
+export async function contactStage(q: Q, workspaceId: string, contactId: string): Promise<{ stageId: string; stages: Stage[] } | null> {
+  const [c] = await q
+    .select({ stageId: schema.contacts.stageId })
+    .from(schema.contacts)
+    .where(and(eq(schema.contacts.workspaceId, workspaceId), eq(schema.contacts.id, contactId)));
+  if (!c) return null;
+  const stages = await listStages(q, workspaceId);
+  const stageId = stages.some((s) => s.id === c.stageId) ? c.stageId! : defaultStage(stages).id;
+  return { stageId, stages };
+}
+
 /** Stage history of one contact, newest first (for the record page timeline). */
 export async function stageHistory(db: DB, workspaceId: string, contactId: string) {
   return db

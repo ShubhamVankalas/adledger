@@ -6,6 +6,7 @@ import { rows, schema, type DB } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
 import {
   addStage,
+  contactStage,
   defaultStage,
   deleteStage,
   listStages,
@@ -111,6 +112,13 @@ describe("moving contacts", () => {
     const h = await stageHistory(db, ws.id, ids.ann);
     expect(h).toHaveLength(1);
     expect(h[0]).toMatchObject({ fromName: "New lead", toName: "Qualified", source: "manual" });
+  });
+
+  it("reads one contact's stage for the record page, never across workspaces", async () => {
+    const stages = await listStages(db, ws.id);
+    expect(await contactStage(db, ws.id, ids.ann)).toMatchObject({ stageId: byName(stages, "Qualified").id });
+    expect((await contactStage(db, ws.id, ids.dan))?.stageId).toBe(byName(stages, "New lead").id); // never moved
+    expect(await contactStage(db, ws.id, ids.eve)).toBeNull();
   });
 
   it("never touches another workspace's contacts or stages", async () => {
@@ -375,5 +383,28 @@ describe("demo data", () => {
     const meta = await costPerStage(db, demo, { ...p, platform: "meta", level: "ad" });
     expect(meta.rows.length).toBeGreaterThan(0);
     expect(meta.rows.every((x) => x.platform === "meta")).toBe(true);
+  });
+});
+
+describe("scale", () => {
+  it("builds the board and the funnel for 10,000 contacts quickly", async () => {
+    const w = (await setupWorkspace()).ws;
+    await db.execute(sql`insert into contacts (workspace_id, email, email_hash, name, first_seen_at)
+      select ${w.id}, 'p' || g || '@scale.test', md5('p' || g), 'Person ' || g, now() - (g % 90) * interval '1 day'
+      from generate_series(1, 10000) g`);
+    await listStages(db, w.id);
+    await db.execute(sql`update contacts c set stage_id = s.id, stage_changed_at = c.first_seen_at + interval '1 day'
+      from pipeline_stages s where s.workspace_id = ${w.id} and c.workspace_id = ${w.id} and s.position = abs(hashtext(c.id::text)) % 6`);
+    await pipelineBoard(db, w); // warm up
+    let t = performance.now();
+    const board = await pipelineBoard(db, w);
+    const boardMs = performance.now() - t;
+    expect(board.columns.reduce((s, c) => s + c.count, 0)).toBe(10_000);
+    t = performance.now();
+    await stageFunnel(db, w, {});
+    const funnelMs = performance.now() - t;
+    // Generous bounds: embedded Postgres on a busy CI machine.
+    expect(boardMs).toBeLessThan(2_500);
+    expect(funnelMs).toBeLessThan(2_500);
   });
 });

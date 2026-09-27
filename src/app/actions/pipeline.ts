@@ -32,6 +32,12 @@ function revalidate() {
   revalidatePath("/settings/workspace/pipeline");
 }
 
+/** After a move: the board and the contact record pages (stage pill, timeline). */
+function revalidateMoves() {
+  revalidatePath("/pipeline");
+  revalidatePath("/contacts/[id]", "page");
+}
+
 export async function moveContactsAction(contactIds: string[], stageId: string): Promise<ActionResult> {
   return run(async () => {
     const user = await guard("pipeline.move");
@@ -41,7 +47,7 @@ export async function moveContactsAction(contactIds: string[], stageId: string):
     const r = await moveContacts(db, { workspaceId: user.workspace.id, ...parsed.data, userId: user.id });
     if (r.moved.length) {
       await audit(user, "pipeline.contacts_moved", r.stage.name, { stageId: r.stage.id, count: r.moved.length });
-      revalidatePath("/pipeline");
+      revalidateMoves();
     }
     return ok(undefined, { stageName: r.stage.name, moved: r.moved });
   });
@@ -56,7 +62,7 @@ export async function undoMoveAction(toStageId: string, entries: unknown[]): Pro
     const restored = await undoMove(db, { workspaceId: user.workspace.id, userId: user.id, ...parsed.data });
     if (restored === 0) return fail("That move can no longer be undone.");
     await audit(user, "pipeline.move_undone", null, { stageId: parsed.data.toStageId, count: restored });
-    revalidatePath("/pipeline");
+    revalidateMoves();
     return ok(undefined, { restored });
   });
 }

@@ -45,6 +45,7 @@ Settings → Developer → Edit config:
 | `get_platform_breakdown` | Spend, ad-attributed revenue, ROAS, leads and customers per ad platform, with totals |
 | `get_timeseries` | Daily spend vs total and ad-attributed revenue and leads (max 400 days) |
 | `search_campaigns` | Fuzzy campaign-name search (`query`, tolerates partial words and typos) → ids + spend, revenue, ROAS, leads, customers |
+| `contact_stage_funnel` | Pipeline stages with contacts reached, step conversion, share of all contacts and ad cost per contact reaching each stage; optional `start` / `end` limit it to contacts first seen in that range. Counts only. |
 | `list_contacts` | Leads/customers (emails masked) |
 | `get_contact_journey` | Touchpoints, leads and payments for one contact + credit per model |
 | `get_latest_insights` | The latest weekly insights report |
