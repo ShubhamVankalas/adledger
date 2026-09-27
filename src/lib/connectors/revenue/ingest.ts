@@ -3,6 +3,7 @@ import { schema, type DB } from "../../db";
 import { linkVisitor, upsertContact } from "../../tracking/identity";
 import { formatMoney } from "../../money";
 import { notifyLater } from "../../notify";
+import { autoWinOnPayment } from "../../pipeline";
 import type { RevenueEventInput } from "../types";
 
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
@@ -106,6 +107,8 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
           name = before?.name ?? before?.email ?? null;
           if (isNew && before?.lifecycle !== "customer") alerts.push({ kind: "new_customer", e, contactId, name });
           await markCustomer(tx, contactId, source, e.customer.externalCustomerId);
+          // Only a new payment wins the deal: a replayed webhook or re-sync must not undo a later manual move.
+          if (isNew && amount > 0) await autoWinOnPayment(tx, workspaceId, contactId, e.occurredAt);
         }
         if (isNew) alerts.push({ kind: "big_payment", e, contactId, name });
       }

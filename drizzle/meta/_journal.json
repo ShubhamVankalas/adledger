@@ -78,6 +78,13 @@
       "when": 1790504144292,
       "tag": "0010_crm_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790504187822,
+      "tag": "0011_pipeline",
+      "breakpoints": true
     }
   ]
 }

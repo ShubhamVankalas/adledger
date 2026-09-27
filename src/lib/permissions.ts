@@ -33,9 +33,12 @@ export type Permission =
   | "audit.view"
   | "org.branding"
   | "org.manage"
-  | "dashboard.edit";
+  | "dashboard.edit"
+  | "pipeline.move";
 
 const MATRIX: Record<Permission, Role[]> = {
+  // Move contacts between pipeline stages (stage configuration itself is workspace.settings).
+  "pipeline.move": ["owner", "admin", "analyst"],
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   // Aggregate report CSVs (campaigns, channels, cohorts). Does not cover contact-level data.
   "reports.export": ["owner", "admin", "analyst"],

@@ -8,6 +8,7 @@ import { ADS_CONNECTORS } from "../connectors/registry";
 import { saveConnection } from "../settings";
 import { syncProvider } from "../sync";
 import { classify, hostOf, parseMarketingParams, platformOf } from "../tracking/utm";
+import { seedDemoPipeline } from "./pipeline";
 import { buildDemoWorld, DAY, demoAds, isoDate, parseDate } from "./world";
 
 const DEMO_SITE_NAME = "Demo website";
@@ -119,6 +120,8 @@ export async function seedDemo(db: DB, workspaceId: string, opts: { anchor?: str
   await syncProvider(db, workspaceId, "stripe", { backfillDays: 120 });
   await matchTouchpoints(db, workspaceId);
   await recomputeAttribution(db, workspaceId);
+  // Customers are already in Won (their first payment moved them); spread the leads over the pipeline.
+  await seedDemoPipeline(db, workspaceId, anchor);
   await db.update(schema.workspaces).set({ isDemo: true }).where(eq(schema.workspaces.id, workspaceId));
 
   return {
