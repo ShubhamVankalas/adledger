@@ -657,3 +657,47 @@ export const dashboards = pgTable(
   (t) => [unique("dashboards_scope_uq").on(t.workspaceId, t.userId).nullsNotDistinct()],
 );
 
+// ---------------------------------------------------------------- goals & data hygiene
+
+/**
+ * Workspace targets, one per metric ("revenue 50,000 USD a month", "ROAS 3×").
+ * Money metrics use `target_minor` (reporting currency); counts and ratios use `target_value`.
+ * `budget_minor` is the optional ad spend budget for the same period. Drives the Goals & pacing
+ * widget and the stoplights on performance tables (see src/lib/reports-goals.ts).
+ */
+export const goals = pgTable(
+  "goals",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    metric: text("metric").$type<GoalMetric>().notNull(),
+    period: text("period").$type<GoalPeriod>().notNull().default("month"),
+    targetMinor: money("target_minor"),
+    targetValue: numeric("target_value", { precision: 14, scale: 4 }),
+    budgetMinor: money("budget_minor"),
+    currency: text("currency").notNull(),
+    createdAt: createdAt(),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("goals_metric_uq").on(t.workspaceId, t.metric)],
+);
+export type GoalMetric = "revenue" | "attributed_revenue" | "leads" | "customers" | "roas" | "mer" | "cac" | "cpl";
+export type GoalPeriod = "month" | "quarter";
+
+/** Pairs of contacts someone reviewed and marked "not the same person" (contact_a_id < contact_b_id). */
+export const contactDuplicateDismissals = pgTable(
+  "contact_duplicate_dismissals",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    contactAId: uuid("contact_a_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    contactBId: uuid("contact_b_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("contact_dup_dismissals_uq").on(t.workspaceId, t.contactAId, t.contactBId), index().on(t.contactBId)],
+);
+
