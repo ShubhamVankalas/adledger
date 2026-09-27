@@ -21,7 +21,7 @@ let invitePath = "";
 async function signIn(page: Page) {
   await page.goto("/");
   if (page.url().includes("/setup")) {
-    await page.getByPlaceholder("Acme Inc.").fill("Acme Analytics");
+    await page.getByPlaceholder("Acme Inc").fill("Acme Analytics");
     await page.getByPlaceholder("Alex").fill("Demo Admin");
     await page.getByPlaceholder("you@company.com").fill(EMAIL);
     await page.locator('input[name="password"]').fill(PASSWORD);

@@ -1,18 +1,20 @@
 "use client";
 
 import { ChevronRightIcon, Loader2Icon } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { loginAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { AuthField, FormError, PasswordInput, authButton, authInput } from "../fields";
+import { AuthField, FormError, PasswordInput, authButton, authInput, useFocusFirstError } from "../fields";
 import { authCard, authTitle } from "../styles";
 
 const code = "rounded bg-muted px-1 py-0.5 font-mono text-[0.7rem] break-all";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(loginAction, undefined);
+  const form = useRef<HTMLFormElement>(null);
+  useFocusFirstError(form, state);
   return (
     <Card className={authCard}>
       <CardHeader>
@@ -22,7 +24,7 @@ export function LoginForm({ next }: { next: string }) {
         <CardDescription>Sign in to see which ads are making you money.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-4">
+        <form ref={form} action={action} className="grid gap-4">
           <input type="hidden" name="next" value={next} />
           <AuthField label="Email" htmlFor="email">
             <Input
@@ -45,15 +47,22 @@ export function LoginForm({ next }: { next: string }) {
           </AuthField>
           <FormError>{state?.error}</FormError>
           <Button type="submit" size="lg" disabled={pending} className={authButton}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null} Sign in
+            {pending ? (
+              <>
+                <Loader2Icon aria-hidden className="animate-spin" /> Signing in…
+              </>
+            ) : (
+              "Sign in"
+            )}
           </Button>
           <details className="group rounded-lg text-xs text-muted-foreground">
             <summary className="mx-auto flex min-h-10 w-fit cursor-pointer list-none items-center gap-1 rounded-md px-2 font-medium hover:text-foreground [&::-webkit-details-marker]:hidden">
               Forgot your password?
-              <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90" />
+              <ChevronRightIcon aria-hidden className="size-3.5 transition-transform group-open:rotate-90" />
             </summary>
             <p className="mt-1 rounded-lg border bg-muted/40 p-3 leading-relaxed">
-              Ask the server admin to set <code className={code}>RESET_PASSWORD=true</code> with <code className={code}>ADMIN_EMAIL</code> and <code className={code}>ADMIN_PASSWORD</code> on the server, then restart AdLedger.
+              Ask the server admin to set <code translate="no" className={code}>RESET_PASSWORD=true</code> with <code translate="no" className={code}>ADMIN_EMAIL</code> and{" "}
+              <code translate="no" className={code}>ADMIN_PASSWORD</code> on the server, then restart AdLedger.
             </p>
           </details>
         </form>

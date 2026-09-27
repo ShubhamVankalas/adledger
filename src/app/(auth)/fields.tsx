@@ -1,7 +1,7 @@
 "use client";
 
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,16 @@ import { cn } from "@/lib/utils";
 // Shared bits for the sign-in, setup and invite forms: roomier controls on phones (40px+ tap targets).
 export const authInput = "h-10";
 export const authButton = "h-11 w-full text-[0.95rem] sm:h-10 sm:text-sm";
+
+/** aria-describedby for a field rendered in AuthField: its error when there is one, else its hint. */
+export const describedBy = (id: string, error?: string, hint?: boolean) => (error ? `${id}-error` : hint ? `${id}-hint` : undefined);
+
+/** After a failed submit, move focus to the first invalid field so keyboard and screen-reader users land on the problem. */
+export function useFocusFirstError(form: React.RefObject<HTMLFormElement | null>, state: unknown) {
+  useEffect(() => {
+    if (state) form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [form, state]);
+}
 
 export function AuthField({ label, error, hint, htmlFor, children }: { label: string; error?: string; hint?: React.ReactNode; htmlFor?: string; children: React.ReactNode }) {
   return (
@@ -20,7 +30,9 @@ export function AuthField({ label, error, hint, htmlFor, children }: { label: st
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p id={htmlFor ? `${htmlFor}-hint` : undefined} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
@@ -38,7 +50,7 @@ export function PasswordInput({ className, ...props }: Omit<React.ComponentProps
         aria-pressed={show}
         className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
       >
-        {show ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+        {show ? <EyeOffIcon aria-hidden className="size-4" /> : <EyeIcon aria-hidden className="size-4" />}
       </button>
     </div>
   );

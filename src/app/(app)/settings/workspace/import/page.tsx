@@ -11,7 +11,7 @@ export default async function ImportPage() {
     <>
       <SettingsHeader
         title="Import data"
-        description="Bring in spend from any ad network we don't connect to directly (Taboola, Outbrain, Quora, Amazon Ads, affiliates…) and payments from any checkout. Upload a CSV, or automate it with the API from Zapier, Make or n8n."
+        description="Bring in spend from any ad network we don’t connect to directly (Taboola, Outbrain, Quora, Amazon Ads, affiliates…) and payments from any checkout. Upload a CSV, or automate it with the API from Zapier, Make or n8n."
       />
       <ImportPanel origin={await publicUrl()} currency={user.workspace.reportingCurrency} />
     </>

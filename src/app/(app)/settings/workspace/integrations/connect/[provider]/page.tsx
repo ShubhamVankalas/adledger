@@ -43,12 +43,12 @@ export default async function OAuthConnectPage({
     });
     const creds = oauthCredentials(provider);
     if (!pending) problem = `No ${label} sign-in in progress (it expires after 15 minutes). Click “Connect with ${label}” to start.`;
-    else if (!creds) problem = "One-click connect isn't set up on this server.";
+    else if (!creds) problem = `One-click connect isn’t set up on this server. An admin needs to set ${meta.oauth!.env.join(", ")}.`;
     else {
       try {
         accounts = await p.listAccounts(pending.tokens, creds, fetch);
       } catch (err) {
-        problem = err instanceof OAuthError ? err.message : `Couldn't reach ${label} to list your ad accounts. Try again.`;
+        problem = err instanceof OAuthError ? err.message : `Couldn’t reach ${label} to list your ad accounts. Try again.`;
       }
       // Reconnecting: keep the accounts already imported ticked. First time: every active account.
       const existing = await getConnection(user.workspace.id, provider);
@@ -68,13 +68,14 @@ export default async function OAuthConnectPage({
         description={`Choose which ${label} ad accounts to import into ${user.workspace.name}. You can change this later by connecting again.`}
       >
         <Button variant="ghost" size="sm" render={<a href={INTEGRATIONS} />}>
-          <ArrowLeftIcon /> Integrations
+          <ArrowLeftIcon aria-hidden /> Integrations
         </Button>
       </SettingsHeader>
       {problem ? (
         <div className="max-w-2xl space-y-3">
           <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            <CircleAlertIcon className="mt-0.5 size-4 shrink-0" /> {problem}
+            <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 break-words">{problem}</span>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button render={<a href={startHref} />}>Connect with {label}</Button>
@@ -86,7 +87,7 @@ export default async function OAuthConnectPage({
       ) : accounts.length === 0 ? (
         <div className="max-w-2xl space-y-3 text-sm text-muted-foreground">
           <p>
-            Signed in, but this {label} login can&apos;t see any ad accounts. Ask the account owner to give your user access, or sign in with a
+            Signed in, but this {label} login can’t see any ad accounts. Ask the account owner to give your user access, or sign in with a
             different {label} user.
           </p>
           <Button variant="outline" render={<a href={startHref} />}>

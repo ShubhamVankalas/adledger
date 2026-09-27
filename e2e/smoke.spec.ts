@@ -17,7 +17,7 @@ test("setup wizard creates a demo workspace", async ({ page }) => {
   await expect(page).toHaveURL(/\/setup/);
   await expect(page.getByText("Welcome to AdLedger")).toBeVisible();
   await shot(page, "setup");
-  await page.getByPlaceholder("Acme Inc.").fill("Acme Analytics");
+  await page.getByPlaceholder("Acme Inc").fill("Acme Analytics");
   await page.getByPlaceholder("Alex").fill("Demo Admin");
   await page.getByPlaceholder("you@company.com").fill(EMAIL);
   await page.locator('input[name="password"]').fill(PASSWORD);
