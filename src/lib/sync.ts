@@ -97,6 +97,7 @@ export async function upsertAdRows(db: DB, workspaceId: string, rows: AdDayRow[]
       impressions: r.impressions,
       clicks: r.clicks,
       platformConversions: r.conversions,
+      platformConversionValueMinor: r.conversionValueMinor ?? null,
     }));
     for (let i = 0; i < insightRows.length; i += 500) {
       await tx
@@ -110,6 +111,7 @@ export async function upsertAdRows(db: DB, workspaceId: string, rows: AdDayRow[]
             impressions: sql`excluded.impressions`,
             clicks: sql`excluded.clicks`,
             platformConversions: sql`excluded.platform_conversions`,
+            platformConversionValueMinor: sql`excluded.platform_conversion_value_minor`,
             campaignId: sql`excluded.campaign_id`,
             adGroupId: sql`excluded.ad_group_id`,
           },

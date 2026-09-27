@@ -1,4 +1,4 @@
-import { adDayMetrics, dateRange, demoAdsFor } from "../demo/world";
+import { adDayMetrics, dateRange, demoAdsFor, platformClaim } from "../demo/world";
 import { currencyExponent, fromDecimalString, fromMicros } from "../money";
 import type { AdDayRow, AdsConnector, ConnectionLike, DateWindow } from "./types";
 
@@ -26,7 +26,21 @@ export type MetaInsightRow = {
   impressions?: string;
   clicks?: string;
   actions?: { action_type: string; value: string }[];
+  action_values?: { action_type: string; value: string }[];
 };
+
+/** Purchase value aliases, most inclusive first. They describe the same purchases, so only one is used. */
+const PURCHASE_VALUE_ACTIONS = ["omni_purchase", "purchase", "offsite_conversion.fb_pixel_purchase", "onsite_web_purchase"];
+
+/** Meta's claimed purchase value in minor units; null when the row carries no action_values at all. */
+function metaPurchaseValue(values: MetaInsightRow["action_values"], currency: string): number | null {
+  if (!values) return null;
+  for (const type of PURCHASE_VALUE_ACTIONS) {
+    const hit = values.find((v) => v.action_type === type);
+    if (hit) return fromDecimalString(hit.value || "0", currency);
+  }
+  return 0;
+}
 
 const LEAD_ACTIONS = new Set(["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead", "complete_registration", "purchase", "offsite_conversion.fb_pixel_purchase"]);
 
@@ -52,6 +66,7 @@ export function parseMetaInsights(
       impressions: Number(r.impressions ?? 0),
       clicks: Number(r.clicks ?? 0),
       conversions: conv.toFixed(2),
+      conversionValueMinor: metaPurchaseValue(r.action_values, currency),
     };
   });
 }
@@ -96,7 +111,7 @@ async function fetchMetaLive(conn: Connection, window: DateWindow): Promise<AdDa
       level: "ad",
       time_increment: "1",
       time_range: JSON.stringify({ since: window.since, until: window.until }),
-      fields: "account_currency,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions",
+      fields: "account_currency,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,action_values",
       use_unified_attribution_setting: "true",
       limit: "500",
     })}`;
@@ -116,6 +131,7 @@ export function mockMetaInsights(window: DateWindow, currency: string): { accoun
   for (const date of dateRange(window.since, window.until)) {
     for (const ad of ads) {
       const m = adDayMetrics(ad, date, currency);
+      const claim = platformClaim(ad, date, currency);
       const acc = byAccount.get(ad.account.externalId) ?? {
         account: { externalId: ad.account.externalId, name: ad.account.name, currency, timezone: ad.account.timezone },
         rows: [],
@@ -132,7 +148,11 @@ export function mockMetaInsights(window: DateWindow, currency: string): { accoun
         spend: m.spend.toFixed(currencyExponent(currency)),
         impressions: String(m.impressions),
         clicks: String(m.clicks),
-        actions: m.conversions > 0 ? [{ action_type: "lead", value: String(m.conversions) }] : [],
+        actions: [
+          ...(claim.leads > 0 ? [{ action_type: "lead", value: String(claim.leads) }] : []),
+          ...(claim.purchases > 0 ? [{ action_type: "purchase", value: String(claim.purchases) }] : []),
+        ],
+        action_values: claim.purchases > 0 ? [{ action_type: "purchase", value: claim.value.toFixed(currencyExponent(currency)) }] : [],
       });
       byAccount.set(ad.account.externalId, acc);
     }
@@ -148,8 +168,23 @@ export type GoogleAdsResult = {
   adGroup: { id: string; name: string; status?: string };
   adGroupAd: { ad: { id: string; name?: string }; status?: string };
   segments: { date: string };
-  metrics: { costMicros?: string | number; impressions?: string | number; clicks?: string | number; conversions?: string | number };
+  metrics: {
+    costMicros?: string | number;
+    impressions?: string | number;
+    clicks?: string | number;
+    conversions?: string | number;
+    conversionsValue?: string | number;
+  };
 };
+
+/** Google's conversionsValue (a double in account currency) to minor units; null when absent. */
+function googleValue(v: string | number | undefined, currency: string): number | null {
+  if (v === undefined || v === null || v === "") return null;
+  const s = String(v);
+  if (/^-?\d*\.?\d+$/.test(s)) return fromDecimalString(s, currency);
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 10 ** currencyExponent(currency)) : null;
+}
 
 export function parseGoogleAdsStream(batches: { results?: GoogleAdsResult[] }[], customerId: string): AdDayRow[] {
   const out: AdDayRow[] = [];
@@ -172,6 +207,7 @@ export function parseGoogleAdsStream(batches: { results?: GoogleAdsResult[] }[],
         impressions: Number(r.metrics.impressions ?? 0),
         clicks: Number(r.metrics.clicks ?? 0),
         conversions: Number(r.metrics.conversions ?? 0).toFixed(2),
+        conversionValueMinor: googleValue(r.metrics.conversionsValue, currency),
       });
     }
   }
@@ -183,7 +219,8 @@ export function googleAdsQuery(window: DateWindow): string {
   campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type,
   ad_group.id, ad_group.name, ad_group.status,
   ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.status,
-  segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions
+  segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions,
+  metrics.conversions_value
 FROM ad_group_ad
 WHERE segments.date BETWEEN '${window.since}' AND '${window.until}'`;
 }
@@ -239,6 +276,7 @@ export function mockGoogleStream(window: DateWindow, currency: string): { custom
   for (const date of dateRange(window.since, window.until)) {
     for (const ad of ads) {
       const m = adDayMetrics(ad, date, currency);
+      const claim = platformClaim(ad, date, currency);
       results.push({
         customer: { id: ad.account.externalId, currencyCode: currency, descriptiveName: ad.account.name, timeZone: ad.account.timezone },
         campaign: { id: ad.campaign.externalId, name: ad.campaign.name, status: "ENABLED", advertisingChannelType: ad.campaign.objective },
@@ -249,7 +287,8 @@ export function mockGoogleStream(window: DateWindow, currency: string): { custom
           costMicros: String(Math.round(m.spend * 1_000_000)),
           impressions: String(m.impressions),
           clicks: String(m.clicks),
-          conversions: m.conversions,
+          conversions: Math.round((claim.leads + claim.purchases) * 100) / 100,
+          conversionsValue: claim.value,
         },
       });
     }

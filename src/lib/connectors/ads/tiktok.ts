@@ -1,4 +1,4 @@
-import { adDayMetrics, dateRange, demoAdsFor } from "../../demo/world";
+import { adDayMetrics, dateRange, demoAdsFor, platformClaim } from "../../demo/world";
 import { currencyExponent, fromDecimalString } from "../../money";
 import { safeFetch } from "../../net";
 import type { AdDayRow, AdsConnector, ConnectionLike, DateWindow } from "../types";
@@ -7,7 +7,8 @@ import type { AdDayRow, AdsConnector, ConnectionLike, DateWindow } from "../type
 // Docs: https://business-api.tiktok.com/portal/docs (Reporting → Synchronous reports)
 
 export const TIKTOK_API_VERSION = "v1.3";
-const METRICS = ["spend", "impressions", "clicks", "conversion", "campaign_id", "campaign_name", "adgroup_id", "adgroup_name", "ad_name", "objective_type"];
+// total_complete_payment_rate is TikTok's (oddly named) total value of "Complete payment" events.
+const METRICS = ["spend", "impressions", "clicks", "conversion", "total_complete_payment_rate", "campaign_id", "campaign_name", "adgroup_id", "adgroup_name", "ad_name", "objective_type"];
 const MAX_DAYS = 30; // stat_time_day reports accept at most 30 days per request
 
 export type TikTokReportRow = {
@@ -17,6 +18,7 @@ export type TikTokReportRow = {
     impressions?: string;
     clicks?: string;
     conversion?: string;
+    total_complete_payment_rate?: string;
     campaign_id?: string;
     campaign_name?: string;
     adgroup_id?: string;
@@ -58,6 +60,8 @@ export function parseTikTokReport(rows: TikTokReportRow[], account: Account): Ad
       impressions: num(m.impressions),
       clicks: num(m.clicks),
       conversions: num(m.conversion).toFixed(2),
+      conversionValueMinor:
+        m.total_complete_payment_rate === undefined ? null : fromDecimalString(decimal(m.total_complete_payment_rate), account.currency),
     };
   });
 }
@@ -162,13 +166,15 @@ export function mockTikTokReport(window: DateWindow, currency: string): { accoun
   for (const date of dateRange(window.since, window.until)) {
     for (const ad of ads) {
       const m = adDayMetrics(ad, date, currency);
+      const claim = platformClaim(ad, date, currency);
       list.push({
         dimensions: { ad_id: ad.ad.externalId, stat_time_day: `${date} 00:00:00` },
         metrics: {
           spend: m.spend.toFixed(currencyExponent(currency)),
           impressions: String(m.impressions),
           clicks: String(m.clicks),
-          conversion: String(m.conversions),
+          conversion: String(Math.round((claim.leads + claim.purchases) * 100) / 100),
+          total_complete_payment_rate: claim.value.toFixed(currencyExponent(currency)),
           campaign_id: ad.campaign.externalId,
           campaign_name: ad.campaign.name,
           adgroup_id: ad.group.externalId,

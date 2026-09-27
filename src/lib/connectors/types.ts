@@ -30,6 +30,8 @@ export type AdDayRow = {
   impressions: number;
   clicks: number;
   conversions: string; // decimal string, platform-reported conversions
+  /** Purchase value the platform claims, minor units of the account currency. null/absent = not reported. */
+  conversionValueMinor?: number | null;
 };
 
 /** What a connector receives: non-secret config + decrypted secrets from Settings. */

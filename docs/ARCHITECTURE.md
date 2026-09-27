@@ -109,7 +109,8 @@ token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace),
 `secrets_enc` AES-256-GCM, last_synced_at, last_error), `app_meta` (generated app secret).
 
 **Ads** — `ad_accounts`, `campaigns`, `ad_groups`, `ads`, `ad_insights_daily`
-(unique `(workspace_id, platform, ad_id, date)`, idempotent upserts), `sync_runs`.
+(unique `(workspace_id, platform, ad_id, date)`, idempotent upserts; `platform_conversions` and
+`platform_conversion_value_minor` keep what the platform itself claims, null value = not reported), `sync_runs`.
 
 **First-party tracking** — `visitors` (anonymous_id, contact_id, consent granted|denied|unknown, gpc), `events` (raw, append-only,
 PII-redacted properties, truncated IP), `touchpoints` (UTMs, click id, fbp/fbc, channel,
@@ -440,6 +441,31 @@ client-safe constants); `src/lib/reports-pipeline.ts` holds every pipeline numbe
   history) is at or past it; lost stages count current members. `stageFunnel` (cohort = contacts first seen in
   the period) and `costPerStage` (spend of the campaign / ad set / ad in the period ÷ its first-touch contacts
   that reached each stage) power `/pipeline?view=funnel` and the read-only MCP tool `contact_stage_funnel`.
+**Money truth (receipts, truth gap, profit, time to money).** All SQL in `src/lib/reports-profit.ts`
+and `src/lib/reports-trust.ts`; pages `/receipts`, `/receipts/[paymentId]`, `/truth`, `/profit`,
+`/profit/time-to-money`, `/settings/workspace/profit`; REST `/api/v1/receipts/{id}`,
+`/api/v1/money/{report}`, `/api/v1/exports/pause-drafts`; MCP `get_ad_receipt`.
+- *Ad receipts.* A payment's "earned by" lines are its `attribution_credits` rows (they sum to the amount
+  under every model). A customer's acquisition cost comes from their credited paid touches on the
+  `customer` conversion, priced from `ad_insights_daily` with `money.allocate()` so every ad-day's spend
+  splits exactly: **share** (default) shares each ad's spend in a calendar month between the customers
+  credited to it that month, by credit; **clicks** gives a customer `credit` × that day's cost per click
+  and leaves unsold clicks unallocated. Either way customer costs + unallocated = spend to the minor unit
+  (tested on demo data), and a contact's receipt equals the ledger over whole months. Payback is when
+  cumulative net revenue (reporting currency) crossed the cost and stayed above it.
+- *Truth gap.* Platform-reported conversions / purchase value vs *verified* numbers: leads, first
+  purchases and net revenue from buyers who clicked the platform at least once in the window (from the
+  linear model's rows, i.e. every eligible touch), plus credited revenue under the selected model.
+- *Profit ledger.* Unit economics (cost of goods %, payment fee % + fixed, shipping per order) are a
+  `connections` row with provider `unit_economics`, like retention, stored as basis points / minor units.
+  Contribution = net − COGS − fees − shipping, each line rounded in SQL; POAS = contribution ÷ spend;
+  break-even ROAS = 1 ÷ margin. Per platform / campaign / ad from credited revenue, with repeat and
+  refund rates of the credited customers.
+- *Time to money.* Median / p80 days from a buyer's first click on a campaign to their first payment
+  (180-day lookback). A campaign younger than its p80 (its own with ≥ 5 buyers, else the workspace's,
+  else 7 days) is "too early": `isTooEarly()` for alerts and Insights. Pause drafts (spend ≥ 2% of the
+  period, POAS or ROAS < 0.5, old enough, still running) export as Meta / Google Ads Editor bulk CSVs;
+  nothing is ever written to a platform.
 
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
@@ -625,6 +651,11 @@ The look is specified in `docs/redesign/BRIEF.md` §2 and lives in one place:
   managed Postgres won't grant, which would break "migrations apply at startup". Searches filter on
   `workspace_id` first and stop at 5 rows per kind, which stays fast into the hundreds of thousands of
   contacts; revisit with an optional trigram index if a workspace outgrows that.
+- **2026-09-27 — customer cost as a share of spend by default.** The addendum defined a customer's cost
+  as credit × cost per click. On real data that prices a customer at one click (a few dollars) and leaves
+  ~99% of spend "unallocated", so payback is always day one. Receipts therefore default to sharing each
+  ad's monthly spend between the customers it brought (a per-ad CAC that reconciles), and keep the
+  click-level cost as the "Clicks only" view. Both use `allocate()` so the equation holds either way.
 - **LTV attribution for repeat payments.** Renewals credit the acquiring journey instead of
   becoming “unattributed” once the window has passed.
 - **2026-09-27 — Overview as a widget board on CSS grid spans.** Layouts are fixed size presets on a

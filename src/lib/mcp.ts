@@ -7,7 +7,6 @@ import { AD_PLATFORMS } from "./connectors/types";
 import { templateReport } from "./ai/report";
 import { getDb, rows, schema } from "./db";
 import { formatMoney } from "./money";
-import { storedStages } from "./pipeline";
 import {
   compare,
   dataBounds,
@@ -22,7 +21,9 @@ import {
   wastedSpend,
   type ReportParams,
 } from "./reports";
+import { storedStages } from "./pipeline";
 import { stageFunnel } from "./reports-pipeline";
+import { contactReceipt, paymentReceipt, type ContactReceipt, type EarnedLine } from "./reports-profit";
 import type { Workspace } from "./settings";
 
 // Read-only MCP server. Every tool only reads through lib/reports (no writes).
@@ -62,6 +63,7 @@ export const MCP_TOOL_NAMES = [
   "get_timeseries",
   "search_campaigns",
   "contact_stage_funnel",
+  "get_ad_receipt",
 ] as const;
 
 const DAY_MS = 86_400_000;
@@ -512,6 +514,69 @@ export function buildMcpHandler(ws: Workspace) {
                 const r = perf.get(c.id);
                 return `- ${c.id} · ${c.name} (${c.platform}${c.status ? `, ${c.status}` : ""}) · spend ${money(r?.spendMinor ?? 0)} · revenue ${money(r?.revenueMinor ?? 0)} · ROAS ${x(r?.roas ?? null)} · leads ${r?.leads ?? 0} · customers ${r?.customers ?? 0}`;
               }),
+            ].join("\n"),
+          );
+        },
+      );
+      server.registerTool(
+        "get_ad_receipt",
+        {
+          title: "Ad receipt",
+          description:
+            "The receipt of one payment (paymentId) or one customer (contactId): which ads earned the money (credit shares that sum to the amount), what acquiring the customer cost in ad spend, and when they paid it back. Email is masked.",
+          inputSchema: z.object({
+            paymentId: z.string().uuid().optional().describe("A payment or refund id (revenue event)."),
+            contactId: z.string().uuid().optional().describe("A contact id, e.g. from list_contacts."),
+            model: period.model,
+            cost: z
+              .enum(["share", "clicks"])
+              .optional()
+              .describe("share (default): each ad's monthly spend shared by the customers it brought. clicks: only the customer's own clicks."),
+          }),
+          annotations: ro,
+        },
+        async (args) => {
+          if (!args.paymentId && !args.contactId) return text("Pass a paymentId or a contactId.");
+          const db = await getDb();
+          const model = args.model ?? "linear";
+          const basis = args.cost ?? "share";
+          const earned = (l: EarnedLine) =>
+            `- ${l.adName ?? l.campaignName ?? (l.touchpointId ? (l.channel ?? "unknown channel") : "no tracked touch")}${l.platform ? ` (${l.platform})` : ""}${l.adName && l.campaignName ? ` in ${l.campaignName}` : ""}: ${(l.credit * 100).toFixed(1)}% · ${money(l.revenueMinor)}`;
+          const customer = (c: ContactReceipt) => [
+            `Customer ${c.contact.name ?? "(no name)"} · ${c.contact.email ?? "(no email)"} · ${c.lifetime.payments} payment(s), lifetime net ${money(c.lifetime.netMinor)}`,
+            `Acquisition cost (${basis === "share" ? "share of each ad's monthly spend" : "own clicks only"}): ${money(c.costMinor)}`,
+            ...c.costLines.map(
+              (l) => `- ${l.adName ?? "unknown ad"}${l.platform ? ` (${l.platform})` : ""}, clicked ${l.day}, credit ${l.credit}: ${money(l.costMinor)}`,
+            ),
+            c.payback.status === "paid_back"
+              ? `Payback: paid back on ${c.payback.at?.slice(0, 10)} (${c.payback.days} days after the first paid click)`
+              : c.payback.status === "not_yet"
+                ? `Payback: not yet, ${money(c.payback.remainingMinor)} still to earn back`
+                : "Payback: no ad cost to earn back",
+            ...(c.profit ? [`Contribution to date ${money(c.profit.contributionMinor)} · profit after ad cost ${money(c.profit.profitMinor)}`] : []),
+          ];
+          if (args.paymentId) {
+            const r = await paymentReceipt(db, ws, args.paymentId, model, { basis });
+            if (!r) return text("Payment not found.");
+            return text(
+              [
+                `Receipt · ${r.payment.type} ${formatMoney(r.payment.amountMinor, r.payment.currency)} on ${r.payment.at} (UTC) via ${r.payment.source} · attribution model ${model}`,
+                "Earned by:",
+                ...(r.earnedBy.length ? r.earnedBy.map(earned) : ["- no credit recorded yet"]),
+                "",
+                ...(r.contact ? customer(r.contact) : ["No contact matched this payment."]),
+              ].join("\n"),
+            );
+          }
+          const c = await contactReceipt(db, ws, args.contactId!, model, { basis });
+          if (!c) return text("Contact not found.");
+          return text(
+            [
+              `Receipt · currency ${ws.reportingCurrency} · attribution model ${model}`,
+              ...customer(c),
+              "",
+              "Lifetime revenue earned by:",
+              ...(c.earnedBy.length ? c.earnedBy.map(earned) : ["- no payments yet"]),
             ].join("\n"),
           );
         },
