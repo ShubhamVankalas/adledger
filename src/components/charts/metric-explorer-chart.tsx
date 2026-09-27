@@ -43,6 +43,8 @@ export function MetricExplorerChart({ data, metric, currency, compare = true }: 
           tickCount={5}
           fontSize={11}
           domain={[0, "auto"]}
+          // Refund-heavy days make net revenue dip below zero; keep the axis at 0 (the tooltip shows the true value).
+          allowDataOverflow
           allowDecimals={def.format !== "count"}
           tickFormatter={(v: number) => formatAxis(metric, v, currency)}
         />
