@@ -2,12 +2,21 @@ import vm from "node:vm";
 import { gzipSync } from "node:zlib";
 import { and, eq } from "drizzle-orm";
 import { buildSync } from "esbuild";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { schema, type DB } from "@/lib/db";
 import type { Workspace } from "@/lib/settings";
 import { collectSchema, processCollect, type CollectPayload } from "@/lib/tracking/collect";
-import { hashEmail } from "@/lib/crypto";
+import { BANNER_SNIPPETS, isConsentMode } from "@/lib/tracking/consent-modes";
+import { hashEmail, sha256 } from "@/lib/crypto";
 import { setupWorkspace } from "./helpers";
+
+// Server actions read the session cookie through next/headers.
+const session = vi.hoisted(() => ({ token: undefined as string | undefined }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name: string) => (session.token ? { name, value: session.token } : undefined), set: () => undefined, delete: () => undefined }),
+  headers: async () => new Headers(),
+}));
+vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
 // The pixel runs in a bare sandbox that records every cookie write, storage write and beacon, so
 // "sends nothing / stores nothing before consent" is checked on the real bundle.
@@ -169,11 +178,14 @@ describe("pixel consent modes", () => {
 describe("collect stores consent signals", () => {
   let db: DB;
   let ws: Workspace;
+  let orgId: string;
   const ctx = { origin: "https://shop.test", userAgent: "Mozilla/5.0", ip: "203.0.113.9" };
   const pv = (url = "https://shop.test/") => ({ t: "page_view" as const, url });
 
   beforeAll(async () => {
-    ({ db, ws } = await setupWorkspace());
+    let org: { id: string };
+    ({ db, ws, org } = await setupWorkspace());
+    orgId = org.id;
     await db.insert(schema.pixelSites).values([
       { workspaceId: ws.id, name: "US", publicKey: "pk_optout_000001" },
       { workspaceId: ws.id, name: "EU", publicKey: "pk_strict_000001", consentMode: "required" },
@@ -215,6 +227,42 @@ describe("collect stores consent signals", () => {
     expect(await visitor("visitor-eu-01")).toBeUndefined();
     await processCollect(db, collectSchema.parse({ site: "pk_strict_000001", vid: "visitor-eu-01", consent: "granted", events: [pv()] }), ctx);
     expect(await visitor("visitor-eu-01")).toMatchObject({ consent: "granted" });
+  });
+
+  it("setPixelConsentModeAction: admins only, validated, audited, scoped to the workspace", async () => {
+    const { setPixelConsentModeAction } = await import("@/app/actions/tracking");
+    const member = async (role: "owner" | "admin" | "analyst" | "viewer") => {
+      const [user] = await db.insert(schema.users).values({ email: `${role}-${Math.random().toString(36).slice(2, 8)}@team.test`, passwordHash: "x" }).returning();
+      await db.insert(schema.memberships).values({ organizationId: orgId, userId: user.id, role });
+      const token = `tok_${role}_${Math.random().toString(36).slice(2)}`;
+      await db.insert(schema.sessions).values({ userId: user.id, workspaceId: ws.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 86_400_000) });
+      return token;
+    };
+    const [site] = await db.select().from(schema.pixelSites).where(eq(schema.pixelSites.publicKey, "pk_optout_000001"));
+    const modeOf = async () => (await db.select().from(schema.pixelSites).where(eq(schema.pixelSites.id, site.id)))[0].consentMode;
+
+    session.token = await member("analyst");
+    expect(await setPixelConsentModeAction(site.id, "cookieless")).toMatchObject({ ok: false });
+    expect(await modeOf()).toBe("optout");
+
+    session.token = await member("admin");
+    expect(await setPixelConsentModeAction(site.id, "strict")).toMatchObject({ ok: false });
+    expect(await setPixelConsentModeAction("00000000-0000-4000-8000-000000000000", "cookieless")).toMatchObject({ ok: false });
+    expect(await setPixelConsentModeAction(site.id, "cookieless")).toMatchObject({ ok: true });
+    expect(await modeOf()).toBe("cookieless");
+    const logged = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.workspaceId, ws.id), eq(schema.auditLog.action, "pixel_site.consent_mode")));
+    expect(logged[0]).toMatchObject({ target: "US", meta: { mode: "cookieless" } });
+
+    expect(await setPixelConsentModeAction(site.id, "optout")).toMatchObject({ ok: true });
+    session.token = undefined;
+  });
+
+  it("offers banner glue that only ever calls adledger.consent", () => {
+    expect(BANNER_SNIPPETS.map((b) => b.name)).toEqual(["Cookiebot", "CookieYes", "Osano", "Klaro", "Consent Mode v2", "Other"]);
+    for (const b of BANNER_SNIPPETS) expect(b.code).toContain("adledger.consent(");
+    expect(isConsentMode("required")).toBe(true);
+    expect(isConsentMode("strict")).toBe(false);
+    expect(isConsentMode(undefined)).toBe(false);
   });
 
   it("classifies a ChatGPT referral as the AI assistants channel", async () => {

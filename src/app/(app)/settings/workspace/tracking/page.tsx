@@ -23,7 +23,7 @@ export default async function TrackingPage() {
       />
       <TrackingSection
         origin={origin}
-        sites={sites.map((s) => ({ id: s.id, name: s.name, domains: s.domains, publicKey: s.publicKey }))}
+        sites={sites.map((s) => ({ id: s.id, name: s.name, domains: s.domains, publicKey: s.publicKey, consentMode: s.consentMode }))}
         hooks={hooks.map((h) => ({ id: h.id, name: h.name, token: h.token }))}
       />
     </>
