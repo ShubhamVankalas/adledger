@@ -38,7 +38,7 @@ export default async function ContactPage({ params, searchParams }: PageProps<"/
     <>
       <PageHeader title={name} breadcrumbs={[{ href: "/contacts", label: "Contacts" }]}>
         <RecordPager id={id} />
-        <ContactPrivacyActions contactId={id} label={name} canExport={user.can("reports.export")} canDelete={user.can("workspace.data")} />
+        <ContactPrivacyActions contactId={id} label={name} canExport={user.can("export.contacts")} canDelete={user.can("workspace.data")} />
       </PageHeader>
       <PageBody>
         <RecordView

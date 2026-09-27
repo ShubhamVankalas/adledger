@@ -1,5 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
-import { displayEmail, type ContactViewer } from "./contact-display";
+import { screenEmail, type ContactViewer } from "./contact-display";
 import {
   ADDED_RANGES,
   type ContactGroupTotals,
@@ -296,7 +296,7 @@ export async function listContactsPage(db: DB, ws: Workspace, q: ResolvedQuery, 
     rows: page.map((r) => ({
       id: String(r.id),
       name: (r.name as string) ?? null,
-      email: displayEmail(r.email as string | null, viewer),
+      email: screenEmail(r.email as string | null),
       lifecycle: r.lifecycle as Lifecycle,
       firstSeenAt: iso(r.first_seen_at)!,
       ownerUserId: (r.owner_user_id as string) ?? null,
@@ -421,7 +421,8 @@ export async function contactNotes(db: DB, ws: Workspace, contactId: string): Pr
   }));
 }
 
-function toTask(r: Record<string, string | null>, viewer: ContactViewer): TaskRow {
+/** Task contacts show a masked email on screen (see screenEmail). */
+function toTask(r: Record<string, string | null>): TaskRow {
   return {
     id: r.id!,
     title: r.title!,
@@ -429,7 +430,7 @@ function toTask(r: Record<string, string | null>, viewer: ContactViewer): TaskRo
     doneAt: iso(r.done_at),
     createdAt: iso(r.created_at)!,
     assigneeUserId: r.assignee_user_id,
-    contact: r.contact_id ? { id: r.contact_id, name: r.contact_name, email: displayEmail(r.contact_email, viewer) } : null,
+    contact: r.contact_id ? { id: r.contact_id, name: r.contact_name, email: screenEmail(r.contact_email) } : null,
   };
 }
 
@@ -437,20 +438,20 @@ const taskSelect = sql`select t.id, t.title, t.due_at, t.done_at, t.created_at, 
   t.contact_id, c.name contact_name, c.email contact_email
   from tasks t left join contacts c on c.id = t.contact_id`;
 
-export async function contactTasks(db: DB, ws: Workspace, contactId: string, viewer: ContactViewer): Promise<TaskRow[]> {
+export async function contactTasks(db: DB, ws: Workspace, contactId: string): Promise<TaskRow[]> {
   return rows<Record<string, string | null>>(
     await db.execute(sql`${taskSelect} where t.workspace_id = ${ws.id} and t.contact_id = ${contactId}::uuid
       order by t.done_at is not null, t.due_at nulls last, t.created_at desc`),
-  ).map((r) => toTask(r, viewer));
+  ).map((r) => toTask(r));
 }
 
 /** Open tasks assigned to the user plus the ones they finished in the last 14 days. */
-export async function myTasks(db: DB, ws: Workspace, userId: string, viewer: ContactViewer): Promise<TaskRow[]> {
+export async function myTasks(db: DB, ws: Workspace, userId: string): Promise<TaskRow[]> {
   return rows<Record<string, string | null>>(
     await db.execute(sql`${taskSelect} where t.workspace_id = ${ws.id} and t.assignee_user_id = ${userId}::uuid
       and (t.done_at is null or t.done_at > now() - interval '14 days')
       order by t.done_at is not null, t.due_at nulls last, t.created_at desc limit 500`),
-  ).map((r) => toTask(r, viewer));
+  ).map((r) => toTask(r));
 }
 
 /** Open tasks assigned to the user that are past due (the sidebar badge). */
@@ -510,7 +511,7 @@ export async function contactRecord(
       where v.contact_id = ${contactId}::uuid and e.workspace_id = ${ws.id} and e.type in ('page_view', 'custom')
       order by e.occurred_at desc limit ${PAGE_VIEW_CAP + 1}`),
     opts.withNotes ? contactNotes(db, ws, contactId) : Promise.resolve(null),
-    opts.withNotes ? contactTasks(db, ws, contactId, viewer) : Promise.resolve(null),
+    opts.withNotes ? contactTasks(db, ws, contactId) : Promise.resolve(null),
   ]);
   const stat = rows<Record<string, string | number | null>>(statRows)[0];
   const views = rows<{ type: string; name: string | null; url: string | null; occurred_at: string }>(viewRows);
@@ -541,7 +542,7 @@ export async function contactRecord(
     contact: {
       id: j.contact.id,
       name: j.contact.name,
-      email: displayEmail(j.contact.email, viewer),
+      email: screenEmail(j.contact.email),
       lifecycle: j.contact.lifecycle as Lifecycle,
       firstSeenAt: j.contact.firstSeenAt,
       ownerUserId: base?.owner_user_id ?? null,
@@ -579,9 +580,10 @@ export function crmAbilities(user: { role: string; can: (p: Permission) => boole
     edit: user.can("contacts.edit"),
     notes: user.can("contacts.notes"),
     moderate: user.role === "owner" || user.role === "admin",
-    // TODO(integration): switch to the security slice's `contacts.export` permission once merged.
-    export: user.can("reports.export"),
+    // Contact CSV: export.csv; raw emails in it additionally need export.contacts (masked otherwise).
+    export: user.can("export.csv"),
     delete: user.can("workspace.data"),
+    pii: user.can("contacts.pii"),
   };
 }
 

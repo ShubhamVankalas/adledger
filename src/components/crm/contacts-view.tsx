@@ -32,6 +32,7 @@ import { ContactAvatar } from "./contact-avatar";
 import { Engagement } from "./contact-panel";
 import { ContactPeek } from "./contact-peek";
 import { DisplayMenu, FilterChips, FilterMenu, SearchBox, ViewTabs, type FilterField } from "./contacts-toolbar";
+import { Email, RevealProvider, RevealToggle } from "./reveal";
 import { contactName, relative, shortDay, touchSource } from "./crm-format";
 import { LifecycleBadge, OwnerChip, TagList } from "./properties";
 
@@ -188,6 +189,7 @@ export function ContactsView(p: Props) {
   };
 
   return (
+    <RevealProvider ids={rows.map((r) => r.id)} canReveal={abilities.pii}>
     <div className="@container space-y-3">
       {/* Views + search, filter, display */}
       <div className="flex flex-col gap-2 @3xl:flex-row @3xl:items-center @3xl:justify-between">
@@ -207,6 +209,7 @@ export function ContactsView(p: Props) {
             onFieldChange={setFilterField}
           />
           <DisplayMenu query={query} navigate={navigate} />
+          <RevealToggle compact className="h-8" />
         </div>
       </div>
 
@@ -370,6 +373,7 @@ export function ContactsView(p: Props) {
         now={now}
       />
     </div>
+    </RevealProvider>
   );
 }
 
@@ -428,12 +432,8 @@ function NameCell({ row: r, onOpen, onNavigate, currency, showRevenue }: { row: 
           }}
           className="block min-w-0 truncate rounded-sm font-medium outline-none focus-visible:outline-2 focus-visible:outline-ring"
         >
-          {r.name?.trim() || r.email || "Anonymous contact"}
-          {r.name?.trim() && r.email ? (
-            <span className="ml-1.5 hidden font-normal text-muted-foreground @5xl:inline" translate="no">
-              {r.email}
-            </span>
-          ) : null}
+          {r.name?.trim() || (r.email ? <Email id={r.id} masked={r.email} /> : "Anonymous contact")}
+          {r.name?.trim() && r.email ? <Email id={r.id} masked={r.email} className="ml-1.5 hidden font-normal text-muted-foreground @5xl:inline" /> : null}
         </Link>
         {/* Narrow screens: the hidden columns fold into one line under the name. */}
         <div className="flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground @3xl:hidden">

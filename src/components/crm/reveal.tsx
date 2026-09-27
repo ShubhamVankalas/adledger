@@ -31,6 +31,11 @@ export function RevealProvider({ ids, canReveal, children }: { ids: string[]; ca
   return <RevealContext value={{ emails, pending, toggle, canReveal }}>{children}</RevealContext>;
 }
 
+/** The revealed address for one contact, or null while it is masked. */
+export function useRevealedEmail(id: string): string | null {
+  return use(RevealContext).emails?.[id] ?? null;
+}
+
 /** A contact's email: masked, or the real address once revealed. */
 export function Email({ id, masked, className }: { id: string; masked: string; className?: string }) {
   const { emails } = use(RevealContext);

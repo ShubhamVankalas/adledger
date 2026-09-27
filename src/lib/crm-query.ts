@@ -267,6 +267,8 @@ export type CrmAbilities = {
   export: boolean;
   /** Erase contacts (workspace.data). */
   delete: boolean;
+  /** Reveal masked contact emails on screen, audited (contacts.pii). */
+  pii: boolean;
 };
 
 export type TaskRow = {

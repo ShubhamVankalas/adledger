@@ -24,6 +24,7 @@ import { ContactAvatar } from "./contact-avatar";
 import { fullDate, relative } from "./crm-format";
 import { NotesSection } from "./notes";
 import { LifecyclePicker, memberName, OwnerPicker, TagEditor } from "./properties";
+import { Email, RevealProvider, RevealToggle, useRevealedEmail } from "./reveal";
 import { runAction } from "./run-action";
 import { TaskComposer, TaskItem, useTaskList } from "./tasks";
 import { Timeline } from "./timeline";
@@ -138,7 +139,11 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
         <div className="min-w-0 flex-1 space-y-1">
           <NameField name={props.name} fallback={c.email ?? "Anonymous contact"} editable={abilities.edit} onSave={rename} large={!peek} />
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-muted-foreground">
-            {c.email ? <EmailLine email={c.email} /> : null}
+            {c.email ? (
+              <RevealProvider ids={[c.id]} canReveal={abilities.pii}>
+                <EmailLine id={c.id} email={c.email} />
+              </RevealProvider>
+            ) : null}
             <span className="text-caption">
               {h.convertedAt
                 ? `Customer since ${fullDate(h.convertedAt, tz)}`
@@ -348,21 +353,24 @@ export function Engagement({ score, compact }: { score: number; compact?: boolea
   );
 }
 
-function EmailLine({ email }: { email: string }) {
+/** The (masked) email with "Show email" for contacts.pii holders; copy appears once it is revealed. */
+function EmailLine({ id, email }: { id: string; email: string }) {
   const { copied, copy } = useCopy();
+  const real = useRevealedEmail(id);
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="truncate" translate="no">
-        {email}
-      </span>
-      <button
-        type="button"
-        onClick={() => void copy(email)}
-        aria-label={copied ? "Email copied" : "Copy email"}
-        className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-fill-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      >
-        {copied ? <CheckIcon aria-hidden className="size-3.5" /> : <CopyIcon aria-hidden className="size-3.5" />}
-      </button>
+      <Email id={id} masked={email} className="truncate" />
+      {real ? (
+        <button
+          type="button"
+          onClick={() => void copy(real)}
+          aria-label={copied ? "Email copied" : "Copy email"}
+          className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-faint transition-colors hover:bg-fill-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {copied ? <CheckIcon aria-hidden className="size-3.5" /> : <CopyIcon aria-hidden className="size-3.5" />}
+        </button>
+      ) : null}
+      <RevealToggle compact label="email" />
     </span>
   );
 }

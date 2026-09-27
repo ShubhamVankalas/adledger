@@ -191,10 +191,11 @@ describe("contacts table", () => {
     const page = await listContactsPage(db, ws, q({ q: "stranger" }), viewer);
     expect(page.rows).toEqual([]);
     const theirs = await listContactsPage(db, other, q(), viewer);
-    // No viewer (or one without contacts.pii) gets the masked email; a PII-capable viewer gets the raw one.
+    // The table always gets the masked email, even for contacts.pii holders: they reveal it on
+    // screen through the audited revealContactEmailsAction.
     expect(theirs.rows.map((r) => r.email)).toEqual(["s••••••@other.test"]);
     const piiViewer = { role: "owner" as const, can: () => true };
-    expect((await listContactsPage(db, other, q(), piiViewer)).rows.map((r) => r.email)).toEqual(["stranger@other.test"]);
+    expect((await listContactsPage(db, other, q(), piiViewer)).rows.map((r) => r.email)).toEqual(["s••••••@other.test"]);
     const [foreign] = await contactIds(other.id, 1);
     expect(await contactRecord(db, ws, foreign, viewer, { withNotes: true })).toBeNull();
   });
@@ -275,7 +276,7 @@ describe("CRM actions", () => {
     const later = await createTaskAction({ title: "Check in", dueAt: new Date(Date.now() + 3 * 86_400_000).toISOString() });
     expect(overdue.ok && later.ok).toBe(true);
     expect(await overdueTaskCount(db, ws, me.id)).toBe(1);
-    const mine = await myTasks(db, ws, me.id, viewer);
+    const mine = await myTasks(db, ws, me.id);
     expect(mine.map((t) => t.title)).toEqual(["Send proposal", "Check in"]);
     expect(mine[0].contact?.id).toBe(contact);
 
@@ -345,6 +346,11 @@ describe("CRM actions", () => {
     const csv = res.data!.csv as string;
     expect(csv.trim().split("\r\n")).toHaveLength(3);
     expect(csv).not.toMatch(/note/i);
+    // Analysts export with masked emails; raw ones need export.contacts (owners, admins).
+    for (const line of csv.trim().split("\r\n").slice(1)) {
+      const email = line.split(",")[1];
+      if (email) expect(email).toContain("•");
+    }
     session.token = undefined;
   });
 

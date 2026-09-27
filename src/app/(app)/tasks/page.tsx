@@ -11,7 +11,7 @@ export default async function TasksPage() {
   const user = await requireUser("contacts.notes");
   const ws = user.workspace;
   const db = await getDb();
-  const [tasks, members] = await Promise.all([myTasks(db, ws, user.id, user), crmMembers(db, ws)]);
+  const [tasks, members] = await Promise.all([myTasks(db, ws, user.id), crmMembers(db, ws)]);
   return (
     <>
       <PageHeader title="My tasks" description="Follow-ups assigned to you in this workspace" />

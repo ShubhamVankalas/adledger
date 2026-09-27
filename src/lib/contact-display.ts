@@ -5,6 +5,10 @@ import type { Permission } from "./permissions";
 // Every CRM surface (table, peek, record page, tasks) renders through these helpers, so
 // role-based masking (the `contacts.pii` permission) is wired here and nowhere else. Call them on
 // the server, before data reaches the browser, so a masked viewer never receives the raw value.
+//
+// On screen the CRM masks emails for everyone (`screenEmail`). Members with `contacts.pii` see the
+// real address only after "Show email", which asks revealContactEmailsAction (audited as
+// contact.pii_revealed); see src/components/crm/reveal.tsx.
 
 /** Who is looking. `can` is the session user's permission check (SessionUser.can). */
 export type ContactViewer = { role: Role; can: (permission: Permission) => boolean } | null;
@@ -25,6 +29,11 @@ function maskEmail(email: string): string {
 export function displayEmail(email: string | null | undefined, viewer: ContactViewer): string | null {
   if (!email) return null;
   return canSeeContactPii(viewer) ? email : maskEmail(email);
+}
+
+/** An email as the CRM screens show it before a reveal: always masked, whoever is looking. */
+export function screenEmail(email: string | null | undefined): string | null {
+  return displayEmail(email, null);
 }
 
 /** The phone number as the viewer may see it: raw with `contacts.pii`, otherwise only the last two digits. */
