@@ -237,6 +237,187 @@
         }
       }
     },
+    "/api/v1/money/{report}": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getMoneyReport",
+        "summary": "Run a money-truth report",
+        "description": "`truth-gap` → per platform and campaign: conversions and purchase value the platform reports next to verified conversions, verified revenue (payments from buyers who clicked) and credited revenue under `model` · `profit` → the P&L (gross sales, refunds, cost of goods, fees, shipping, contribution, ad spend, profit after ads, MER, POAS, break-even ROAS) plus profit and customer quality per `level` · `time-to-money` → payback lag (median / p80 days from first click to first payment) per campaign as of `end`, the \"too early to judge\" flag and the pause drafts for the period · `acquisition` → ad spend split into customer acquisition costs and an unallocated line (contact ids only, top 500).",
+        "parameters": [
+          {
+            "name": "report",
+            "in": "path",
+            "required": true,
+            "description": "Which report.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "truth-gap",
+                "profit",
+                "time-to-money",
+                "acquisition"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "description": "First day, YYYY-MM-DD (workspace timezone).",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "description": "Last day, inclusive, YYYY-MM-DD.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "linear"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "description": "Limit to one ad platform.",
+            "schema": {
+              "$ref": "#/components/schemas/Platform"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "description": "`profit` only: rows per platform, campaign or ad.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "campaign",
+                "ad"
+              ],
+              "default": "campaign"
+            }
+          },
+          {
+            "name": "cost",
+            "in": "query",
+            "required": false,
+            "description": "How a customer's acquisition cost is counted: `share` shares each ad's monthly spend between the customers it brought (by credit); `clicks` counts only their own clicks at that day's cost per click. Either way customer costs + unallocated = spend.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "share",
+                "clicks"
+              ],
+              "default": "share"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report data with the period, model, currency and timezone. Money in integer minor units.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/receipts/{paymentId}": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getAdReceipt",
+        "summary": "Get the ad receipt of a payment",
+        "description": "Which ads earned one payment or refund (credit shares whose amounts add up to the payment exactly), what the customer cost in ad spend, their payback date, lifetime revenue and (with unit economics set) profit. The contact's email is masked.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "description": "Revenue event id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "linear"
+            }
+          },
+          {
+            "name": "cost",
+            "in": "query",
+            "required": false,
+            "description": "How a customer's acquisition cost is counted: `share` shares each ad's monthly spend between the customers it brought (by credit); `clicks` counts only their own clicks at that day's cost per click. Either way customer costs + unallocated = spend.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "share",
+                "clicks"
+              ],
+              "default": "share"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The receipt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/v1/contacts": {
       "get": {
         "tags": [
@@ -658,6 +839,83 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/pause-drafts": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "exportPauseDraftsCsv",
+        "summary": "Export pause drafts as a bulk-edit CSV",
+        "description": "Campaigns with meaningful spend that returned under 0.5x (POAS once unit economics are set, else ROAS) and are old enough to judge, as a file to import in Meta Ads Manager (matches on Campaign ID) or Google Ads Editor (matches on campaign name). AdLedger never calls a platform's write API. API key, or a dashboard session with `reports.export`. Audited.",
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "query",
+            "required": true,
+            "description": "Which bulk-edit format.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "meta",
+                "google"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "description": "First day, YYYY-MM-DD (workspace timezone).",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "description": "Last day, inclusive, YYYY-MM-DD.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "linear"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"

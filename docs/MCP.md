@@ -47,6 +47,7 @@ Settings → Developer → Edit config:
 | `search_campaigns` | Fuzzy campaign-name search (`query`, tolerates partial words and typos) → ids + spend, revenue, ROAS, leads, customers |
 | `list_contacts` | Leads/customers (emails masked) |
 | `get_contact_journey` | Touchpoints, leads and payments for one contact + credit per model |
+| `get_ad_receipt` | The receipt of one payment (`paymentId`) or customer (`contactId`): which ads earned the money (shares that add up to the amount), what the customer cost in ad spend (`cost`: `share` of each ad's monthly spend, or own `clicks` only), payback date, profit when unit economics are set. Email masked |
 | `get_latest_insights` | The latest weekly insights report |
 | `get_sync_status` | Connection health, recent syncs, pixel activity |
 | `list_integrations` | Every connected integration with mode, health (`ok`, `stale` > 48 h, `never_synced`, `error`, `disabled`, `active` for push-only channels), last sync run and last error, plus pixel activity. Credentials are never read. |

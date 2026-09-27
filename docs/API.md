@@ -18,6 +18,8 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/health`](#get-apiv1health) | Health check | public |
 | GET | [`/api/v1/openapi.json`](#get-apiv1openapijson) | This OpenAPI document | public |
 | GET | [`/api/v1/reports/{report}`](#get-apiv1reportsreport) | Run a report | API key |
+| GET | [`/api/v1/money/{report}`](#get-apiv1moneyreport) | Run a money-truth report | API key |
+| GET | [`/api/v1/receipts/{paymentId}`](#get-apiv1receiptspaymentid) | Get the ad receipt of a payment | API key |
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
 | POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
@@ -25,6 +27,7 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/contacts/{id}/export`](#get-apiv1contactsidexport) | Export a contact | API key |
 | GET | [`/api/v1/exports/contacts`](#get-apiv1exportscontacts) | Export contacts as CSV | API key |
 | GET | [`/api/v1/exports/workspace`](#get-apiv1exportsworkspace) | Export the whole workspace | session |
+| GET | [`/api/v1/exports/pause-drafts`](#get-apiv1exportspause-drafts) | Export pause drafts as a bulk-edit CSV | API key |
 | POST | [`/api/v1/sync/{provider}`](#post-apiv1syncprovider) | Sync a connector now | API key |
 | POST | [`/api/v1/spend`](#post-apiv1spend) | Push ad spend | API key |
 | POST | [`/api/v1/conversions`](#post-apiv1conversions) | Push payments, refunds and leads | API key |
@@ -71,6 +74,69 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/money/{report}
+
+**Run a money-truth report.** `truth-gap` → per platform and campaign: conversions and purchase value the platform reports next to verified conversions, verified revenue (payments from buyers who clicked) and credited revenue under `model` · `profit` → the P&L (gross sales, refunds, cost of goods, fees, shipping, contribution, ad spend, profit after ads, MER, POAS, break-even ROAS) plus profit and customer quality per `level` · `time-to-money` → payback lag (median / p80 days from first click to first payment) per campaign as of `end`, the "too early to judge" flag and the pause drafts for the period · `acquisition` → ad spend split into customer acquisition costs and an unallocated line (contact ids only, top 500).
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `report` | path | `truth-gap`, `profit`, `time-to-money`, `acquisition` | yes | Which report. |
+| `start` | query | [Date](#date) | yes | First day, YYYY-MM-DD (workspace timezone). |
+| `end` | query | [Date](#date) | yes | Last day, inclusive, YYYY-MM-DD. |
+| `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"linear"`) |
+| `platform` | query | [Platform](#platform) | no | Limit to one ad platform. |
+| `level` | query | `platform`, `campaign`, `ad` | no | `profit` only: rows per platform, campaign or ad. (default `"campaign"`) |
+| `cost` | query | `share`, `clicks` | no | How a customer's acquisition cost is counted: `share` shares each ad's monthly spend between the customers it brought (by credit); `clicks` counts only their own clicks at that day's cost per click. Either way customer costs + unallocated = spend. (default `"share"`) |
+
+| Status | Response |
+|---|---|
+| 200 | Report data with the period, model, currency and timezone. Money in integer minor units. — `application/json`: object |
+| 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/receipts/{paymentId}
+
+**Get the ad receipt of a payment.** Which ads earned one payment or refund (credit shares whose amounts add up to the payment exactly), what the customer cost in ad spend, their payback date, lifetime revenue and (with unit economics set) profit. The contact's email is masked.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `paymentId` | path | string (uuid) | yes | Revenue event id. |
+| `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"linear"`) |
+| `cost` | query | `share`, `clicks` | no | How a customer's acquisition cost is counted: `share` shares each ad's monthly spend between the customers it brought (by credit); `clicks` counts only their own clicks at that day's cost per click. Either way customer costs + unallocated = spend. (default `"share"`) |
+
+| Status | Response |
+|---|---|
+| 200 | The receipt. — `application/json`: object |
+| 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/exports/pause-drafts
+
+**Export pause drafts as a bulk-edit CSV.** Campaigns with meaningful spend that returned under 0.5x (POAS once unit economics are set, else ROAS) and are old enough to judge, as a file to import in Meta Ads Manager (matches on Campaign ID) or Google Ads Editor (matches on campaign name). AdLedger never calls a platform's write API. API key, or a dashboard session with `reports.export`. Audited.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `platform` | query | `meta`, `google` | yes | Which bulk-edit format. |
+| `start` | query | [Date](#date) | yes | First day, YYYY-MM-DD (workspace timezone). |
+| `end` | query | [Date](#date) | yes | Last day, inclusive, YYYY-MM-DD. |
+| `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"linear"`) |
+
+| Status | Response |
+|---|---|
+| 200 | CSV file. — `text/csv`: string |
+| 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
 ## Contacts
 

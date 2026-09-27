@@ -833,7 +833,7 @@ export async function paymentReceipt(
       at: iso(pay.occurred_at)!,
       source: pay.source!,
     },
-    earnedBy: earned.map(({ conversionId: _c, ...e }) => e),
+    earnedBy: earned,
     contact,
   };
 }
