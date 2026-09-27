@@ -1,6 +1,6 @@
 "use client";
 
-import { DownloadIcon, FileSpreadsheetIcon, UploadIcon } from "lucide-react";
+import { DownloadIcon, FileSpreadsheetIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import Link from "next/link";
 import { importRevenueCsvAction, importSpendCsvAction } from "@/app/actions/imports";
 import { useFormAction } from "@/components/action-button";
@@ -35,8 +35,8 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             <FileSpreadsheetIcon className="size-4 text-muted-foreground" /> Ad spend CSV
           </CardTitle>
           <CardDescription>
-            One row per ad (or campaign) per day. Columns: <code>date</code>, <code>campaign_name</code>, <code>spend</code> — optional <code>platform</code>, <code>ad_group_name</code>,{" "}
-            <code>ad_name</code>, <code>currency</code>, <code>impressions</code>, <code>clicks</code>. Re-uploading the same day replaces it.
+            One row per ad (or campaign) per day. Columns: <code translate="no">date</code>, <code translate="no">campaign_name</code>, <code translate="no">spend</code> — optional <code translate="no">platform</code>, <code translate="no">ad_group_name</code>,{" "}
+            <code translate="no">ad_name</code>, <code translate="no">currency</code>, <code translate="no">impressions</code>, <code translate="no">clicks</code>. Re-uploading the same day replaces it.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -54,7 +54,8 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             <Input name="file" type="file" accept=".csv,text/csv" required aria-label="Ad spend CSV file" className="cursor-pointer" />
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={spend.pending} className="max-md:flex-1">
-                <UploadIcon /> Import spend
+                {spend.pending ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
+                {spend.pending ? "Importing…" : "Import spend"}
               </Button>
               <Button variant="outline" render={<a href="/api/v1/import/template?kind=spend" />}>
                 <DownloadIcon /> Template
@@ -70,7 +71,7 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             <FileSpreadsheetIcon className="size-4 text-muted-foreground" /> Payments &amp; leads CSV
           </CardTitle>
           <CardDescription>
-            Columns: <code>type</code> (payment, refund or lead), <code>external_id</code>, <code>amount</code>, <code>currency</code>, <code>occurred_at</code>, <code>email</code>. People are matched to
+            Columns: <code translate="no">type</code> (payment, refund or lead), <code translate="no">external_id</code>, <code translate="no">amount</code>, <code translate="no">currency</code>, <code translate="no">occurred_at</code>, <code translate="no">email</code>. People are matched to
             their ad clicks by email. Amounts without a currency use {currency}.
           </CardDescription>
         </CardHeader>
@@ -79,7 +80,8 @@ export function ImportPanel({ origin, currency }: { origin: string; currency: st
             <Input name="file" type="file" accept=".csv,text/csv" required aria-label="Payments and leads CSV file" className="cursor-pointer" />
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={revenue.pending} className="max-md:flex-1">
-                <UploadIcon /> Import payments &amp; leads
+                {revenue.pending ? <Loader2Icon className="animate-spin" /> : <UploadIcon />}
+                {revenue.pending ? "Importing…" : "Import payments & leads"}
               </Button>
               <Button variant="outline" render={<a href="/api/v1/import/template?kind=revenue" />}>
                 <DownloadIcon /> Template

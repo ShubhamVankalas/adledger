@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { finishOAuthConnectAction } from "@/app/actions/oauth";
@@ -38,7 +39,7 @@ export function OAuthAccountPicker({
 
   return (
     <form action={save.submit} className="max-w-2xl space-y-3">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
         <span>
           {accounts.length} {accounts.length === 1 ? "account" : "accounts"} found · {selected.size} selected
         </span>
@@ -61,7 +62,7 @@ export function OAuthAccountPicker({
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium break-words">{a.name}</span>
                 <span className="block text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                  {a.id}
+                  <span translate="no">{a.id}</span>
                   {a.currency ? ` · ${a.currency}` : ""}
                   {a.note ? ` · ${a.note}` : ""}
                 </span>
@@ -72,7 +73,8 @@ export function OAuthAccountPicker({
       </ul>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Button type="submit" className="max-sm:w-full" disabled={save.pending || selected.size === 0}>
-          Import {selected.size === 1 ? "1 account" : `${selected.size} accounts`}
+          {save.pending ? <Loader2Icon className="animate-spin" /> : null}
+          {save.pending ? "Importing…" : `Import ${selected.size === 1 ? "1 account" : `${selected.size} accounts`}`}
         </Button>
         <p className="text-xs text-muted-foreground">
           AdLedger only reads spend and performance. The {label} access is stored encrypted on this server.

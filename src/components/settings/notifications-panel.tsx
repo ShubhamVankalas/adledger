@@ -1,6 +1,6 @@
 "use client";
 
-import { BellOffIcon } from "lucide-react";
+import { BellOffIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { saveNotificationRulesAction } from "@/app/actions/notifications";
 import { useFormAction } from "@/components/action-button";
@@ -54,12 +54,12 @@ export function NotificationsPanel({
             key={c.provider}
             type="button"
             onClick={() => setOpen(c.provider)}
-            className="flex min-w-0 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all outline-none hover:border-primary/40 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex min-w-0 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-[border-color,box-shadow] outline-none hover:border-primary/40 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <IntegrationLogo provider={c.provider} name={c.name} color={c.color} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                <span className="font-medium">{c.name}</span>
+                <span className="min-w-0 font-medium break-words">{c.name}</span>
                 <StatusBadge state={states[c.provider]} />
               </div>
               <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground @xl/settings:line-clamp-2">{c.description}</p>
@@ -108,10 +108,11 @@ export function NotificationsPanel({
                               name={`setting:${e.event}:${key}`}
                               type="number"
                               inputMode="numeric"
+                              autoComplete="off"
                               min={0}
                               max={SETTING_LABELS[key]?.max}
                               defaultValue={String(settingsFor(e)[key] ?? def)}
-                              className="h-8 w-20"
+                              className="h-8 w-20 tabular-nums"
                             />
                             <span>{SETTING_LABELS[key]?.suffix}</span>
                           </label>
@@ -133,7 +134,11 @@ export function NotificationsPanel({
                                 aria-label={`${e.label} via ${c.name}`}
                               />
                               <span className="truncate @2xl/settings:sr-only">{c.name}</span>
-                              {r?.lastSentAt ? <span className="text-[11px] text-muted-foreground">sent {timeAgo(r.lastSentAt)}</span> : null}
+                              {r?.lastSentAt ? (
+                                <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
+                                  sent {timeAgo(r.lastSentAt)}
+                                </span>
+                              ) : null}
                             </label>
                           );
                         })}
@@ -143,14 +148,15 @@ export function NotificationsPanel({
                 })}
               </div>
               <Button type="submit" disabled={save.pending} className="max-md:w-full">
-                Save notification rules
+                {save.pending ? <Loader2Icon className="animate-spin" /> : null}
+                {save.pending ? "Saving…" : "Save notification rules"}
               </Button>
             </form>
           ) : (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center">
               <BellOffIcon className="size-5 text-muted-foreground" />
               <p className="text-sm font-medium">No channel connected yet</p>
-              <p className="max-w-sm text-xs text-muted-foreground">Pick Email, Slack, Discord or another channel above and connect it. You&apos;ll then choose what it receives here.</p>
+              <p className="max-w-sm text-xs text-muted-foreground">Pick Email, Slack, Discord or another channel above and connect it. You&rsquo;ll then choose what it receives here.</p>
             </div>
           )}
         </CardContent>

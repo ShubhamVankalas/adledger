@@ -1,6 +1,6 @@
 "use client";
 
-import { GlobeIcon, PlusIcon, Trash2Icon, WebhookIcon } from "lucide-react";
+import { GlobeIcon, Loader2Icon, PlusIcon, Trash2Icon, WebhookIcon } from "lucide-react";
 import { useState } from "react";
 import {
   createLeadWebhookAction,
@@ -30,9 +30,9 @@ export function snippetFor(origin: string, key: string) {
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-3 @lg/settings:grid-cols-[2rem_minmax(0,1fr)]">
-      <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{n}</span>
+      <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary tabular-nums">{n}</span>
       <div className="min-w-0 space-y-2">
-        <div className="pt-1 text-sm font-medium">{title}</div>
+        <div className="pt-1 text-sm font-medium text-pretty">{title}</div>
         {children}
       </div>
     </div>
@@ -48,10 +48,10 @@ function SiteCard({ site, origin }: { site: Site; origin: string }) {
           <GlobeIcon className="size-4 shrink-0 text-muted-foreground" /> <span className="truncate">{site.name}</span>
         </CardTitle>
         <CardDescription>
-          Site key <code className="text-xs break-all">{site.publicKey}</code> <span className="whitespace-nowrap">(public — it can only send events)</span>
+          Site key <code translate="no" className="text-xs break-all">{site.publicKey}</code> <span className="whitespace-nowrap">(public — it can only send events)</span>
         </CardDescription>
         <CardAction>
-          <ActionButton action={() => deletePixelSiteAction(site.id)} variant="ghost" size="icon-sm" confirm="Remove this website? Its snippet will stop working." aria-label="Remove website">
+          <ActionButton action={() => deletePixelSiteAction(site.id)} variant="ghost" size="icon-sm" confirm="Remove this website? Its snippet will stop working." aria-label={`Remove ${site.name}`}>
             <Trash2Icon />
           </ActionButton>
         </CardAction>
@@ -61,12 +61,14 @@ function SiteCard({ site, origin }: { site: Site; origin: string }) {
           <Snippet label="HTML" code={snippetFor(origin, site.publicKey)} />
           <p className="text-xs text-muted-foreground">
             Captures page views, UTMs, click IDs (gclid, fbclid…) and a first-party visitor ID. Works with SPAs. Tip: serve AdLedger from a subdomain of your site (e.g.{" "}
-            <code>t.yoursite.com</code>) so cookies stay first-party.
+            <code translate="no">t.yoursite.com</code>) so cookies stay first-party.
           </p>
         </Step>
         <Step n={2} title="Capture leads">
           <p className="text-xs text-muted-foreground">Either add an attribute to any form — AdLedger picks up the email/phone/name fields on submit:</p>
-          <Snippet label="HTML" code={`<form data-adledger-lead="Book a demo"> ... </form>`} />
+          <Snippet label="HTML" code={`<form data-adledger-lead="Book a demo">
+  <!-- your email, phone and name fields -->
+</form>`} />
           <p className="text-xs text-muted-foreground">…or call it yourself after a signup:</p>
           <Snippet label="JavaScript" code={`adledger.lead({ email: "jane@acme.com", name: "Jane" }, "Signup");`} />
         </Step>
@@ -82,7 +84,17 @@ metadata: { adledger_vid: adledger.getVisitorId() }`}
         </Step>
         <Step n={4} title="Allowed domains (optional)">
           <div className="flex gap-2">
-            <Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="yoursite.com, shop.yoursite.com" aria-label="Allowed domains" className="max-w-md" />
+            <Input
+              name="domains"
+              autoComplete="off"
+              spellCheck={false}
+              inputMode="url"
+              value={domains}
+              onChange={(e) => setDomains(e.target.value)}
+              placeholder="yoursite.com, shop.yoursite.com…"
+              aria-label="Allowed domains"
+              className="max-w-md"
+            />
             <ActionButton action={() => updatePixelSiteAction(site.id, domains)} variant="outline" className="md:h-9">
               Save
             </ActionButton>
@@ -112,14 +124,15 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
             <form action={addSite.submit} className="grid gap-3 @xl/settings:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] @xl/settings:items-end">
               <div className="grid gap-1.5">
                 <Label htmlFor="site-name">Name</Label>
-                <Input id="site-name" name="name" placeholder="Marketing site" />
+                <Input id="site-name" name="name" autoComplete="off" placeholder="Marketing site…" />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="site-domains">Domain (optional)</Label>
-                <Input id="site-domains" name="domains" placeholder="yoursite.com" />
+                <Input id="site-domains" name="domains" autoComplete="off" spellCheck={false} inputMode="url" placeholder="yoursite.com…" />
               </div>
               <Button type="submit" disabled={addSite.pending} className="md:h-9">
-                <PlusIcon /> Add website
+                {addSite.pending ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+                {addSite.pending ? "Adding…" : "Add website"}
               </Button>
             </form>
           </CardContent>
@@ -141,7 +154,7 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
                 <div key={h.id} className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="min-w-0 truncate text-sm font-medium">{h.name}</span>
-                    <ActionButton action={() => deleteLeadWebhookAction(h.id)} variant="ghost" size="icon-sm" confirm="Delete this webhook?" aria-label="Delete webhook">
+                    <ActionButton action={() => deleteLeadWebhookAction(h.id)} variant="ghost" size="icon-sm" confirm="Delete this webhook? Forms posting to its URL will stop sending leads." aria-label={`Delete ${h.name}`}>
                       <Trash2Icon />
                     </ActionButton>
                   </div>
@@ -153,9 +166,10 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
               <p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">No lead webhooks yet. Name one below to get its URL.</p>
             ) : null}
             <form action={addHook.submit} className="flex gap-2">
-              <Input name="name" placeholder="e.g. Typeform – Demo requests" aria-label="Webhook name" />
+              <Input name="name" autoComplete="off" placeholder="e.g. Typeform – Demo requests…" aria-label="Webhook name" />
               <Button type="submit" variant="outline" disabled={addHook.pending} className="md:h-9">
-                <PlusIcon /> Create
+                {addHook.pending ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+                {addHook.pending ? "Creating…" : "Create"}
               </Button>
             </form>
             {hooks[0] ? (
@@ -167,7 +181,10 @@ export function TrackingSection({ origin, sites, hooks }: { origin: string; site
   -d '{"email":"test@example.com","name":"Test Lead"}'`}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Include a hidden field <Badge variant="outline">al_vid</Badge> set to <code>adledger.getVisitorId()</code> to connect the lead to its ad clicks.
+                  Include a hidden field{" "}
+                  <Badge variant="outline" translate="no">
+                    al_vid
+                  </Badge> set to <code translate="no">adledger.getVisitorId()</code> to connect the lead to its ad clicks.
                 </p>
               </div>
             ) : null}

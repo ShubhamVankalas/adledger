@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRoundIcon, PlusIcon } from "lucide-react";
+import { KeyRoundIcon, Loader2Icon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { createApiKeyAction, revokeApiKeyAction } from "@/app/actions/settings";
 import { ActionButton, useFormAction } from "@/components/action-button";
@@ -35,19 +35,20 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
         <CardContent className="space-y-4">
           {fresh ? (
             <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
-              <div className="text-sm font-medium">Your new key — copy it now, it won&apos;t be shown again</div>
+              <div className="text-sm font-medium">Your new key — copy it now, it won&rsquo;t be shown again</div>
               <CopyField value={fresh} />
             </div>
           ) : null}
           <form action={create.submit} className="flex gap-2">
-            <Input name="name" placeholder="Key name, e.g. Claude Desktop" aria-label="Key name" />
+            <Input name="name" autoComplete="off" placeholder="e.g. Claude Desktop…" aria-label="Key name" />
             <Button type="submit" disabled={create.pending} className="md:h-9">
-              <PlusIcon /> Create
+              {create.pending ? <Loader2Icon className="animate-spin" /> : <PlusIcon />}
+              {create.pending ? "Creating…" : "Create"}
             </Button>
           </form>
           <div className="divide-y rounded-lg border">
             {keys.length === 0 ? (
-              <p className="px-3 py-5 text-center text-sm text-muted-foreground">No keys yet. Name one above to create it — you&apos;ll see it once.</p>
+              <p className="px-3 py-5 text-center text-sm text-muted-foreground">No keys yet. Name one above to create it — you&rsquo;ll see it once.</p>
             ) : null}
             {keys.map((k) => (
               <div key={k.id} className="flex items-center justify-between gap-2 py-2 pr-2 pl-3">
@@ -57,7 +58,7 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
                     {k.revoked ? <Badge variant="outline">revoked</Badge> : null}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
-                    <code>{k.prefix}…</code> · used {timeAgo(k.lastUsedAt)}
+                    <code translate="no">{k.prefix}…</code> · used <span suppressHydrationWarning>{timeAgo(k.lastUsedAt)}</span>
                   </div>
                 </div>
                 {!k.revoked ? (
@@ -117,14 +118,14 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
             </TabsContent>
             <TabsContent value="cursor" className="space-y-2 pt-2">
               <p className="text-xs text-muted-foreground">
-                Add to <code>~/.cursor/mcp.json</code>:
+                Add to <code translate="no">~/.cursor/mcp.json</code>:
               </p>
               <Snippet label="~/.cursor/mcp.json" code={JSON.stringify({ mcpServers: { adledger: { url: mcpUrl, headers: { Authorization: `Bearer ${key}` } } } }, null, 2)} />
             </TabsContent>
             <TabsContent value="rest" className="space-y-2 pt-2">
               <Snippet label="Terminal" code={`curl "${origin}/api/v1/reports/performance?start=2026-09-01&end=2026-09-30&model=linear&level=campaign" \\\n  -H "Authorization: Bearer ${key}"`} />
               <p className="text-xs text-muted-foreground">
-                Reports: <code>overview</code>, <code>performance</code>, <code>timeseries</code>, <code>channels</code>, <code>wasted-spend</code>, <code>compare</code>. Also <code>/api/v1/contacts</code>.
+                Reports: <code translate="no">overview</code>, <code translate="no">performance</code>, <code translate="no">timeseries</code>, <code translate="no">channels</code>, <code translate="no">wasted-spend</code>, <code translate="no">compare</code>. Also <code translate="no">/api/v1/contacts</code>.
               </p>
             </TabsContent>
           </Tabs>
@@ -132,7 +133,7 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
             <p className="text-xs text-muted-foreground">
               {MCP_TOOLS.length} read-only tools. The agent can look things up but never change anything; contact emails are masked.
             </p>
-            <ul className="flex flex-wrap gap-1.5" aria-label="MCP tools">
+            <ul className="flex flex-wrap gap-1.5" aria-label="MCP tools" translate="no">
               {MCP_TOOLS.map((t) => (
                 <li key={t} className="rounded-md border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
                   {t}

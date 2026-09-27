@@ -1,6 +1,6 @@
 "use client";
 
-import { LaptopIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { LaptopIcon, Loader2Icon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 import { changePasswordAction, revokeOtherSessionsAction, revokeSessionAction, updateProfileAction } from "@/app/actions/account";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "./image-upload";
 
@@ -33,7 +34,8 @@ export function AccountForms({
   const profile = useFormAction(updateProfileAction);
   const pw = useFormAction(changePasswordAction);
   const { theme: activeTheme, setTheme } = useTheme();
-  // The theme is only known in the browser: render it unselected on the server to avoid a hydration mismatch.
+  // The theme, locale and timezone are only known in the browser: render a neutral version on the
+  // server (no theme selected, UTC dates) to avoid a hydration mismatch.
   const mounted = useSyncExternalStore(
     () => () => undefined,
     () => true,
@@ -62,16 +64,17 @@ export function AccountForms({
           <form action={profile.submit} className="grid gap-4 border-t pt-5">
             <div className="grid gap-1.5">
               <Label htmlFor="profile-name">Name</Label>
-              <Input id="profile-name" name="name" defaultValue={name} placeholder="Your name" />
+              <Input id="profile-name" name="name" autoComplete="name" defaultValue={name} placeholder="Your name…" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="profile-email">Email</Label>
-              <Input id="profile-email" value={email} disabled />
+              <Input id="profile-email" type="email" autoComplete="email" spellCheck={false} value={email} readOnly disabled />
               <p className="text-xs text-muted-foreground">Your email is your login. To use a different one, ask an admin to invite that address.</p>
             </div>
             <div>
               <Button type="submit" disabled={profile.pending}>
-                Save profile
+                {profile.pending ? <Loader2Icon className="animate-spin" /> : null}
+                {profile.pending ? "Saving…" : "Save profile"}
               </Button>
             </div>
           </form>
@@ -95,7 +98,8 @@ export function AccountForms({
             </div>
             <div>
               <Button type="submit" variant="outline" disabled={pw.pending}>
-                Change password
+                {pw.pending ? <Loader2Icon className="animate-spin" /> : null}
+                {pw.pending ? "Changing password…" : "Change password"}
               </Button>
             </div>
           </form>
@@ -119,7 +123,7 @@ export function AccountForms({
               aria-pressed={theme === t.v}
               onClick={() => setTheme(t.v)}
               className={cn(
-                "flex min-h-16 flex-col items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-colors hover:border-primary/40",
+                "flex min-h-16 flex-col items-center justify-center gap-2 rounded-lg border p-3 text-sm transition-[color,background-color,border-color,box-shadow] outline-none hover:border-primary/40 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50",
                 theme === t.v && "border-primary bg-primary/5 ring-1 ring-primary/30",
               )}
             >
@@ -151,7 +155,7 @@ export function AccountForms({
       <Card className="@4xl/settings:col-span-2">
         <CardHeader>
           <CardTitle>Signed-in devices</CardTitle>
-          <CardDescription>Sessions last 30 days. Sign out any you don&apos;t recognise.</CardDescription>
+          <CardDescription>Sessions last 30 days. Sign out any you don&rsquo;t recognise.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="divide-y rounded-lg border">
@@ -163,7 +167,7 @@ export function AccountForms({
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                      <span>Signed in {fmt.format(new Date(s.createdAt))}</span>
+                      <span>Signed in {mounted ? fmt.format(new Date(s.createdAt)) : longDate(s.createdAt)}</span>
                       {s.current ? <Badge>This device</Badge> : null}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">Last workspace: {s.workspace}</div>

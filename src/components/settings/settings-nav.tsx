@@ -93,7 +93,7 @@ export function SettingsNav({
                     href={i.href}
                     aria-current={on ? "page" : undefined}
                     className={cn(
-                      "flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors",
+                      "flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
                       on
                         ? "border-primary/30 bg-primary/10 font-medium text-foreground dark:bg-primary/15"
                         : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -127,7 +127,7 @@ export function SettingsNav({
                         href={i.href}
                         aria-current={on ? "page" : undefined}
                         className={cn(
-                          "relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                          "relative flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
                           on && "bg-muted font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary",
                         )}
                       >

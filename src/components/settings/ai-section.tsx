@@ -1,6 +1,6 @@
 "use client";
 
-import { CpuIcon, ShieldCheckIcon } from "lucide-react";
+import { CpuIcon, Loader2Icon, ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
 import { disconnectAction, saveAiAction, testAiAction } from "@/app/actions/settings";
 import { ActionButton, useFormAction } from "@/components/action-button";
@@ -38,7 +38,7 @@ export function AiSection({ current }: { current: { provider: string; model: str
           <CardDescription>
             {current ? (
               <>
-                Currently using <strong>{current.provider}</strong> · <strong>{current.model}</strong>
+                Currently using <strong translate="no">{current.provider}</strong> · <strong translate="no">{current.model}</strong>
                 {current.fromEnv ? " (from environment variables)" : ""}.
               </>
             ) : (
@@ -60,15 +60,32 @@ export function AiSection({ current }: { current: { provider: string; model: str
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="ai-model">Model</Label>
-              <Input id="ai-model" name="model" defaultValue={current?.provider === provider ? current.model : p.model} placeholder={p.model || "model-name"} required />
+              <Input
+                id="ai-model"
+                name="model"
+                autoComplete="off"
+                spellCheck={false}
+                defaultValue={current?.provider === provider ? current.model : p.model}
+                placeholder={`${p.model || "model-name"}…`}
+                required
+              />
             </div>
             {needsBase ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="ai-base">Base URL</Label>
-                <Input id="ai-base" name="baseUrl" defaultValue={current?.provider === provider && current.baseUrl ? current.baseUrl : p.base} placeholder="https://…/v1" />
+                <Input
+                  id="ai-base"
+                  name="baseUrl"
+                  inputMode="url"
+                  autoComplete="off"
+                  spellCheck={false}
+                  translate="no"
+                  defaultValue={current?.provider === provider && current.baseUrl ? current.baseUrl : p.base}
+                  placeholder="https://api.example.com/v1…"
+                />
                 {provider === "ollama" || provider === "lmstudio" ? (
                   <p className="text-xs text-muted-foreground">
-                    Running AdLedger in Docker? Use <code>host.docker.internal</code> to reach a model on your computer. Running with <code>pnpm dev</code>? Use <code>localhost</code>.
+                    Running AdLedger in Docker? Use <code translate="no">host.docker.internal</code> to reach a model on your computer. Running with <code translate="no">pnpm dev</code>? Use <code translate="no">localhost</code>.
                   </p>
                 ) : null}
               </div>
@@ -80,12 +97,14 @@ export function AiSection({ current }: { current: { provider: string; model: str
                 name="apiKey"
                 type="password"
                 autoComplete="off"
-                placeholder={current?.hasKey && current.provider === provider ? "•••••••• saved — leave blank to keep" : p.key ? "sk-…" : "not needed for local models"}
+                spellCheck={false}
+                placeholder={current?.hasKey && current.provider === provider ? "•••••••• saved — leave blank to keep…" : p.key ? "sk-…" : "Not needed for local models…"}
               />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={save.pending}>
-                Save model
+                {save.pending ? <Loader2Icon className="animate-spin" /> : null}
+                {save.pending ? "Saving…" : "Save model"}
               </Button>
               {current ? (
                 <>

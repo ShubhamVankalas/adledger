@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ActionResult } from "@/lib/actions";
 import { MAX_SOURCE_BYTES, MEDIA_SIZE, MEDIA_TYPES } from "@/lib/media";
 import { cn } from "@/lib/utils";
+import { TOUCH_TARGETS } from "./touch";
 
 /**
  * Resize an image to a MEDIA_SIZE square in the browser.
@@ -66,6 +68,7 @@ export function ImageUpload({
   const [pending, start] = useTransition();
   const [local, setLocal] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   // The resized image stays as the preview after upload (identical to what the server stored),
   // so there is no flash while the new URL loads.
@@ -80,7 +83,7 @@ export function ImageUpload({
       try {
         blob = await toSquare(file, fit);
       } catch {
-        toast.error("Couldn't read that image. Try another file.");
+        toast.error("Couldn’t read that image. Try another file.");
         return;
       }
       setLocal(URL.createObjectURL(blob));
@@ -98,6 +101,7 @@ export function ImageUpload({
 
   const clear = () =>
     start(async () => {
+      setConfirmRemove(false);
       const r = await remove();
       if (r.ok) toast.success(r.message ?? "Removed");
       else toast.error(r.message ?? "Something went wrong");
@@ -138,7 +142,7 @@ export function ImageUpload({
               (pending || dragging) && "opacity-100",
             )}
           >
-            {pending ? <Loader2Icon className="size-5 animate-spin" /> : <ImageUpIcon className="size-5" />}
+            {pending ? <Loader2Icon className="size-5 animate-spin motion-reduce:animate-none" /> : <ImageUpIcon className="size-5" />}
           </span>
         ) : null}
       </button>
@@ -153,7 +157,7 @@ export function ImageUpload({
               {shown ? "Replace" : "Upload"}
             </Button>
             {src ? (
-              <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={clear} className="text-muted-foreground">
+              <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => setConfirmRemove(true)} className="text-muted-foreground hover:text-destructive">
                 Remove
               </Button>
             ) : null}
@@ -172,6 +176,21 @@ export function ImageUpload({
           }}
         />
       </div>
+      <Dialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <DialogContent className={`sm:max-w-sm ${TOUCH_TARGETS}`}>
+          <DialogHeader className="pr-8">
+            <DialogTitle className="text-balance">Remove {label.toLowerCase()}?</DialogTitle>
+            <DialogDescription>It disappears for everyone straight away. You can upload a new one at any time.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+            <Button type="button" variant="destructive" disabled={pending} onClick={clear}>
+              {pending ? <Loader2Icon className="animate-spin" /> : null}
+              {pending ? "Removing…" : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
