@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 6 Automation, sharing, AI | ✅ | Alert rules (CAC, CPL, ROAS, spend, revenue, leads × window × scope) + anomaly detection, hourly in `jobs.ts`, once per breach with cooldown; KPI digest daily/weekly/monthly per channel; share links with locked filters (`/share/[token]`); Insights tabs (action cards with number chips, Ask chat over read-only SQL tools, alert history). Next: share-link password / max views / ratios-only / frozen snapshot, PDF on share links, agency roll-up, "too early to judge" badges on cards |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
