@@ -167,8 +167,9 @@ export async function handleStripeEvent(db: DB, workspaceId: string, event: { ty
 }
 
 export function stripeClient(apiKey?: string) {
-  // The key is only needed for API calls; webhook verification works with any placeholder.
-  return new Stripe(apiKey || "sk_test_placeholder", { appInfo: { name: "AdLedger" } });
+  // The key is only needed for API calls; webhook verification works with any placeholder
+  // (kept short so secret scanners don't mistake it for a real key).
+  return new Stripe(apiKey || "sk_none", { appInfo: { name: "AdLedger" } });
 }
 
 export const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;

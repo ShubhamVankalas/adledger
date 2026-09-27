@@ -226,7 +226,11 @@ export function LiveView({
                 </LiveCardEmpty>
               )
             ) : (
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+              <div
+                tabIndex={0}
+                aria-label="Live activity feed"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-md outline-none [scrollbar-gutter:stable] focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
                 <ol aria-labelledby="live-feed" className="divide-y divide-border/70 pb-1">
                   {shown.map((item, idx) => (
                     <FeedRow

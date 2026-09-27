@@ -21,8 +21,10 @@ RUN pnpm build
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 DATA_DIR=/data
+# The app never runs npm; dropping the bundled copy removes its dependencies (and their CVEs) from the image.
 RUN addgroup -S -g 1001 adledger && adduser -S -u 1001 -G adledger adledger \
-  && mkdir -p /data && chown adledger:adledger /data
+  && mkdir -p /data && chown adledger:adledger /data \
+  && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build --chown=adledger:adledger /app/.next/standalone ./
 COPY --from=build --chown=adledger:adledger /app/.next/static ./.next/static
 COPY --from=build --chown=adledger:adledger /app/public ./public
