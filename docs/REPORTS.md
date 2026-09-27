@@ -39,8 +39,9 @@ written or calculated by AI.
   range, ending on the latest day with data, is used. Responses are `application/pdf` with
   `Cache-Control: private, no-store` and `X-Export-Id` / `X-Report-Fingerprint` headers.
 
-Who can download: owners, admins and analysts (the `reports.pdf` permission), and API keys.
-Viewers and clients see reports on screen only. Session downloads must come from the dashboard
+Who can download: everyone with the `reports.pdf` permission (owners, admins, analysts and viewers;
+clients only while the organization's security policy allows it), and API keys with `reports:read`.
+Session downloads must come from the dashboard
 itself: a cross-site link (`Sec-Fetch-Site: cross-site`) is refused, so another site can't make a
 signed-in browser render and log a report.
 
@@ -53,8 +54,8 @@ Reports → **Schedule** on any report:
 
 - **Weekly** on a chosen day and hour, covering the seven days before each send, or **monthly** on
   the 1st, covering the previous calendar month. Times are in the workspace timezone.
-- **Send to** everyone who can open the workspace and download PDFs (owners, admins and analysts;
-  viewers and clients never receive one), or only the people you choose among them.
+- **Send to** everyone who can open the workspace and download PDFs (the `reports.pdf` permission),
+  or only the people you choose among them.
 - **Skip quiet periods** (on by default): nothing is sent when the period had no ad spend and no revenue.
 
 Scheduled reports go out by email through the workspace's **Email** channel (Settings →
