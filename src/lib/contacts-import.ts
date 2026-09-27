@@ -4,24 +4,14 @@ import { schema, type DB } from "./db";
 import { requestAttribution } from "./jobs";
 import { normalizeDate, parseCsvTable } from "./imports";
 import type { Workspace } from "./settings";
+import { CONTACT_FIELD_KEYS, type ColumnMapping, type ContactField, type ImportPreview, type ImportResult, type InvalidRow } from "./contacts-import-shared";
+
+export * from "./contacts-import-shared";
 
 // Contacts CSV import (Settings → Import data): upload → map columns → preview
 // "124 new · 38 update · 3 invalid" → import. People are deduplicated on the email hash (or the
 // phone hash for rows without an email), exactly like leads from the pixel and webhooks, and an
 // existing contact is only ever filled in, never overwritten.
-
-export const CONTACT_FIELDS = {
-  email: { label: "Email", hint: "jane@example.com" },
-  phone: { label: "Phone", hint: "+1 415 555 0100" },
-  name: { label: "Full name", hint: "Jane Doe" },
-  first_name: { label: "First name", hint: "Jane" },
-  last_name: { label: "Last name", hint: "Doe" },
-  first_seen: { label: "Date added", hint: "2026-09-01" },
-} as const;
-export type ContactField = keyof typeof CONTACT_FIELDS;
-export const CONTACT_FIELD_KEYS = Object.keys(CONTACT_FIELDS) as ContactField[];
-/** Column index → field, for the columns that are imported. */
-export type ColumnMapping = Partial<Record<ContactField, number>>;
 
 const ALIASES: Record<ContactField, string[]> = {
   email: ["email", "e-mail", "email address", "e-mail address", "customer email", "contact email", "work email", "mail"],
@@ -92,7 +82,6 @@ type CleanRow = {
   name: string | null;
   firstSeenAt: Date | null;
 };
-export type InvalidRow = { line: number; reason: string };
 
 const MAX_NAME = 200;
 
@@ -200,20 +189,6 @@ function classify(table: ContactsTable, mapping: ColumnMapping, now: Date) {
 
 // ---------------------------------------------------------------- preview
 
-export type ImportPreview = {
-  rows: number;
-  new: number;
-  update: number;
-  invalid: number;
-  /** Rows that repeat an earlier row's email or phone; they are folded into it. */
-  repeats: number;
-  /** The first few invalid rows, with why. */
-  problems: InvalidRow[];
-  /** The first rows as they would be imported. */
-  sample: { line: number; email: string | null; name: string | null; hasPhone: boolean; firstSeen: string | null; status: "new" | "update" }[];
-  /** A mapping problem to show above the preview (no email or phone column). */
-  warning: string | null;
-};
 
 export function mappingWarning(mapping: ColumnMapping): string | null {
   if (mapping.email === undefined && mapping.phone === undefined) return "Pick the column that holds the email address or phone number. Every contact needs one.";
@@ -254,7 +229,6 @@ export type ImportOptions = {
   formName?: string | null;
   now?: Date;
 };
-export type ImportResult = { created: number; updated: number; invalid: number; repeats: number; leads: number };
 
 /**
  * Import the file: new people become contacts, existing ones get blank fields filled in (name,

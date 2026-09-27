@@ -13,12 +13,6 @@ import type { Workspace } from "./settings";
 
 export type DuplicateReason = "same_phone" | "same_email" | "same_name";
 
-export const REASON_LABEL: Record<DuplicateReason, string> = {
-  same_phone: "Same phone number",
-  same_email: "Same email, written differently",
-  same_name: "Same name, one has no email",
-};
-
 export type DuplicateContact = {
   id: string;
   email: string | null;

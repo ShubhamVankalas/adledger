@@ -39,7 +39,7 @@ export default async function GoalsSettingsPage() {
       {!canEdit ? <ReadOnlyNotice what="targets" /> : null}
       <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @4xl/settings:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <GoalsEditor goals={rows} currency={ws.reportingCurrency} canEdit={canEdit} />
-        <GoalsPacingWidget data={pacing} title="Pacing preview" />
+        {goals.length ? <GoalsPacingWidget data={pacing} title="Pacing preview" /> : null}
       </div>
     </>
   );
