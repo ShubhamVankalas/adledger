@@ -1,9 +1,11 @@
 import { cookies } from "next/headers";
 import { ShellProvider } from "@/components/app-shell";
 import { AppSidebar } from "@/components/app-sidebar";
+import { CommandPalette } from "@/components/command-palette";
 import { MobileNav } from "@/components/mobile-nav";
 import { DEMO_PILL_COOKIE } from "@/components/shell-constants";
 import { getSetupStatus } from "@/components/onboarding";
+import { ShortcutsSheet } from "@/components/shortcuts-sheet";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -47,6 +49,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {/* Keeps scrolled content from showing under a notch / status bar in the installed app. */}
           <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden" />
           {children}
+          <CommandPalette workspaceId={user.workspace.id} can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), audit: user.can("audit.view"), api: user.can("apikeys.manage") }} />
+          <ShortcutsSheet />
           <MobileNav />
         </SidebarInset>
       </ShellProvider>

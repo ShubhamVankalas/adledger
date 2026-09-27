@@ -271,6 +271,21 @@ attribution is unaffected. Erasures, exports and retention changes are audit-log
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
 events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
 
+**Command palette & shortcuts.** `src/lib/hotkeys.ts` is the single shortcut registry (no dependency):
+key strings like `"g o"` (G then O within 1 s), `"mod+k"` (⌘K / Ctrl K) or `"?"`, matched on `event.key`,
+ignored while typing in a field, a menu or a dialog. Components register with `useHotkeys()` for as long as
+they're mounted (page-scoped shortcuts come and go with the page), and the `?` sheet
+(`components/shortcuts-sheet.tsx`) renders whatever is registered. `components/command-palette.tsx` is an
+always-mounted shell in the app layout: it owns ⌘K, `/` (focuses the element marked `data-hotkey-search`),
+the G-then-letter navigation and the `adledger:open-palette` window event; the dialog
+(`command-palette-dialog.tsx`, Base UI Autocomplete inside a Base UI Dialog) is a separate chunk fetched when
+the browser is idle. Pages, tabs and settings sections come from `command-palette-data.ts`; records come from
+`POST /api/v1/search` (`src/lib/search.ts`: workspace-scoped, query in the body so emails never reach logs,
+case-insensitive substring on `lower(name)` with a small `LIMIT` per kind, exact emails through the
+`(workspace_id, email_hash)` index, masked emails for clients). "Recent" lives in the browser
+(`localStorage`, per workspace, bare emails masked). `?question` hands off to Insights → Ask through
+`sessionStorage` (`adledger:ask-draft`), not the URL.
+
 ## 6. Configuration
 
 All optional; see `.env.example`. Connector credentials and the AI model are configured in the
@@ -365,5 +380,10 @@ The look is specified in `docs/redesign/BRIEF.md` §2 and lives in one place:
   instead of a new column: connections is already the per-workspace, unique-per-provider settings store,
   so no migration is needed. `workspaces.onboarding` is reserved for onboarding progress. Clearing
   workspace data keeps it (like the `llm` connection).
+- **2026-09-27 — palette search without a trigram index.** `pg_trgm` would make substring search on
+  names index-backed, but PGlite doesn't load it by default and `CREATE EXTENSION` can need privileges a
+  managed Postgres won't grant, which would break "migrations apply at startup". Searches filter on
+  `workspace_id` first and stop at 5 rows per kind, which stays fast into the hundreds of thousands of
+  contacts; revisit with an optional trigram index if a workspace outgrows that.
 - **LTV attribution for repeat payments.** Renewals credit the acquiring journey instead of
   becoming “unattributed” once the window has passed.

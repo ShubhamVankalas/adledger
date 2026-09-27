@@ -34,6 +34,10 @@
       "description": "Leads, customers and their journeys (read-only)."
     },
     {
+      "name": "Search",
+      "description": "Find contacts, campaigns, ad sets and ads by name (powers the dashboard's ⌘K palette)."
+    },
+    {
       "name": "Privacy",
       "description": "Erasure and data exports (GDPR / CCPA)."
     },
@@ -360,6 +364,95 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "post": {
+        "tags": [
+          "Search"
+        ],
+        "operationId": "search",
+        "summary": "Search the workspace",
+        "description": "Contacts by name or email, and campaigns, ad sets and ads by name (case-insensitive substring; exact and prefix matches first). The query goes in the body, never the URL, so emails stay out of access logs, and it is never logged. Results come grouped by kind (contacts, campaigns, ad sets, ads) with up to `limit` of each. Dashboard sessions work for every role; agency clients get masked contact emails. Rate limit: 240 requests per minute per caller.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "q": {
+                    "type": "string",
+                    "description": "Search text (trimmed, 1-100 characters). A full email address is also matched exactly.",
+                    "maxLength": 100
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "contact",
+                        "campaign",
+                        "ad_group",
+                        "ad"
+                      ]
+                    },
+                    "maxItems": 4,
+                    "description": "Only search these kinds (default: all)."
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 5,
+                    "description": "Results per kind."
+                  }
+                },
+                "required": [
+                  "q"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matches: contacts, then campaigns, ad sets and ads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SearchResult"
+                      }
+                    }
+                  },
+                  "required": [
+                    "results"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
           }
         }
       }
@@ -3138,6 +3231,62 @@
           "site",
           "vid",
           "events"
+        ]
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contact",
+              "campaign",
+              "ad_group",
+              "ad"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "description": "Contact name (or email when there is no name), or the campaign / ad set / ad name."
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The contact's email when a name is shown; the parent campaign for ad sets and the parent ad set for ads."
+          },
+          "platform": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ad platform for campaigns, ad sets and ads; null for contacts."
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`lead` or `customer` for contacts; the platform's delivery status for ads."
+          },
+          "url": {
+            "type": "string",
+            "description": "Dashboard path that opens the result, e.g. `/contacts/{id}`."
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "subtitle",
+          "platform",
+          "status",
+          "url"
         ]
       }
     }

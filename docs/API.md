@@ -20,6 +20,7 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/reports/{report}`](#get-apiv1reportsreport) | Run a report | API key |
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
+| POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
 | DELETE | [`/api/v1/contacts/{id}`](#delete-apiv1contactsid) | Erase a contact | API key |
 | GET | [`/api/v1/contacts/{id}/export`](#get-apiv1contactsidexport) | Export a contact | API key |
 | GET | [`/api/v1/exports/contacts`](#get-apiv1exportscontacts) | Export contacts as CSV | API key |
@@ -109,6 +110,27 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 200 | The journey. — `application/json`: [Journey](#journey) |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+
+## Search
+
+Find contacts, campaigns, ad sets and ads by name (powers the dashboard's ⌘K palette).
+
+### POST /api/v1/search
+
+**Search the workspace.** Contacts by name or email, and campaigns, ad sets and ads by name (case-insensitive substring; exact and prefix matches first). The query goes in the body, never the URL, so emails stay out of access logs, and it is never logged. Results come grouped by kind (contacts, campaigns, ad sets, ads) with up to `limit` of each. Dashboard sessions work for every role; agency clients get masked contact emails. Rate limit: 240 requests per minute per caller.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+Request body: `application/json`: object
+
+| Status | Response |
+|---|---|
+| 200 | Matches: contacts, then campaigns, ad sets and ads. — `application/json`: object |
+| 400 | Malformed request. — `application/json`: [Error](#error) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 413 | Too many rows in one request. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
 ## Privacy
 
@@ -774,3 +796,15 @@ string — Calendar date.
 | `fbp` | string \\| null | no | (max length 200) |
 | `fbc` | string \\| null | no | (max length 400) |
 | `events` | object[] | yes | (max 50 items) |
+
+### SearchResult
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `kind` | `contact`, `campaign`, `ad_group`, `ad` | yes |  |
+| `id` | string (uuid) | yes |  |
+| `title` | string | yes | Contact name (or email when there is no name), or the campaign / ad set / ad name. |
+| `subtitle` | string \\| null | yes | The contact's email when a name is shown; the parent campaign for ad sets and the parent ad set for ads. |
+| `platform` | string \\| null | yes | Ad platform for campaigns, ad sets and ads; null for contacts. |
+| `status` | string \\| null | yes | `lead` or `customer` for contacts; the platform's delivery status for ads. |
+| `url` | string | yes | Dashboard path that opens the result, e.g. `/contacts/{id}`. |
