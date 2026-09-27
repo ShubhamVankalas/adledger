@@ -52,7 +52,6 @@ export function sanitizeViewParams(page: SavedViewPage, input: unknown): Record<
   for (const [k, raw] of entries) {
     if (!keys.includes(k) || typeof raw !== "string") continue;
     // Control characters never belong in a query value.
-    // eslint-disable-next-line no-control-regex
     const v = raw.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, VALUE_MAX);
     if (v) out[k] = v;
   }
