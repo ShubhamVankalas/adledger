@@ -1,203 +1,388 @@
 <div align="center">
 
-<img src="public/icon.svg" width="64" alt="AdLedger" />
+<img src="public/icon.svg" width="72" alt="AdLedger logo" />
 
 # AdLedger
 
-**The open-source Hyros. Know which ads actually make you money.**
+### Every sale gets a receipt.
 
-Self-hosted ad attribution that joins **Meta & Google Ads spend**, **first-party website tracking**, **leads** and **Stripe revenue** — with AI insights you bring yourself and a built-in **MCP server** so Claude can answer *“which ads made money?”*
+**See which ad actually made you money, what that customer really cost, and prove it.**<br />
+Open-source, self-hosted ad attribution and revenue ledger with a built-in CRM.
 
-[Website](https://shubhamvankalas.github.io/adledger/) · [Quick start](#quick-start) · [Features](#features) · [Deploy](#deploy-anywhere) · [MCP](#ask-claude-about-your-ads-mcp) · [FAQ](docs/FAQ.md) · [Docs](docs/)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-0f766e)](LICENSE)
+[![CI](https://github.com/ShubhamVankalas/adledger/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhamVankalas/adledger/actions/workflows/ci.yml)
+[![Docker image](https://img.shields.io/badge/ghcr.io-shubhamvankalas%2Fadledger-2496ED?logo=docker&logoColor=white)](https://github.com/ShubhamVankalas/adledger/pkgs/container/adledger)
+[![Self-hosted](https://img.shields.io/badge/self--hosted-your%20server%2C%20your%20data-111827)](docs/SELF_HOSTING.md)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-16a34a)](CONTRIBUTING.md)
 
-<img src="docs/screenshots/overview.png" alt="AdLedger overview dashboard" width="900" />
+[Quick start](#quick-start) · [Features](#features) · [Screenshots](#screenshots) · [Security](#security-and-compliance) · [Docs](#documentation) · [Roadmap](docs/ROADMAP.md) · [Website](https://shubhamvankalas.github.io/adledger/)
+
+<br />
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview-dark.png" />
+  <img src="docs/screenshots/overview.png" alt="AdLedger Overview: a briefing line naming the most profitable campaign, KPI tiles for revenue, ad spend, ROAS, MER, customers and unattributed share, and a revenue chart against the previous period" width="920" />
+</picture>
 
 </div>
 
 ---
 
-## Why
+AdLedger joins **ad spend** (Meta, Google and 7 more networks), **first-party website events** from
+a 2.4 KB pixel, **leads**, and **real payments** (Stripe and 12 more) into one ledger. Every number
+is computed in SQL from that ledger, split to the cent, and shown per campaign, ad set and ad. It
+runs as one container plus PostgreSQL on a server you control.
 
-Ad platforms each take credit for the same sale, iOS privacy broke their pixels, and the tools that fix this (Hyros, Triple Whale, Cometly, Wicked Reports) cost $129–$2,500+/month — often priced as a cut of your revenue.
+## Why AdLedger
 
-AdLedger does the core job for free, on your own server: every click, lead and payment in **one ledger**, so you can see real **ROAS, CAC and CPL per campaign, ad set and ad**.
-
-> *“I spent $58k on ads last month. AdLedger shows Lookalike 1% returned 3.5x while Broad Interest returned 0.01x on $11k. The weekly note tells me to move budget from Broad to Lookalike and Retargeting.”*
+|   |   |
+|---|---|
+| **A free alternative to Hyros, Triple Whale, Cometly and Northbeam.** No per-seat or revenue-share pricing. Unlimited users, workspaces and client logins. | **Your data never leaves your server.** No telemetry, no licence check, no phone-home. The only outbound calls are the integrations you switch on. |
+| **One command to install.** `docker compose up -d`, or a one-line script with automatic HTTPS. Migrations run on start; everything else is configured in the dashboard. | **Bring your own AI, or none.** Local Ollama or LM Studio, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek. The model writes words; SQL writes the numbers. |
 
 ## Quick start
 
-You need [Docker](https://docs.docker.com/get-docker/). That's it.
+**Try it with demo data in about a minute.** You need [Docker](https://docs.docker.com/get-docker/).
 
 ```bash
-git clone https://github.com/ShubhamVankalas/adledger.git
-cd adledger
-docker compose up -d
+git clone https://github.com/ShubhamVankalas/adledger.git && cd adledger
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=adledger-demo-123 DEMO_DATA=true docker compose up -d
 ```
 
-Open **http://localhost:3000**, create your account, and tick **“Start with demo data”** to explore 90 days of realistic Meta, Google Ads and Stripe data in under a minute.
+Open **http://localhost:3000** and sign in. You get 90 days of realistic Meta, Google, TikTok,
+LinkedIn, Microsoft and Stripe data, served by mock connectors in each platform's real API format.
+(Or run plain `docker compose up -d`, create your account and pick **Explore with demo data**.)
 
-**On a server with a domain (automatic HTTPS):**
+**On a server with a domain**, with automatic HTTPS (Docker, PostgreSQL and Caddy, random secrets
+generated for you):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ShubhamVankalas/adledger/main/install.sh | DOMAIN=ads.yourcompany.com sh
 ```
 
-**Without Docker** (Node 20+), using the built-in embedded database:
+<details>
+<summary><b>More ways to run it</b>: Render, Railway, a single container, or no Docker at all</summary>
 
-```bash
-pnpm install && pnpm dev
-```
-
-## Screenshots
-
-| Performance by campaign, ad set and ad | Customer journey and credit per model |
-|---|---|
-| <img src="docs/screenshots/performance.png" alt="Performance table" /> | <img src="docs/screenshots/journey.png" alt="Contact journey" /> |
-| **Weekly insights (bring your own model)** | **Dark mode** |
-| <img src="docs/screenshots/insights.png" alt="AI insights" /> | <img src="docs/screenshots/overview-dark.png" alt="Dark mode" /> |
-| **One-snippet tracking setup** | **Setup wizard** |
-| <img src="docs/screenshots/settings-tracking.png" alt="Tracking settings" /> | <img src="docs/screenshots/setup.png" alt="Setup wizard" /> |
-| **30+ integrations** | **Guided setup checklist** |
-| <img src="docs/screenshots/settings-integrations.png" alt="Integrations catalog" /> | <img src="docs/screenshots/onboarding.png" alt="Setup checklist" /> |
-| **Teams, roles and client access** | **Alerts by email, Slack, Discord, Teams, SMS** |
-| <img src="docs/screenshots/settings-members.png" alt="Members and roles" /> | <img src="docs/screenshots/settings-notifications.png" alt="Notifications" /> |
-
-**On your phone** — installable as an app, with a bottom tab bar and a one-tap filter sheet:
-
-<p>
-  <img src="docs/screenshots/mobile-overview.png" alt="Overview on a phone" width="250" />
-  <img src="docs/screenshots/mobile-performance.png" alt="Performance on a phone" width="250" />
-  <img src="docs/screenshots/mobile-settings.png" alt="Integrations settings on a phone" width="250" />
-</p>
-
-## Features
-
-| | |
-|---|---|
-| **Ad spend sync** | **Meta, Google Ads, Microsoft Ads, TikTok, LinkedIn, Pinterest, Snapchat, Reddit and X** — daily spend, impressions and clicks per campaign, ad set and ad. Any other network via CSV or the Spend API. Re-syncs never duplicate. |
-| **First-party pixel** | One `<script>` tag (**2.4 KB** gzipped). Page views, UTMs, click IDs (`gclid`, `fbclid`, `gbraid`, `wbraid`, `ttclid`…), `_fbp`/`_fbc`, SPA support. Consent modes (opt-out, consent required, cookieless), Global Privacy Control, and ready-made glue for Cookiebot, CookieYes, Osano, Klaro and Google Consent Mode v2. |
-| **Lead capture** | `data-adledger-lead` on any form, `adledger.lead()` in JS, or a webhook for Typeform, Tally, Webflow, Zapier… (fields auto-detected). **Native ad lead forms** from Meta Lead Ads, Google Ads lead forms and TikTok Lead Generation, credited to the exact ad. **WhatsApp click-to-chat** conversations as leads, linked to the ad click that opened the chat. **WordPress/WooCommerce plugin**, Shopify custom pixel and guides for Webflow, Wix, Squarespace, Framer and GTM. |
-| **Revenue** | **Stripe, Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal, Chargebee, Recurly, Gumroad, Cashfree, Instamojo and PhonePe** via webhooks (Stripe: paste one key, the webhook is created for you). Won deals from **HubSpot** and **Pipedrive** for sales-led businesses. Anything else via CSV or the Conversions API. Refunds and renewals handled. |
-| **Identity stitching** | Anonymous visitor → lead → customer, across devices, by email. |
-| **Attribution** | First-touch, last-touch and linear — switch instantly. Exact revenue splits (integer cents, largest-remainder). LTV: renewals credit the journey that acquired the customer. Unattributed revenue is shown, never hidden. |
-| **Dashboard** | A customizable Overview board (pin KPIs, drag widgets, presets for e-commerce, lead gen and agencies, a personal view or a team default), KPIs with period-over-period change and sparklines, a metric explorer, spend vs revenue chart, drill-down tables with CSV export, contact journeys, dark mode. Installable on your phone (PWA) with a bottom tab bar. **⌘K / Ctrl K** finds any page, setting, contact, campaign or ad; `G` then a letter jumps between pages and `?` lists every shortcut. |
-| **PDF reports** | Branded, print-ready PDFs with your logo: executive summary, weekly performance, attribution model comparison, LTV and cohorts, wasted spend and budget moves. Download one, or email it to your team every week or month. Every PDF is fingerprinted and anyone can check it on `/verify`. Ctrl+P on any page prints cleanly too. See [docs/REPORTS.md](docs/REPORTS.md). |
-| **AI insights (BYO model)** | Weekly note on what changed, wasted spend and where to move budget. Works with **Ollama / LM Studio (local, free)**, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, or no AI at all. Every number is computed in SQL; invented numbers are flagged. |
-| **MCP server** | Read-only tools for Claude, Cursor or any agent: overview, performance, wasted spend, period comparison, contact journeys (emails masked). |
-| **Teams & agencies** | Organizations with many workspaces (one per brand or client), invitations, roles (Owner, Admin, Analyst, Viewer, Client) and an audit log. Clients see only their own workspace. |
-| **Notifications** | Weekly report, daily digest, wasted-spend alerts, sync failures, new customers and large payments — by email, Slack, Discord, Microsoft Teams, SMS (Twilio) or signed webhook. |
-| **Guided setup** | First run: explore a demo or set up your business with a checklist that ticks itself off as data arrives. |
-| **Demo mode** | Realistic mock connectors for every integration — the whole app works with zero API access. |
-
-## How it compares
-
-| | **AdLedger** | Hyros | Triple Whale | Cometly |
-|---|---|---|---|---|
-| Price | **Free (AGPL)** | Paid, scales with revenue tracked | Paid, scales with GMV | Paid subscription |
-| Self-hosted / own your data | **Yes** | No | No | No |
-| Ad platforms | 9 native + CSV/API | Many | Many | Many |
-| First-party pixel + click IDs | Yes | Yes | Yes | Yes |
-| Payment sources | 13 native + CRM deals + CSV/API | Many | Shopify-first | Many |
-| Teams, roles, client access | **Yes, unlimited seats** | Paid tiers | Paid tiers | Paid tiers |
-| Multi-touch models | First, last, linear | Many | Many | Many |
-| Conversions API upload to ad platforms | Beta (Meta CAPI, Google Ads) | Yes | Yes | Yes |
-| AI with your own model | **Yes (incl. local)** | No | Proprietary | Proprietary |
-| MCP server for AI agents | **Yes** | No | No | No |
-
-*Based on public information at the time of writing; check each vendor for current features and pricing.*
-
-## Deploy anywhere
+<br />
 
 | Where | How |
 |---|---|
-| **Any Linux server / VPS** | `install.sh` above (Docker + Postgres + optional Caddy HTTPS). ~1 GB RAM is plenty. |
-| **Your laptop** | `docker compose up -d` |
-| **Render** | Uses [`render.yaml`](render.yaml): web service + managed Postgres. |
-| **Railway / Coolify / Dokploy / CapRover** | Deploy the `Dockerfile`, add a Postgres, set `DATABASE_URL`. |
-| **Single container, no Postgres** | `docker run -p 3000:3000 -v adledger:/data ghcr.io/shubhamvankalas/adledger` (embedded database — great for trying it; use Postgres for production). |
+| **Render** | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ShubhamVankalas/adledger) uses [`render.yaml`](render.yaml): web service, managed PostgreSQL 16 and a generated `APP_SECRET`. |
+| **Railway** | Deploy from your fork (uses the `Dockerfile` and [`railway.json`](railway.json)), add PostgreSQL, set `DATABASE_URL=${{Postgres.DATABASE_URL}}`. |
+| **Coolify, Dokploy, CapRover, Portainer** | Deploy [`docker-compose.yml`](docker-compose.yml) as-is. |
+| **Single container, no PostgreSQL** | `docker run -d -p 3000:3000 -v adledger:/data ghcr.io/shubhamvankalas/adledger` (embedded database; fine for trials, use PostgreSQL for production). |
+| **No Docker** (Node 20+) | `pnpm install && pnpm dev` uses an embedded database in `./.data`. |
 
-Upgrading: `docker compose pull && docker compose up -d`. Database migrations run automatically on start. Full guide: [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+Upgrade with `docker compose pull && docker compose up -d`. Full guide, backups and every setting:
+[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
 
-## Connect your data
+</details>
 
-Everything is configured in the app — no config files. After signing up choose **Set up my business** and follow the **setup checklist**:
+## Features
 
-1. **Install the pixel** — paste one snippet (or use the [WordPress plugin](integrations/wordpress), [Shopify pixel](integrations/shopify), or a [guide for your site builder](docs/integrations/)).
-2. **Connect payments** — Stripe (just paste a key), Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal, Chargebee, Recurly, Gumroad, Cashfree, Instamojo, PhonePe, or won deals from HubSpot / Pipedrive — or CSV / API.
-3. **Connect lead sources** (optional) — Meta Lead Ads, Google Ads lead forms, TikTok Lead Generation and WhatsApp Business, for leads that never reach your website.
-4. **Connect ad platforms** — Meta, Google, Microsoft, TikTok, LinkedIn, Pinterest, Snapchat, Reddit, X — or CSV / API for any other network.
-5. **Optional:** alerts (email, Slack…), invite your team, pick an AI model, add the MCP server.
+### A dashboard you arrange yourself
 
-Step-by-step instructions are on each integration card and in [docs/CONNECTORS.md](docs/CONNECTORS.md). You can try every integration without an account — the demo workspace uses realistic mock data.
+The **Overview** is a widget board. Press **Customize** (or `E`) to drag widgets, resize them, group
+them into sections and pin up to six KPI tiles. Start from a preset (Minimal, E-commerce, Lead gen,
+Agency), keep a personal view, or set the workspace default for the whole team.
 
-Use IDs in your UTMs so AdLedger can match visits to exact ads:
+- A **briefing line** at the top names what mattered, built from SQL numbers, not a language model.
+- **KPI tiles** with change vs the previous period (or last year), polarity-aware colours and sparklines.
+- A **metric explorer**: click any tile to chart it against the comparison period.
+- Widgets for spend vs revenue, revenue by channel, top campaigns, wasted spend, a platform
+  scorecard, the funnel, a conversions heatmap, live visitors, goals and pacing, truth gap, profit
+  after ads, recent leads and customers, and the latest insight.
+- Date presets, compare, platform filter and attribution model all live in the URL, so every view is a link.
 
-```
-Meta:   utm_source=facebook&utm_medium=paid_social&utm_campaign={{campaign.id}}&utm_term={{adset.id}}&utm_content={{ad.id}}
-Google: utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_term={adgroupid}&utm_content={creative}
-```
+### Live
 
-## Ask Claude about your ads (MCP)
+<img src="docs/screenshots/live.png" alt="Live view with visitors on the site now, revenue, spend, leads and customers today vs yesterday, and a real-time activity feed of ad clicks, leads and payments" width="100%" />
 
-Create an API key in **Settings → API & MCP**, then:
+Visitors on your site right now, today vs the same time yesterday, and a real-time feed of ad
+clicks, visits, leads, payments and refunds (server-sent events, no extra service). **Streamer
+mode** (`S`) hides names; **sale alerts** (`A`) pop a toast for every payment.
+
+### Performance
+
+| | |
+|---|---|
+| <img src="docs/screenshots/performance.png" width="520" alt="Performance table with spend, clicks, leads, CPL, customers, CAC, platform gap, revenue and ROAS per campaign" /> | Campaigns, ad sets and ads with **column presets** (Default, E-commerce, Lead gen, Creative) or your own columns, reordered by drag or keyboard. CTR, CPM, CPC, CVR, AOV and **NC-ROAS**, change under every value, and a **platform gap** column: what the ad platform reports next to what AdLedger verified. Switch to the **quadrant** to sort campaigns into scale, test, fix and kill. Save and pin **views**; open a **peek** with the trend, top ad sets and the people a campaign brought in. |
+
+### Attribution
+
+| | |
+|---|---|
+| <img src="docs/screenshots/attribution-paths.png" width="520" alt="Top customer journeys as channel chips with revenue, median days and touches, beside a visit-to-revenue funnel" /> | **First touch, last touch and linear**, switchable anywhere, with exact integer-cent splits that always add up to the payment. **Paths** shows the journeys customers actually took. **Time to convert** shows lag histograms, the weekday-by-hour heatmap and whether your attribution window is long enough. The **model comparison** marks which campaigns start journeys and which close them. Unattributed revenue is always shown, never hidden. |
+
+### Customers: LTV and cohorts
+
+| | |
+|---|---|
+| <img src="docs/screenshots/customers-cohorts.png" width="520" alt="Cohort heatmap by first-payment month with retention, CAC and a dot where each cohort paid back its acquisition cost" /> | Lifetime value by acquiring channel, LTV:CAC, and a **cohort heatmap** by first-payment month in three views (retention, cumulative LTV, revenue), with a dot where each cohort paid back its CAC. Renewals are credited to the journey that first acquired the customer. |
+
+### Signature money features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Ad Receipts.** Every payment shows which ads earned it, what that customer cost in ad spend and
+when they paid it back. Spend always reconciles: customer costs plus unallocated equal total spend
+to the cent.
+
+<img src="docs/screenshots/receipts.png" alt="Receipts: where the ad spend went, then each payment with the ad that mostly earned it, the cost to acquire and a payback tag" />
+
+</td>
+<td width="50%" valign="top">
+
+**Profit Ledger.** Enter cost of goods, payment fees and shipping once. Get contribution, profit
+after ads, **POAS**, break-even ROAS and a P&L waterfall, plus which platforms, campaigns and ads
+bring buyers who refund.
+
+<img src="docs/screenshots/profit.png" alt="Profit ledger with net revenue, contribution, profit after ads, POAS and a profit and loss waterfall" />
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**Truth Gap.** "Meta says its ads made you this much; real payments from people who clicked them
+were that much." Claimed vs verified conversions and value per platform and campaign, with a plain
+explanation of why platforms over-claim.
+
+</td>
+<td valign="top">
+
+**Too-early guardrails.** Median and p80 days from first click to first payment per campaign, a
+"too early to judge" tag on young campaigns, and **pause drafts** you download as a Meta or Google
+Ads Editor bulk file. AdLedger never writes to your ad accounts.
+
+</td>
+</tr>
+</table>
+
+**Verified reports** round this out: every PDF is fingerprinted and watermarked, and anyone holding
+one can check it at `/verify` on your install (see [Reports](#reports-and-pdf)).
+
+### A CRM that knows what each lead cost
+
+| | |
+|---|---|
+| <img src="docs/screenshots/contacts.png" width="520" alt="Contacts table with view tabs, status, first touch, revenue and owner" /> | **Contacts**: view tabs (All, Customers, Open leads, High value) and saved views, filter chips, sort, group, density and column choice, footer totals from SQL, keyset paging that stays fast at 10k+ contacts, and a bulk bar (tag, owner, export, delete with undo). |
+| <img src="docs/screenshots/journey.png" width="520" alt="Contact record with highlights, properties and a unified activity timeline of ad clicks, page views, forms and payments" /> | **Record page**: highlights (net revenue, first touch, days to convert, engagement), editable status, owner and tags, a unified timeline of ad clicks, visits, forms, payments and refunds, **notes**, **tasks** and per-model attribution. `J`/`K` step through contacts. |
+| <img src="docs/screenshots/pipeline.png" width="520" alt="Pipeline kanban with New lead, Qualified, Call booked and Proposal columns, weighted value and rotting counts" /> | **Pipeline**: configurable stages, drag by mouse, touch or keyboard, multi-select moves with undo, weighted value, rotting flags, and a **funnel & cost** view with ad cost per stage by campaign, ad set or ad. Payments move contacts to Won automatically. |
+
+Also: **My tasks** with overdue, today and upcoming; **CSV import** with column mapping and a
+preview before anything is written; **duplicate review and merge** (same phone, Gmail variants,
+same name) with re-attribution.
+
+### Reports and PDF
+
+| | |
+|---|---|
+| <img src="docs/screenshots/reports.png" width="520" alt="Report library with executive summary, weekly performance, attribution model comparison, LTV and cohorts, and wasted spend reports" /> | Five print-ready reports: **executive summary**, **weekly performance**, **attribution model comparison**, **LTV and cohorts**, **wasted spend and budget moves**. Your organization's logo on the masthead, a methodology appendix, a "Prepared for" watermark and a fingerprint on every page. Download, call the API, or **schedule** weekly or monthly emails. Rendered in-process: no headless browser, no extra container. [docs/REPORTS.md](docs/REPORTS.md) |
+
+### Insights and Ask AI
+
+| | |
+|---|---|
+| <img src="docs/screenshots/insights.png" width="520" alt="Insights action cards: move budget, room to grow and a revenue drop, with every figure linked to its source" /> | **Action cards** (move budget, room to grow, revenue drop, CAC up) where every figure links to its source row, a weekly report marked **All numbers verified**, and **Ask**: plain-language questions answered from read-only SQL tools, with the table each answer came from. Any number a model invents is flagged. Works with no model at all (rule-based answers), a local model, or any cloud provider you choose. |
+
+### Alerts, sharing and goals
+
+- **Alert rules** on CAC, CPL, ROAS, spend, revenue or leads, per workspace, platform or campaign,
+  over a window you choose, with cooldowns and a "resolved" notice. Optional **anomaly detection**
+  flags unusual days against the previous 28 days.
+- **Notifications** by email, Slack, Discord, Microsoft Teams, SMS (Twilio) or signed webhook:
+  weekly report, KPI digest (daily, weekly or monthly), alerts, sync failures, new customers,
+  large payments and security events.
+- **Share links**: read-only aggregate dashboards at `/share/…` with locked filters, an expiry
+  date, a view count and one-click revoke. Contact details are never shared.
+- **Targets and goals**: monthly or quarterly targets per metric with pacing, projection to period
+  end and ad-budget pacing.
+
+### Built for speed
+
+- **Ctrl K / ⌘K** finds any page, setting, contact, campaign, ad set or ad. Type `>` for actions,
+  `?` to ask AI.
+- `G` then a letter jumps between pages, `/` focuses the page search, `[` collapses the sidebar,
+  and `?` lists every shortcut for the page you are on.
+- Installable on your phone (PWA) with a bottom tab bar, and a dark mode that follows your system.
+
+### MCP server for AI assistants
+
+Ask Claude, Cursor or any MCP client *"which ads made money last month?"* against your own ledger.
+Create a key in **Settings → API & MCP**, then:
 
 ```bash
 claude mcp add --transport http adledger https://your-adledger/api/mcp --header "Authorization: Bearer al_..."
 ```
 
-> **You:** Which campaigns made money last month and which wasted spend?
-> **Claude:** *(calls `get_performance` and `find_wasted_spend`)* Lookalike 1% returned 3.47x on $13.7k and Brand search 12.98x…
+<details>
+<summary>14 read-only tools</summary>
 
-Tools: `get_overview`, `get_performance`, `find_wasted_spend`, `compare_periods`, `get_platform_breakdown`, `get_timeseries`, `search_campaigns`, `contact_stage_funnel`, `list_contacts`, `get_contact_journey`, `get_latest_insights`, `get_sync_status`, `list_integrations` — all read-only. Claude Desktop and Cursor configs are in [docs/MCP.md](docs/MCP.md).
+<br />
 
-The REST API is described by an OpenAPI 3.1 spec served at `/api/v1/openapi.json`; see [docs/API.md](docs/API.md).
+`get_overview`, `get_performance`, `find_wasted_spend`, `compare_periods`, `get_platform_breakdown`,
+`get_timeseries`, `search_campaigns`, `contact_stage_funnel`, `list_contacts`, `get_contact_journey`,
+`get_ad_receipt`, `get_latest_insights`, `get_sync_status`, `list_integrations`.
+
+Every tool is annotated read-only and a test proves none of them changes data. Emails are masked.
+Setup for Claude Desktop and Cursor: [docs/MCP.md](docs/MCP.md). The same data is on the REST API
+(`/api/v1/...`, OpenAPI 3.1 at `/api/v1/openapi.json`): [docs/API.md](docs/API.md).
+
+</details>
+
+### Integrations
+
+Everything is connected from **Settings → Integrations**, with step-by-step instructions on each
+card and a mock mode for every connector.
+
+| | |
+|---|---|
+| **Ad platforms** | Meta Ads, Google Ads, Microsoft Ads, TikTok Ads, LinkedIn Ads, Pinterest Ads, Snapchat Ads, Reddit Ads, X Ads. Anything else by CSV or the Spend API. |
+| **Payments and stores** | Stripe (paste one key, the webhook is created for you), Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal, Chargebee, Recurly, Gumroad, Cashfree, Instamojo, PhonePe. Anything else by CSV or the Conversions API. |
+| **CRMs** | Won deals from HubSpot and Pipedrive. |
+| **Lead forms** | Any form with `data-adledger-lead`, webhooks from Typeform, Tally, Webflow, Zapier or Make, native Meta Lead Ads, Google Ads lead forms, TikTok Lead Generation, and WhatsApp click-to-chat. |
+| **Your website** | One `<script>` tag (2.4 KB gzipped), a [WordPress/WooCommerce plugin](integrations/wordpress), a [Shopify custom pixel](integrations/shopify), a [GTM template](integrations/gtm) and [guides](docs/integrations/) for Webflow, Wix, Squarespace, Framer and Next.js. |
+| **Back to the ad platforms** (beta) | Consent-aware conversion upload to the Meta Conversions API and Google Ads (Data Manager API), hashed identifiers only. |
+| **Notifications** | Email, Slack, Discord, Microsoft Teams, SMS (Twilio), signed webhook. |
+
+Connectors other than Meta, Google Ads and Stripe are in beta: tested against real-format fixtures,
+not yet verified on live accounts. Details: [docs/CONNECTORS.md](docs/CONNECTORS.md).
+
+## Screenshots
+
+| Overview in dark mode | Revenue and ROAS by attribution model |
+|---|---|
+| <img src="docs/screenshots/overview-dark.png" alt="Overview in dark mode" /> | <img src="docs/screenshots/attribution.png" alt="Revenue and ROAS under first touch, last touch and linear per campaign, with journey starters and closers" /> |
+| **Time to convert** | **Time to money and pause drafts** |
+| <img src="docs/screenshots/time-to-convert.png" alt="Lag histograms from first touch to lead and payment, with a recommended attribution window" /> | <img src="docs/screenshots/time-to-money.png" alt="Median days from first click to payment, pause drafts for Meta and Google Ads Editor, and payback lag by campaign" /> |
+| **Ask your numbers** | **Security policy and posture checklist** |
+| <img src="docs/screenshots/insights-ask.png" alt="Ask panel with suggested questions answered from the ledger" /> | <img src="docs/screenshots/settings-security.png" alt="Security policy checklist: encryption key storage, HTTPS, two-factor coverage, session limits and audit verification" /> |
+| **30+ integrations** | **Guided setup checklist** |
+| <img src="docs/screenshots/settings-integrations.png" alt="Integrations catalog" /> | <img src="docs/screenshots/onboarding.png" alt="Setup checklist that adapts to your website builder, payment tools and ad platforms" /> |
+
+<details>
+<summary>More: tracking, team, alerts, audit log, two-factor sign-in, notifications, report verification</summary>
+
+<br />
+
+| Tracking snippet and consent modes | Members and roles |
+|---|---|
+| <img src="docs/screenshots/settings-tracking.png" alt="Tracking settings" /> | <img src="docs/screenshots/settings-members.png" alt="Members and roles" /> |
+| **Alert rules and anomaly detection** | **Hash-chained audit log** |
+| <img src="docs/screenshots/settings-alerts.png" alt="Alerts settings" /> | <img src="docs/screenshots/settings-audit.png" alt="Audit log with export and verify chain" /> |
+| **Two-factor sign-in and devices** | **Notification channels** |
+| <img src="docs/screenshots/settings-account-security.png" alt="Account security with two-factor sign-in and signed-in devices" /> | <img src="docs/screenshots/settings-notifications.png" alt="Notification channels" /> |
+| **Verify a PDF report** | |
+| <img src="docs/screenshots/verify.png" alt="Public verify page for report fingerprints" /> | |
+
+</details>
+
+**On your phone**: installable as an app, with a floating tab bar and a one-tap filter sheet.
+
+<p>
+  <img src="docs/screenshots/mobile-overview.png" alt="Overview on a phone" width="200" />
+  <img src="docs/screenshots/mobile-live.png" alt="Live on a phone" width="200" />
+  <img src="docs/screenshots/mobile-performance.png" alt="Performance on a phone" width="200" />
+  <img src="docs/screenshots/mobile-settings.png" alt="Integrations on a phone" width="200" />
+</p>
+
+## Security and compliance
+
+AdLedger holds no certifications and makes no compliance claims for you. It is **built to help you
+meet GDPR, UK GDPR, CCPA/CPRA and India's DPDP. When you self-host, you are the data controller.**
+Its controls map to common SOC 2 criteria, but the project itself is not audited. What it ships,
+named precisely:
+
+| Area | Controls |
+|---|---|
+| **Sign-in** | Free two-factor sign-in (TOTP + recovery codes) that owners can require org-wide, with a documented break-glass for a locked-out owner. scrypt passwords under a NIST SP 800-63B-4 policy. |
+| **Sessions** | Hashed tokens, idle timeout and maximum lifetime, a device list with sign out one or everywhere, new-device emails. |
+| **Access** | Five roles (owner, admin, analyst, viewer, client). Contact emails **masked by role**, with every reveal audited. Separate permissions for aggregate CSVs, contact exports and PDFs. |
+| **PII** | Raw emails only in the contacts table; SHA-256 hashes everywhere else. IPs truncated. Stored payloads redacted. |
+| **Secrets and keys** | Connector credentials and 2FA secrets encrypted with AES-256-GCM. API keys stored hashed, with **scopes** and optional expiry. |
+| **Audit** | Tamper-evident, **hash-chained audit log** with Verify, filters and CSV export. **Security alerts** for new keys, role changes, 2FA resets, bulk exports and new-device sign-ins. |
+| **Consent** | Pixel consent modes (opt-out, consent required, cookieless) and **Global Privacy Control**. Conversion uploads carry consent signals, and people who said no are never uploaded. |
+| **Data rights** | Per-contact export and erasure (UI and API), full workspace export, raw-event retention. |
+| **Leak deterrence** | Watermarked, fingerprinted PDFs verifiable at `/verify`, an export log, aggregate-only share links. |
+| **Web and supply chain** | CSP and security headers, SSRF guards, signed webhooks. CodeQL, dependency review, `pnpm audit`, Trivy image scans, Dependabot, SBOM and provenance on release images. |
+| **Disclosure** | `/.well-known/security.txt` on every install and private vulnerability reporting ([SECURITY.md](SECURITY.md)). |
+
+Read the full [Trust & security page](docs/SECURITY.md), including what AdLedger is not for (health
+records, card data, children's data) and the operator hardening checklist.
+
+## How it compares
+
+|   | **AdLedger** | Hyros | Triple Whale | Cometly | Northbeam |
+|---|---|---|---|---|---|
+| Price | **Free** (AGPL-3.0) | Paid plans | Paid plans | Paid plans | Paid plans |
+| Open source, auditable code | **Yes** | No | No | No | No |
+| Runs on your own server | **Yes** | No | No | No | No |
+| Your data stays with you | **Yes** | Vendor cloud | Vendor cloud | Vendor cloud | Vendor cloud |
+| Use a local AI model (Ollama, LM Studio) | **Yes** | No | No | No | No |
+| MCP server on your own infrastructure | **Yes**, read-only | No | No | No | No |
+| Seats, workspaces, client logins | **Unlimited** | Check plan | Check plan | Check plan | Check plan |
+| White-label PDF reports | **Included** | Check plan | Check plan | Check plan | Check plan |
+
+<sub>Competitor details as publicly listed in 2026; check their sites for current pricing and features.
+Some hosted tools offer things AdLedger doesn't yet, such as data-driven attribution models. The long version, with AdLedger's current limits: [docs/COMPARISON.md](docs/COMPARISON.md).</sub>
 
 ## Architecture
 
-One Next.js app + PostgreSQL. The dashboard, REST API, pixel endpoint, webhooks, MCP server and background jobs (syncs, attribution, weekly reports) all run in a single container.
+One Next.js app and PostgreSQL. The dashboard, REST API, pixel collector, webhooks, MCP server,
+live stream, PDF rendering and background jobs (syncs, attribution, alerts, scheduled reports) all
+run in a single container.
 
 ```
- your website ──al.js──▶ /api/v1/collect ─┐
- form tools ──webhook──▶ /api/v1/webhooks ┤          ┌──────────────┐
- Stripe ─────webhook──▶ /api/v1/webhooks ─┼──▶ AdLedger app ──▶│ PostgreSQL 16│
- Meta / Google Ads ◀── scheduled sync ────┤  (Next.js)   └──────────────┘
- Claude / Cursor ──MCP──▶ /api/mcp ───────┘   ▲ dashboard (browser)
+ your website ──al.js──▶ /api/v1/collect ─────┐
+ forms, CRMs ──webhook─▶ /api/v1/webhooks ────┤
+ Stripe, stores ─webhook▶ /api/v1/webhooks ───┼──▶  AdLedger (Next.js)  ──▶  PostgreSQL 16
+ ad platforms ◀── scheduled sync / uploads ───┤        ▲ dashboard, /share, /verify
+ Claude, Cursor ──MCP──▶ /api/mcp ────────────┘
 ```
 
-Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn/ui · Recharts · Vercel AI SDK · MCP SDK. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Stack:** Next.js 16 · React 19 · TypeScript · PostgreSQL 16 (Drizzle ORM, embedded PGlite for
+trials) · Tailwind CSS v4 + shadcn/ui · Recharts · react-pdf · Vercel AI SDK · MCP SDK · vitest ·
+Playwright. Details and design decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Privacy & security
+## Documentation
 
-- Raw emails are stored only in `contacts`; everywhere else emails/phones are SHA-256 hashed (lowercased, trimmed — the format Meta CAPI / Google Enhanced Conversions expect).
-- IPs are truncated before storage. The pixel honors `adledger.consent(false)`, Global Privacy Control and optional Do-Not-Track, and can wait for consent before storing or sending anything (`data-consent="required"`, for EU and UK visitors). Its cookie lasts 13 months.
-- Conversions sent back to Meta and Google carry consent signals (Google `adUserData`/`adPersonalization`, Meta Limited Data Use for GPC visitors); people who said no are never uploaded.
-- Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
-- API keys and sessions are stored hashed. API keys carry scopes (read-only reports by default). The MCP server is read-only.
-- Free two-factor sign-in (authenticator app + recovery codes), which owners can require for everyone; session list with sign-out everywhere and idle timeouts.
-- Viewers and clients see masked contact emails; revealing one is logged. The audit log is hash-chained so edits show up when you verify it, and security events (new API key, role change, bulk export, new-device sign-in) alert your team.
-- Honest trust page: [docs/SECURITY.md](docs/SECURITY.md). No certification badges; what AdLedger does and doesn't do, named precisely.
-- Your data is yours: export contacts as CSV, download the whole workspace as JSON (Settings → Workspace), and set a retention period for raw website events.
-- Erasure and access requests (GDPR/CCPA): **Delete contact** / **Export data** on a contact, or `DELETE /api/v1/contacts/{id}` and `GET /api/v1/contacts/{id}/export` with an API key. Erasure removes the email everywhere and keeps the revenue anonymously, so totals don't change.
-- Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.
+| Doc | What's in it |
+|---|---|
+| [Features](docs/FEATURES.md) | Every page and setting, grouped |
+| [Self-hosting](docs/SELF_HOSTING.md) | Install options, HTTPS, upgrades, backups, configuration |
+| [Connectors](docs/CONNECTORS.md) | Setting up each integration, UTM templates, mock mode |
+| [Pixel](docs/PIXEL.md) | The tracking script, its API and consent |
+| [Reports](docs/REPORTS.md) | PDF reports, schedules, watermarks and verification |
+| [MCP](docs/MCP.md) · [API](docs/API.md) | AI assistant tools and the REST API |
+| [Trust & security](docs/SECURITY.md) | Controls, privacy, hardening checklist, disclosure |
+| [Comparison](docs/COMPARISON.md) | AdLedger vs Hyros, Triple Whale, Cometly and Northbeam |
+| [FAQ](docs/FAQ.md) | Data, accuracy, iOS, cost, 2FA lockout, compliance questions |
+| [Architecture](docs/ARCHITECTURE.md) · [Product](docs/PRODUCT.md) · [Roadmap](docs/ROADMAP.md) | How it's built, who it's for, what's next |
 
-## FAQ
-
-Privacy, iOS tracking, accuracy limits, what self-hosting costs and whether you need developer
-accounts: see [docs/FAQ.md](docs/FAQ.md).
-
-## Development
+## Contributing
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:3000 (embedded database in ./.data, no Docker needed)
-pnpm test         # vitest against an embedded Postgres, all connectors mocked
-pnpm build && pnpm e2e   # browser tests + axe accessibility checks (Playwright); SCREENSHOTS=1 refreshes docs/screenshots
+pnpm dev                   # http://localhost:3000, embedded database, no Docker needed
+pnpm test                  # vitest on an embedded Postgres, every connector mocked
 pnpm lint && pnpm typecheck
-pnpm build
+pnpm build && pnpm e2e     # Playwright browser tests with axe accessibility checks
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+Bug reports, connectors and docs fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [roadmap](docs/ROADMAP.md).
 
 ## License
 
-[AGPL-3.0](LICENSE). Free to use, modify and self-host. If you offer a modified version as a hosted service, share your changes.
+[AGPL-3.0](LICENSE). Free to use, modify and self-host. If you offer a modified version as a
+network service, share your changes. The name and logo are covered by [TRADEMARKS.md](TRADEMARKS.md).
+
+<div align="center">
+<br />
+
+**If AdLedger shows you which ad made you money, give it a star.** It helps other founders find it.
+
+</div>

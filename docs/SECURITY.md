@@ -4,6 +4,30 @@ This page explains how AdLedger handles your data, what it protects against, and
 your job as the person running it. It names mechanisms, not slogans. To report a vulnerability,
 see [SECURITY.md](../SECURITY.md).
 
+**At a glance**
+
+- Self-hosted and open source: your data stays in your PostgreSQL, with no telemetry or phone-home.
+- No certification badges. AdLedger is built to help you meet GDPR, UK GDPR, CCPA/CPRA and India's
+  DPDP; when you self-host, you are the data controller.
+- Free two-factor sign-in, session and device management, five roles with email masking, scoped
+  and expiring API keys, AES-256-GCM secrets and a hash-chained audit log. There is no paid
+  security tier: everything on this page is in the free, open-source code.
+- Consent modes and Global Privacy Control in the pixel; consent-aware conversion uploads.
+- Leaks are deterred and traceable: permissions, watermarked and fingerprinted PDFs, an export log
+  and security alerts.
+
+**Contents:**
+[1. Your data](#1-your-data-stays-in-your-database) ·
+[2. Responsibility](#2-who-is-responsible-for-what) ·
+[3. Security built in](#3-security-built-in) ·
+[4. Privacy by design](#4-privacy-by-design) ·
+[5. Leak deterrence](#5-data-that-cant-walk-off-unnoticed) ·
+[6. Supply chain](#6-supply-chain) ·
+[7. Hardening checklist](#7-operator-hardening-checklist) ·
+[8. Reporting a vulnerability](#8-reporting-a-vulnerability) ·
+[9. Not for](#9-what-adledger-is-not-for) ·
+[10. Licence](#10-licence-and-name)
+
 ## 1. Your data stays in your database
 
 AdLedger is open source (AGPL-3.0) and self-hosted. There is no AdLedger server in the loop: no
@@ -59,10 +83,33 @@ database could rewrite the whole chain. Note the head hash shown on the audit pa
 - The AI works with your own model (including a local one such as Ollama) and only sees numbers
   computed by SQL. The MCP server is read-only and masks emails.
 
+### 4.1 How the controls help with privacy laws
+
+This is a map of tools, not legal advice. Whether your use of AdLedger is lawful depends on your
+notices, your legal bases and how you configure and run it.
+
+| Obligation (GDPR / UK GDPR, CCPA/CPRA, DPDP) | What AdLedger gives you | What stays your job |
+|---|---|---|
+| Consent for tracking where required (ePrivacy, UK PECR) | Pixel consent modes: `optout`, `required` (nothing stored or sent before consent), `cookieless`; snippets for Cookiebot, CookieYes, Osano, Klaro and Google Consent Mode v2; a 13-month cookie | Choosing the right mode for your visitors, your cookie banner and notice |
+| Honouring opt-outs (CPRA, GPC) | Global Privacy Control is honoured by the pixel; GPC visitors are sent to Meta with Limited Data Use and to Google with consent denied; people who said no are never uploaded | Your "Do not sell or share" notice |
+| Right of access / portability | Per-contact export (Contacts → Export data, or `GET /api/v1/contacts/{id}/export`); full workspace export | Verifying the requester and replying in time |
+| Right to erasure | Delete contact (UI or `DELETE /api/v1/contacts/{id}`): the person is removed everywhere, revenue totals are kept anonymously | Deciding when an exemption applies |
+| Data minimisation and storage limitation | Hashed emails and phones outside `contacts`, truncated IPs, redacted payloads, a retention period for raw website events | Setting a retention period that fits your purpose |
+| Security of processing | Everything in [section 3](#3-security-built-in) | Running the install securely ([section 7](#7-operator-hardening-checklist)) |
+| Records and accountability | Audit log with hash chain and CSV export; the list of connected integrations (your recipients) in Settings | Your record of processing and privacy notice |
+
 ## 5. Data that can't walk off unnoticed
 
-Leaks are deterred and traceable, not impossible. The tools are permissions (who can export what),
-masking by default, audited reveals, alerts on bulk exports and a tamper-evident audit trail.
+Leaks are deterred and traceable, not impossible. The tools:
+
+- **Permissions** for who can export what, and **masking by default** with audited reveals.
+- **PDF reports** carry a "Prepared for" watermark and a fingerprint on every page. Every PDF
+  (download, API call or scheduled email) writes a row to the export log, and anyone holding a PDF
+  can check at `/verify` whether your install issued it; the page reveals nothing beyond the cover.
+  Owners decide whether clients may download PDFs; contact details in a PDF are always masked.
+- **Share links** show aggregates only, never contacts. Tokens are 256-bit and stored hashed;
+  filters are locked, links expire, views are counted and audited, and links can be revoked.
+- **Alerts** on bulk contact exports and workspace exports, and a **tamper-evident audit trail**.
 
 We don't block right-click, text selection or screenshots, and we don't add DevTools traps.
 View-source, browser extensions and a phone camera get around all of it, and it breaks
