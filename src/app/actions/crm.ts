@@ -8,9 +8,8 @@ import { audit } from "@/lib/auth";
 import { displayEmail } from "@/lib/contact-display";
 import { normalizeTag, VIEW_KEYS } from "@/lib/crm-query";
 import { getDb, rows, schema } from "@/lib/db";
-import { eraseContact } from "@/lib/privacy";
+import { csvCell, eraseContact, minorToDecimal } from "@/lib/privacy";
 import { contactRecord, isEditingMember, ownedContactIds } from "@/lib/reports-crm";
-import { csvCell, minorToDecimal } from "@/lib/privacy";
 import { currencyExponent } from "@/lib/money";
 import { UUID_RE } from "@/lib/request-auth";
 

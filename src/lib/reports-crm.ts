@@ -251,7 +251,7 @@ export async function listContactsPage(db: DB, ws: Workspace, q: ResolvedQuery, 
   const result = rows<Record<string, string | number | null>>(
     await db.execute(sql`
       select c.id, c.name, c.email, c.lifecycle, c.first_seen_at, c.owner_user_id,
-        ${sort.expr} sort_value,
+        ${sort.kind === "ts" ? sql`(${sort.expr})::text` : sort.expr} sort_value,
         s.revenue_minor, s.orders, s.touches, s.engagement, s.days_to_convert, s.last_activity_at,
         s.first_touch_platform, s.first_touch_channel, fc.name first_campaign,
         s.last_touch_platform, s.last_touch_channel, lc.name last_campaign
@@ -278,7 +278,8 @@ export async function listContactsPage(db: DB, ws: Workspace, q: ResolvedQuery, 
 
   const cursorOf = (r: Record<string, string | number | null>) =>
     encodeCursor({
-      v: sort.kind === "ts" ? new Date(r.sort_value as string).toISOString() : sort.kind === "num" ? Number(r.sort_value) : String(r.sort_value ?? ""),
+      // Timestamps travel as Postgres text, keeping microseconds (a JS Date rounds to ms and would skip rows).
+      v: sort.kind === "num" ? Number(r.sort_value) : String(r.sort_value ?? ""),
       id: String(r.id),
       g: q.group ? String(r.lifecycle) : undefined,
     });
@@ -472,16 +473,41 @@ export async function contactRecord(
   const [base] = rows<{ owner_user_id: string | null }>(
     await db.execute(sql`select owner_user_id from contacts where workspace_id = ${ws.id} and id = ${contactId}::uuid`),
   );
+  const rc = ws.reportingCurrency;
   const [tagRows, statRows, viewRows, notes, tasks] = await Promise.all([
     db.execute(sql`select tag from contact_tags where workspace_id = ${ws.id} and contact_id = ${contactId}::uuid order by tag`),
-    db.execute(sql`select engagement, last_seen_at, days_to_convert from contact_stats where contact_id = ${contactId}::uuid and workspace_id = ${ws.id}`),
+    // Highlights straight from the ledger (not the roll-up), so they are exact right after a change.
+    db.execute(sql`
+      with rev as (
+        select coalesce(sum(amount_minor) filter (where currency = ${rc}), 0) net,
+          coalesce(-sum(amount_minor) filter (where type = 'refund' and currency = ${rc}), 0) refunds,
+          count(*) filter (where type = 'payment') orders,
+          min(occurred_at) filter (where type = 'payment') converted_at,
+          max(occurred_at) last_at
+        from revenue_events where workspace_id = ${ws.id} and contact_id = ${contactId}::uuid
+      ), tp as (
+        select count(*) touches, min(t.occurred_at) first_at, max(t.occurred_at) last_at
+        from touchpoints t join visitors v on v.id = t.visitor_id
+        where t.workspace_id = ${ws.id} and v.contact_id = ${contactId}::uuid
+      ), vis as (
+        select max(last_seen_at) last_seen from visitors where workspace_id = ${ws.id} and contact_id = ${contactId}::uuid
+      ), ld as (
+        select max(occurred_at) last_at from leads where workspace_id = ${ws.id} and contact_id = ${contactId}::uuid
+      )
+      select rev.net, rev.refunds, rev.orders, tp.touches, s.engagement,
+        greatest(vis.last_seen, tp.last_at, rev.last_at, ld.last_at) last_seen_at,
+        case when rev.converted_at is not null then greatest(0, floor(extract(epoch from rev.converted_at
+          - least(c.first_seen_at, coalesce(tp.first_at, c.first_seen_at))) / 86400))::int end days_to_convert
+      from contacts c cross join rev cross join tp cross join vis cross join ld
+      left join contact_stats s on s.contact_id = c.id
+      where c.workspace_id = ${ws.id} and c.id = ${contactId}::uuid`),
     db.execute(sql`select e.type, e.name, e.url, e.occurred_at from events e join visitors v on v.id = e.visitor_id
       where v.contact_id = ${contactId}::uuid and e.workspace_id = ${ws.id} and e.type in ('page_view', 'custom')
       order by e.occurred_at desc limit ${PAGE_VIEW_CAP + 1}`),
     opts.withNotes ? contactNotes(db, ws, contactId) : Promise.resolve(null),
     opts.withNotes ? contactTasks(db, ws, contactId, viewer) : Promise.resolve(null),
   ]);
-  const stat = rows<{ engagement: number; last_seen_at: string | null; days_to_convert: number | null }>(statRows)[0];
+  const stat = rows<Record<string, string | number | null>>(statRows)[0];
   const views = rows<{ type: string; name: string | null; url: string | null; occurred_at: string }>(viewRows);
   const capped = views.length > PAGE_VIEW_CAP;
 
@@ -503,13 +529,9 @@ export async function contactRecord(
     ...(tasks ?? []).map((task): TimelineEntry => ({ kind: "task", at: task.doneAt ?? task.createdAt, task })),
   ].sort((a, b) => b.at.localeCompare(a.at));
 
-  const touches = j.items.filter((i) => i.kind === "touchpoint");
-  const payments = j.items.filter((i) => i.kind === "payment");
-  const refunds = j.items.filter((i) => i.kind === "refund");
-  const cur = ws.reportingCurrency;
-  const first = touches[0];
+  const first = j.items.find((i) => i.kind === "touchpoint");
   const firstLead = j.items.find((i) => i.kind === "lead");
-  const lastAt = [stat?.last_seen_at ? iso(stat.last_seen_at)! : null, j.items.at(-1)?.at ?? null].filter(Boolean).sort().at(-1) ?? null;
+  const firstPayment = j.items.find((i) => i.kind === "payment");
   return {
     contact: {
       id: j.contact.id,
@@ -522,25 +544,26 @@ export async function contactRecord(
     },
     tags: rows<{ tag: string }>(tagRows).map((t) => t.tag),
     highlights: {
-      revenueMinor: [...payments, ...refunds].reduce((s, i) => s + (i.currency === cur ? i.amountMinor : 0), 0),
-      refundsMinor: refunds.reduce((s, i) => s + (i.currency === cur ? -i.amountMinor : 0), 0),
-      orders: payments.length,
-      touches: touches.length,
-      daysToConvert: stat?.days_to_convert ?? null,
-      lastSeenAt: lastAt,
-      engagement: stat ? n(stat.engagement) : null,
-      firstTouch: first
-        ? { platform: first.platform, channel: first.channel, campaign: first.campaign, landingPath: first.landingUrl ? pathOf(first.landingUrl).path : null }
-        : null,
+      revenueMinor: n(stat?.net),
+      refundsMinor: n(stat?.refunds),
+      orders: n(stat?.orders),
+      touches: n(stat?.touches),
+      daysToConvert: nn(stat?.days_to_convert),
+      lastSeenAt: iso(stat?.last_seen_at),
+      engagement: nn(stat?.engagement),
+      firstTouch:
+        first?.kind === "touchpoint"
+          ? { platform: first.platform, channel: first.channel, campaign: first.campaign, landingPath: first.landingUrl ? pathOf(first.landingUrl).path : null }
+          : null,
       firstLeadAt: firstLead?.at ?? null,
-      convertedAt: payments[0]?.at ?? null,
+      convertedAt: firstPayment?.at ?? null,
     },
     timeline,
     pageViewsCapped: capped,
     notes,
     tasks,
     credits: j.credits,
-    currency: cur,
+    currency: rc,
     timezone: ws.timezone,
   };
 }
