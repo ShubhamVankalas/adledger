@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage") }}
         setupLeft={setup ? setup.steps.length - setup.done : 0}
       />
-      <SidebarInset className="min-w-0 overflow-x-clip pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+      <SidebarInset id="main" className="min-w-0 overflow-x-clip pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
         {/* Keeps scrolled content from showing under a notch / status bar in the installed app. */}
         <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden" />
         {user.workspace.isDemo ? (
