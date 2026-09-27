@@ -333,16 +333,18 @@ describe("conversions heatmap", () => {
   it("buckets leads and payments by weekday and hour", async () => {
     const r = await conversionsHeatmap(db, ws, Q3);
     expect(r.cells).toHaveLength(168);
-    expect(r.totals).toEqual({ leads: 3, payments: 4 });
+    expect(r.totals).toEqual({ leads: 3, payments: 5 });
     const at = (dow: number, hour: number) => r.cells[dow * 24 + hour];
     // Thu Jul 2 10:00 (Alice's lead), Fri Jul 10 12:00 (Bob's lead), Tue Jul 21 11:00 (Dan's lead)
     expect(at(3, 10).leads).toBe(1);
     expect(at(4, 12).leads).toBe(1);
     expect(at(1, 11).leads).toBe(1);
-    // Payments at 12:00 on Sun Jul 5, Sun Jul 12, Wed Aug 5, Sat Sep 12 (the refund is not a payment)
+    // Payments at 12:00 on Sun Jul 5, Sun Jul 12, Wed Aug 5, Thu Aug 20, Sat Sep 12 (the refund is not a payment)
     expect(at(6, 12).payments).toBe(2);
     expect(at(2, 12).payments).toBe(1);
+    expect(at(3, 12).payments).toBe(1);
     expect(at(5, 12).payments).toBe(1);
+    expect(at(3, 11).payments + at(3, 13).payments).toBe(0);
     expect(r.max).toEqual({ leads: 1, payments: 2 });
   });
 });
@@ -391,6 +393,6 @@ describe("second workspace: timezone and isolation", () => {
     expect(paybackB.rows.map((x) => x.key)).toEqual(["unattributed"]);
     // …and workspace A is unchanged by B's rows.
     const heatA = await conversionsHeatmap(db, ws, Q3);
-    expect(heatA.totals).toEqual({ leads: 3, payments: 4 });
+    expect(heatA.totals).toEqual({ leads: 3, payments: 5 });
   });
 });

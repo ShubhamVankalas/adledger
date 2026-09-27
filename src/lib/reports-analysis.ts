@@ -256,7 +256,7 @@ function lagStats(r: Record<string, string | null> | undefined): LagStats {
     p80Days: round1(nOrNull(r.p80)),
     p90Days: round1(nOrNull(r.p90)),
     buckets: [n(r.b0), n(r.b1), n(r.b2), n(r.b3), n(r.b4)],
-    withinWindowShare: ratio(n(r.within), conversions),
+    withinWindowShare: ratio(n(r.in_window), conversions),
   };
 }
 
@@ -300,7 +300,7 @@ export async function timeToConvert(db: DB, ws: Workspace, p: ReportParams): Pro
         count(*) filter (where d >= 7 and d < 14) b2,
         count(*) filter (where d >= 14 and d < 30) b3,
         count(*) filter (where d >= 30) b4,
-        count(*) filter (where d <= ${win}) within
+        count(*) filter (where d <= ${win}) in_window
       from lags group by 1`),
   );
   const byStage = new Map(stageRows.map((r) => [r.stage, r]));
