@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 2 Live | ✅ | `/live`: counters with count-up, SSE feed (ad clicks, visits, leads, payments, refunds), today vs yesterday by hour, top pages and sources, streamer mode, sale toasts; `GET /api/v1/live` + `/api/v1/live/pulse`; `<LivePulse/>`, `<LiveNavBadge/>`, `<LiveNowWidget/>` ready to wire; simulated activity in sample workspaces. Next: "new data" pills on Overview/Contacts, milestone notifications, PWA shortcut |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
