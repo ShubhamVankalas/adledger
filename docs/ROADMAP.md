@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 2 Performance v2 + saved views | ✅ | Presets (Default, E-commerce, Lead gen, Creative, Custom), Display popover (drag to reorder, add/hide columns, density), CTR/CPM/CPC/CVR/AOV/NC-ROAS, platform vs verified conversions with gap %, Δ under values, capped ROAS bar, optional stoplights, sticky header/column/totals, peek sheet (trend, ad sets, people), Table / Quadrant, J/K/Space/Enter/X shortcuts, `saved_views` with shared/personal views and sidebar pins. Next: wire goals into stoplights, sidebar pins in the shell, 14-day sparkline column, Trend overlay, cost per stage (phase 4), "Open in Meta Ads" |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).

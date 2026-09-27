@@ -129,6 +129,11 @@ error, mock, sent_at, skip_reason, consent_mode = the consent basis it was built
 the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
 nulls not distinct).
 
+**Saved views** — `saved_views` (page, name, params jsonb, pinned, position; `user_id` null = shared with
+the workspace, otherwise personal). `params` only ever holds the page's whitelisted URL keys
+(`lib/view-params.ts`), never PII. Personal views need `reports.view`; shared ones `views.share`
+(owner/admin/analyst). The sidebar shows at most 8 pinned views.
+
 ## 5. Key flows
 
 **Pixel → touchpoint.** `al.js` loads with `data-site=pk_…`, keeps a first-party `_al_vid`
@@ -181,6 +186,20 @@ are inclusive and use the workspace timezone for day boundaries. `reports-advanc
 `model-comparison` (first-touch vs last-touch vs linear revenue/ROAS per campaign, with each
 campaign flagged as a journey starter or closer) and `ltv` (first-payment-month cohorts with
 monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
+`reports-performance.ts` powers Performance v2: every table column in one SQL pass per level (CTR,
+CPM, CPC, CVR, lead → customer, purchases, AOV, NC-ROAS = first-payment revenue ÷ spend, platform
+conversions vs verified conversions = credited leads + new customers, and the platform gap), SQL totals,
+deltas against the filter bar's comparison window, the Scale / Test / Fix / Kill split (median spend ×
+ROAS target or break-even) and the row peek (entity metrics, daily trend, top children, top contacts
+with names or masked emails only). The peek loads on demand through the read-only server action
+`(app)/performance/actions.ts`.
+
+**Performance page state.** Everything is in the URL. Server keys (`range`, `from`/`to`, `compare`,
+`model`, `platform`, `level`, `parent`, `q`) re-render on the server; display keys (`preset`, `cols`,
+`sort`/`dir`, `density`, `mode`, `peek`) change through the History API only
+(`components/performance/use-table-url.ts`), so sorting, columns and the peek never refetch the report.
+Opening a peek pushes a history entry (Back closes it). Column presets and definitions live in
+`components/performance/columns.ts`; stoplights take optional workspace targets (`PerfTargets`).
 
 **AI insights.** `ai/facts.ts` builds a JSON facts pack (current vs previous period, top and
 wasted campaigns, biggest movers, channel mix) with pre-formatted figures (whole-unit money, signed
