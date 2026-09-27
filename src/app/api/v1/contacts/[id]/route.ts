@@ -6,9 +6,9 @@ import { authorize, UUID_RE } from "@/lib/request-auth";
 
 // DELETE /api/v1/contacts/{id} — right to erasure. Deletes the contact and its leads, unlinks
 // its visitors, keeps its revenue anonymously (as unattributed).
-// API key, or a session with workspace.data (owners/admins).
+// A session with workspace.data (owners/admins) or an API key with the ingest:write scope.
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const caller = await authorize(req, "workspace.data");
+  const caller = await authorize(req, "workspace.data", { scope: "ingest:write" });
   if (caller instanceof Response) return caller;
   const { id } = await params;
   if (!UUID_RE.test(id)) return json({ error: "not found" }, 404);

@@ -7,7 +7,7 @@ load it into Postman, Insomnia, Scalar or an SDK generator.
 
 REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.
 
-**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. A dashboard session cookie also works for same-origin calls. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.
+**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.
 
 **Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.
 
@@ -23,6 +23,7 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
 | DELETE | [`/api/v1/contacts/{id}`](#delete-apiv1contactsid) | Erase a contact | API key |
 | GET | [`/api/v1/contacts/{id}/export`](#get-apiv1contactsidexport) | Export a contact | API key |
+| GET | [`/api/v1/exports/audit`](#get-apiv1exportsaudit) | Export the audit log | session |
 | GET | [`/api/v1/exports/contacts`](#get-apiv1exportscontacts) | Export contacts as CSV | API key |
 | GET | [`/api/v1/exports/workspace`](#get-apiv1exportsworkspace) | Export the whole workspace | session |
 | POST | [`/api/v1/sync/{provider}`](#post-apiv1syncprovider) | Sync a connector now | API key |
@@ -51,7 +52,7 @@ Attribution reports (read-only).
 
 ### GET /api/v1/reports/{report}
 
-**Run a report.** `overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform.
+**Run a report.** `overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform. API keys need `reports:read`.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -78,7 +79,7 @@ Leads, customers and their journeys (read-only).
 
 ### GET /api/v1/contacts
 
-**List contacts.** Leads and customers, newest first. Returns raw emails: treat responses as personal data.
+**List contacts.** Leads and customers, newest first. API keys need `contacts:read`. Emails are masked (`p•••@gmail.com`, `emailsMasked: true`) unless the key has `contacts:pii` or the member's role may see contact PII (owner, admin, analyst). Without that, `search` matches names and complete email addresses only.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -97,7 +98,7 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 ### GET /api/v1/contacts/{id}/journey
 
-**Contact journey.** Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives.
+**Contact journey.** Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives. API keys need `contacts:read`; the email is masked unless the caller may see contact PII.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -138,7 +139,7 @@ Erasure and data exports (GDPR / CCPA).
 
 ### DELETE /api/v1/contacts/{id}
 
-**Erase a contact.** Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key, or a dashboard session with `workspace.data` (owners and admins).
+**Erase a contact.** Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key with `ingest:write`, or a dashboard session with `workspace.data` (owners and admins).
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -156,7 +157,7 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 ### GET /api/v1/contacts/{id}/export
 
-**Export a contact.** Subject-access request: everything stored about one contact, as a JSON download. API key, or a dashboard session with `reports.export`.
+**Export a contact.** Subject-access request: everything stored about one contact, raw email included, as a JSON download. API key with `contacts:pii`, or a dashboard session with `export.contacts` (owners and admins).
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -172,9 +173,29 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 404 | Not found. — `application/json`: [Error](#error) |
 | 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
+### GET /api/v1/exports/audit
+
+**Export the audit log.** The organization's audit log as a streamed CSV download, newest first, with each entry's `seq`, `prev_hash` and `hash` so the tamper-evident chain can be checked outside AdLedger. Accepts the same filters as the audit log page. Dashboard session only, with `audit.view` and `export.csv` (owners and admins); API keys get 403. The export itself is logged.
+
+Auth: dashboard session only (API keys are refused).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `category` | query | `signin`, `security`, `members`, `data`, `settings`, `integrations` | no | Kind of activity. |
+| `member` | query | string | no | A member's user id, or `system` for entries without a member (API keys, jobs). |
+| `workspace` | query | string (uuid) | no | Workspace id. |
+| `period` | query | `7d`, `30d`, `90d`, `all` | no | How far back to go. (default `"90d"`) |
+
+| Status | Response |
+|---|---|
+| 200 | CSV (attachment). — `text/csv`: string |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
 ### GET /api/v1/exports/contacts
 
-**Export contacts as CSV.** The Contacts list (optionally filtered) as a streamed CSV download. API key, or a dashboard session with `reports.export`.
+**Export contacts as CSV.** The Contacts list (optionally filtered) as a streamed CSV download. API key with `contacts:read`, or a dashboard session with `export.csv`. Emails are raw only for keys with `contacts:pii` and members with `export.contacts` (owners, admins); everyone else gets them masked. Exports of more than 1,000 rows raise a security alert.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -209,7 +230,7 @@ Push spend, conversions and pixel events into AdLedger.
 
 ### POST /api/v1/spend
 
-**Push ad spend.** Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request.
+**Push ad spend.** Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request. API keys need `ingest:write`.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -225,7 +246,7 @@ Request body: `application/json`: object
 
 ### POST /api/v1/conversions
 
-**Push payments, refunds and leads.** Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request.
+**Push payments, refunds and leads.** Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request. API keys need `ingest:write`.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -286,7 +307,7 @@ Trigger connector syncs.
 
 ### POST /api/v1/sync/{provider}
 
-**Sync a connector now.** Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`.
+**Sync a connector now.** Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`. API keys need `ingest:write`.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -483,7 +504,7 @@ Model Context Protocol endpoint for AI agents (read-only tools).
 
 ### GET /api/mcp
 
-**MCP event stream (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.
+**MCP event stream (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -494,7 +515,7 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 ### POST /api/mcp
 
-**MCP endpoint (Streamable HTTP).** Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.
+**MCP endpoint (Streamable HTTP).** Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own. API keys need the `mcp` scope.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
@@ -507,7 +528,7 @@ Request body: `application/json`: object
 
 ### DELETE /api/mcp
 
-**End an MCP session (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.
+**End an MCP session (not supported).** Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 

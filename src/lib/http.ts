@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { authenticatePrincipal } from "./auth";
+import { authenticatePrincipal, type Principal } from "./auth";
+import type { ApiScope } from "./db/schema";
 import type { Permission } from "./permissions";
 import type { Workspace } from "./settings";
 
@@ -42,17 +43,25 @@ export function isSameOriginRequest(req: Request): boolean {
 }
 
 type AuthOptions = {
-  /** Role permission required when called with a dashboard session (API keys hold the workspace's full API). */
+  /** Role permission required when called with a dashboard session. */
   permission?: Permission;
+  /** Scope an API key must carry (default "reports:read"). See lib/security/scopes.ts. */
+  scope?: ApiScope;
   /** Requests per minute per workspace and route (default 300). */
   perMinute?: number;
 };
 
 /** Wrap an API handler that needs a session cookie or API key. */
-export function withAuth<C>(handler: (req: Request, ws: Workspace, ctx: C) => Promise<Response>, opts: AuthOptions = {}) {
+export function withAuth<C>(handler: (req: Request, ws: Workspace, ctx: C, principal: Principal) => Promise<Response>, opts: AuthOptions = {}) {
   return async (req: Request, ctx: C) => {
     const principal = await authenticatePrincipal(req);
     if (!principal) return json({ error: "unauthorized", hint: "Send `Authorization: Bearer al_...` (create a key in Settings → API keys)." }, 401);
+    if (principal.kind === "api_key") {
+      const scope = opts.scope ?? "reports:read";
+      if (!principal.key.scopes.includes(scope)) {
+        return json({ error: "forbidden", hint: `This API key lacks the "${scope}" scope. Create a key with it in Settings → API & MCP.` }, 403);
+      }
+    }
     if (principal.kind === "session") {
       if (opts.permission && !principal.user.can(opts.permission)) return json({ error: "forbidden", hint: "Your role doesn't allow this." }, 403);
       if (!SAFE_METHODS.has(req.method.toUpperCase()) && !isSameOriginRequest(req)) return json({ error: "cross-site request blocked" }, 403);
@@ -62,7 +71,7 @@ export function withAuth<C>(handler: (req: Request, ws: Workspace, ctx: C) => Pr
       return json({ error: "rate limited", hint: "Slow down and retry in a minute." }, { status: 429, headers: { "Retry-After": "60" } });
     }
     try {
-      return await handler(req, principal.workspace, ctx);
+      return await handler(req, principal.workspace, ctx, principal);
     } catch (err) {
       if (err && typeof err === "object" && "issues" in err) return json({ error: "invalid parameters", details: (err as { issues: unknown }).issues }, 400);
       throw err;

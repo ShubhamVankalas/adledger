@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   // Lets phones/tablets on the same Wi-Fi open the dev server (pnpm dev) by LAN IP.
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*", "172.*.*.*"],
   serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer"],
+  // Read at runtime by the password policy (src/lib/security/password-policy.ts).
+  outputFileTracingIncludes: { "/*": ["./src/lib/security/common-passwords.txt"] },
   // CSV uploads in Settings → Import data.
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {

@@ -103,12 +103,12 @@ export function SetupForm() {
               />
             </Field>
           </div>
-          <Field label="Password" error={e.password} hint="At least 8 characters." htmlFor="password">
+          <Field label="Password" error={e.password} hint="At least 15 characters. A few unrelated words work well; no symbols needed." htmlFor="password">
             <PasswordInput
               id="password"
               name="password"
               required
-              minLength={8}
+              minLength={15}
               autoComplete="new-password"
               aria-invalid={e.password ? true : undefined}
               aria-describedby={describedBy("password", e.password, true)}

@@ -22,5 +22,5 @@ export const POST = withAuth(
     return json({ ok: result.errors.length === 0, ...result }, result.rows === 0 && result.errors.length ? 422 : 200);
   },
   // Same permission as the CSV import in Settings when called with a dashboard session.
-  { permission: "workspace.settings", perMinute: 60 },
+  { permission: "workspace.settings", scope: "ingest:write", perMinute: 60 },
 );
