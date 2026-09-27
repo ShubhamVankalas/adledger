@@ -11,6 +11,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -607,4 +608,28 @@ export const conversionUploads = pgTable(
 export type UploadPlatform = "meta" | "google";
 export type UploadConversionType = "lead" | "purchase";
 export type UploadStatus = "pending" | "sent" | "failed" | "skipped";
+
+// ---------------------------------------------------------------- overview dashboards
+
+/**
+ * Overview widget board layouts (validated by src/lib/dashboard/layout.ts on every read).
+ * user_id null = the workspace default (admins edit it); a row with a user_id = that member's
+ * personal override. At most one of each per workspace: the unique key treats nulls as equal.
+ */
+export const dashboards = pgTable(
+  "dashboards",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull().default("Overview"),
+    /** Preset the layout started from ("minimal", "ecommerce", ...), for "Reset to preset". */
+    preset: text("preset").notNull().default("minimal"),
+    layout: jsonb("layout").$type<Record<string, unknown>>().notNull(),
+    /** Bumped on every save; a save carrying a stale version is rejected (two tabs, two admins). */
+    version: integer("version").notNull().default(1),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [unique("dashboards_scope_uq").on(t.workspaceId, t.userId).nullsNotDistinct()],
+);
 

@@ -375,6 +375,7 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "attribution_credits" },
   { table: "conversion_uploads" },
   { table: "ai_reports" },
+  { table: "dashboards" },
   { table: "audit_log" },
 ];
 
