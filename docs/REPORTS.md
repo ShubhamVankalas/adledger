@@ -40,7 +40,9 @@ written or calculated by AI.
   `Cache-Control: private, no-store` and `X-Export-Id` / `X-Report-Fingerprint` headers.
 
 Who can download: owners, admins and analysts (the `reports.pdf` permission), and API keys.
-Viewers and clients see reports on screen only.
+Viewers and clients see reports on screen only. Session downloads must come from the dashboard
+itself: a cross-site link (`Sec-Fetch-Site: cross-site`) is refused, so another site can't make a
+signed-in browser render and log a report.
 
 The server renders at most two PDFs at a time and queues two more for up to 15 seconds; beyond that
 the API answers `429` with `Retry-After`. A report typically renders in 150–400 ms.
@@ -99,7 +101,9 @@ Chinese, Japanese, Korean and Arabic scripts are not supported in PDFs yet.
 ## Printing any page
 
 Ctrl+P (⌘P) on any dashboard page prints without the sidebar, filters or buttons, in light colours,
-without splitting cards or table rows. The rules live in `src/app/print.css`.
+without splitting cards or table rows. Overview widgets print at their natural height and charts
+scale to the paper width. The rules live in `src/app/print.css` (its colour tokens mirror the light
+palette in `globals.css`: keep them in sync when the palette changes).
 
 ## For developers
 

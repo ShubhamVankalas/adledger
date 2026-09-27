@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| B Reports & PDF | ✅ | react-pdf + in-house SVG chart kit; 5 kinds (executive summary, weekly performance, attribution models, LTV & cohorts, wasted spend & budget moves) with methodology appendix; `/reports` gallery, download + weekly/monthly email schedules (`report_schedules`); `export_log`, "Prepared for" watermark, fingerprint + public `/verify`; print stylesheet. Next: truth report, share links, branding settings, Noto Sans Devanagari files, protected/archival PDFs, Slack/webhook delivery |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
