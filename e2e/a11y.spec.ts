@@ -77,6 +77,7 @@ const APP_PAGES: [string, () => string][] = [
   ["insights", () => "/insights"],
   ["setup checklist", () => "/onboarding"],
   ["account settings", () => "/settings/account"],
+  ["account security", () => "/settings/account/security"],
   ["workspace settings", () => "/settings/workspace"],
   ["tracking settings", () => "/settings/workspace/tracking"],
   ["integrations", () => "/settings/workspace/integrations"],
@@ -86,6 +87,7 @@ const APP_PAGES: [string, () => string][] = [
   ["API settings", () => "/settings/workspace/api"],
   ["organization", () => "/settings/organization"],
   ["members", () => "/settings/organization/members"],
+  ["security policy", () => "/settings/organization/security"],
   ["audit log", () => "/settings/organization/audit"],
 ];
 

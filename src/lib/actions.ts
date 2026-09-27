@@ -24,6 +24,7 @@ function databaseErrorCode(err: unknown): string | null {
 export async function guard(permission?: Permission): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) throw new Denied("Your session has expired. Sign in again.");
+  if (user.needs2fa) throw new Denied("Your organization requires two-factor sign-in. Set it up to continue.");
   if (permission && !user.can(permission)) throw new Denied("You don't have permission to do that. Ask an admin.");
   return user;
 }

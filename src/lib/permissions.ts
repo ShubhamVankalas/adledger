@@ -7,13 +7,20 @@ export const ROLES: { role: Role; label: string; description: string }[] = [
   { role: "owner", label: "Owner", description: "Full access, including organization settings and removing admins." },
   { role: "admin", label: "Admin", description: "Manage workspaces, integrations, members and settings." },
   { role: "analyst", label: "Analyst", description: "View and export reports, generate insights, create API keys." },
-  { role: "viewer", label: "Viewer", description: "Read-only access to every workspace's reports." },
-  { role: "client", label: "Client", description: "Read-only access to selected workspaces only (for agency clients)." },
+  { role: "viewer", label: "Viewer", description: "Read-only access to every workspace's reports. Contact emails are masked." },
+  { role: "client", label: "Client", description: "Read-only access to selected workspaces only (for agency clients). Contact emails are masked." },
 ];
 
 export type Permission =
   | "reports.view"
   | "reports.export"
+  | "reports.pdf"
+  | "reports.share"
+  | "reports.schedule"
+  | "export.csv"
+  | "export.contacts"
+  | "contacts.pii"
+  | "security.manage"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -26,7 +33,20 @@ export type Permission =
 
 const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
+  // Aggregate report CSVs (campaigns, channels, cohorts). Does not cover contact-level data.
   "reports.export": ["owner", "admin", "analyst"],
+  // Branded aggregate PDFs. Clients only while the organization allows it (see lib/security/policy.ts).
+  "reports.pdf": ["owner", "admin", "analyst", "viewer", "client"],
+  "reports.share": ["owner", "admin", "analyst"],
+  "reports.schedule": ["owner", "admin", "analyst"],
+  // Any CSV download of aggregates or logs (the audit log CSV also needs audit.view).
+  "export.csv": ["owner", "admin", "analyst"],
+  // Contact CSV with raw emails. Others with export.csv get a masked, hashed export instead.
+  "export.contacts": ["owner", "admin"],
+  // Unmasked contact email on screen and in API responses. Everyone else sees p•••@gmail.com.
+  "contacts.pii": ["owner", "admin", "analyst"],
+  // Organization security policy (require 2FA, session limits) and other members' sessions.
+  "security.manage": ["owner"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],

@@ -11,6 +11,7 @@ import { getDb } from "@/lib/db";
 import { CHANNEL_LABELS, MODEL_LABELS, money, num, pct } from "@/lib/format";
 import { journey, type JourneyItem } from "@/lib/reports";
 import { cn } from "@/lib/utils";
+import { Email, RevealProvider, RevealToggle } from "../reveal";
 import { ContactAvatar, leadSourceLabel, parseUrl, PLATFORM_LABELS, SourceValue, TimelineItem } from "./journey-parts";
 
 export const metadata = { title: "Contact" };
@@ -32,8 +33,10 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
   const user = await requireUser();
   const ws = user.workspace;
   const db = await getDb();
-  const j = await journey(db, ws, id);
+  // The email is masked on screen for everyone; members with contacts.pii can reveal it (audited).
+  const j = await journey(db, ws, id, { maskEmail: true });
   if (!j) notFound();
+  const canReveal = user.can("contacts.pii");
   const tz = ws.timezone;
   const dayFmt = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -103,7 +106,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
   ];
 
   return (
-    <>
+    <RevealProvider ids={j.contact.email ? [j.contact.id] : []} canReveal={canReveal}>
       <PageHeader title={displayName} description={customer ? "Customer profile" : "Lead profile"}>
         <Button variant="ghost" size="sm" className="size-10 px-0 md:size-auto md:h-7 md:px-2.5" aria-label="All contacts" render={<Link href="/contacts" />}>
           <ArrowLeftIcon /> <span className="max-md:sr-only">All contacts</span>
@@ -111,7 +114,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
         <ContactPrivacyActions
           contactId={j.contact.id}
           label={j.contact.name || j.contact.email || "this contact"}
-          canExport={user.can("reports.export")}
+          canExport={user.can("export.contacts")}
           canDelete={user.can("workspace.data")}
         />
       </PageHeader>
@@ -127,10 +130,13 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                   <Badge variant={customer ? "default" : "secondary"}>{customer ? "Customer" : "Lead"}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {j.contact.name && j.contact.email ? <span className="break-all" translate="no">
-                      {j.contact.email}
-                    </span> : null}
-                  {j.contact.name && j.contact.email ? <span aria-hidden> · </span> : null}
+                  {j.contact.email ? (
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      <Email id={j.contact.id} masked={j.contact.email} className="break-all" />
+                      <RevealToggle label="email" compact />
+                    </span>
+                  ) : null}
+                  {j.contact.email ? <span aria-hidden> · </span> : null}
                   {customer && firstPayment
                     ? `Customer since ${shortDate.format(new Date(firstPayment.at))}`
                     : firstLead
@@ -294,7 +300,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
           </div>
         </div>
       </PageBody>
-    </>
+    </RevealProvider>
   );
 }
 

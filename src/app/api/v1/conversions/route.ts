@@ -22,5 +22,5 @@ export const POST = withAuth(
     const stored = result.revenue + result.leads;
     return json({ ok: result.errors.length === 0, ...result }, stored === 0 && result.errors.length ? 422 : 200);
   },
-  { permission: "workspace.settings", perMinute: 60 },
+  { permission: "workspace.settings", scope: "ingest:write", perMinute: 60 },
 );

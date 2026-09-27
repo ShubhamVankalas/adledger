@@ -14,7 +14,7 @@ const notFound = () => new Response("Not found", { status: 404, headers: { "Cach
 export async function GET(req: Request, { params }: { params: Promise<{ kind: string; id: string }> }) {
   const { kind, id } = await params;
   if ((kind !== "user" && kind !== "org") || !UUID_RE.test(id)) return notFound();
-  const principal = await authenticatePrincipal(req);
+  const principal = await authenticatePrincipal(req, { allowPending2fa: true });
   if (!principal || principal.kind !== "session") return new Response("Unauthorized", { status: 401, headers: { "Cache-Control": "no-store" } });
   const me = principal.user.id;
   const db = await getDb();

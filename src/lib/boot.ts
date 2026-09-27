@@ -22,6 +22,8 @@ export async function boot() {
     log.warn("APP_SECRET is not set; using a generated secret stored in the database. Set APP_SECRET for stronger protection of stored API keys.");
   }
   await bootstrapFromEnv();
+  // ADLEDGER_BREAK_GLASS=<owner email>: turn off 2FA for a locked-out owner (see docs/SECURITY.md).
+  await import("./security/break-glass").then((m) => m.breakGlassFromEnv(db));
   // Recompute attribution once per boot so upgrades that change attribution logic apply to old data.
   for (const ws of await db.select({ id: schema.workspaces.id }).from(schema.workspaces)) requestAttribution(ws.id);
   if (process.env.DISABLE_SCHEDULER === "true") return;
