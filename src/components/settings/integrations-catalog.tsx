@@ -21,6 +21,14 @@ const CATEGORIES: { key: string; label: string }[] = [
   { key: "import", label: "Import & API" },
 ];
 
+/** Mirrors a piece of UI state in the query string (shareable, survives reload) without a navigation. */
+function setParam(key: string, value: string | null) {
+  const url = new URL(window.location.href);
+  if (value) url.searchParams.set(key, value);
+  else url.searchParams.delete(key);
+  window.history.replaceState(null, "", url);
+}
+
 export function IntegrationsCatalog({
   integrations,
   states,
@@ -30,10 +38,21 @@ export function IntegrationsCatalog({
   states: Record<string, IntegrationState>;
   forcedMock: boolean;
 }) {
-  const [cat, setCat] = useState("all");
-  const [q, setQ] = useState("");
   const sp = useSearchParams();
-  const [open, setOpen] = useState<string | null>(sp.get("open"));
+  const [cat, setCatState] = useState(() => {
+    const c = sp.get("category");
+    return CATEGORIES.some((x) => x.key === c) ? c! : "all";
+  });
+  const [q, setQ] = useState("");
+  const [open, setOpenState] = useState<string | null>(sp.get("open"));
+  const setCat = (c: string) => {
+    setCatState(c);
+    setParam("category", c === "all" ? null : c);
+  };
+  const setOpen = (p: string | null) => {
+    setOpenState(p);
+    setParam("open", p);
+  };
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -49,13 +68,23 @@ export function IntegrationsCatalog({
     <div className="space-y-4">
       {forcedMock ? (
         <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
-          <code>CONNECTOR_MODE=mock</code> is set on the server, so every connector returns demo data. Remove it to use live APIs.
+          <code translate="no">CONNECTOR_MODE=mock</code> is set on the server, so every connector returns demo data. Remove it to use live APIs.
         </p>
       ) : null}
       <div className="flex flex-col gap-3 @3xl/settings:flex-row @3xl/settings:items-center @3xl/settings:justify-between">
         <div className="relative @3xl/settings:order-2 @3xl/settings:w-64 @5xl/settings:w-72">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search integrations…" aria-label="Search integrations" className="pl-8" />
+          <Input
+            type="search"
+            name="q"
+            autoComplete="off"
+            spellCheck={false}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search integrations…"
+            aria-label="Search integrations"
+            className="pl-8"
+          />
         </div>
         {/* Scrolls sideways on phones instead of wrapping into a tall block. */}
         <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
@@ -69,7 +98,7 @@ export function IntegrationsCatalog({
                   aria-pressed={cat === c.key}
                   onClick={() => setCat(c.key)}
                   className={cn(
-                    "flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground md:h-8",
+                    "flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset md:h-8",
                     cat === c.key && "bg-background text-foreground shadow-sm dark:bg-input/50",
                   )}
                 >
@@ -92,7 +121,7 @@ export function IntegrationsCatalog({
                 <IntegrationLogo provider={i.provider} name={i.name} color={i.color} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="leading-snug font-medium">{i.name}</span>
+                    <span className="min-w-0 leading-snug font-medium break-words">{i.name}</span>
                     {i.status === "beta" ? (
                       <Badge variant="outline" className="h-4 px-1 text-[10px]">
                         Beta
@@ -110,7 +139,7 @@ export function IntegrationsCatalog({
               </div>
             </>
           );
-          const cls = "flex h-full min-w-0 flex-col rounded-xl border bg-card p-4 text-left transition-all outline-none hover:border-primary/40 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50";
+          const cls = "flex h-full min-w-0 flex-col rounded-xl border bg-card p-4 text-left transition-[border-color,box-shadow] outline-none hover:border-primary/40 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50";
           return builtIn ? (
             <Link key={i.provider} href={i.docsUrl} className={cls}>
               {body}

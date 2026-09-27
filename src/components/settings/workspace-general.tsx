@@ -1,6 +1,6 @@
 "use client";
 
-import { DatabaseIcon, SparklesIcon, Trash2Icon } from "lucide-react";
+import { DatabaseIcon, Loader2Icon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { clearDataAction, loadDemoAction, updateWorkspaceAction } from "@/app/actions/settings";
 import { ActionButton, useFormAction } from "@/components/action-button";
 import { NativeSelect } from "@/components/native-select";
@@ -28,7 +28,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
             <fieldset disabled={!canEdit} className="grid gap-4 disabled:opacity-70">
               <div className="grid gap-1.5">
                 <Label htmlFor="ws-name">Name</Label>
-                <Input id="ws-name" name="name" defaultValue={workspace.name} required />
+                <Input id="ws-name" name="name" autoComplete="off" defaultValue={workspace.name} required />
               </div>
               <div className="grid gap-4 @lg/settings:grid-cols-2">
                 <div className="grid gap-1.5">
@@ -54,14 +54,25 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="ws-window">Attribution window (days)</Label>
-                <Input id="ws-window" name="attributionWindowDays" type="number" min={1} max={365} defaultValue={workspace.attributionWindowDays} className="max-w-32" />
+                <Input
+                  id="ws-window"
+                  name="attributionWindowDays"
+                  type="number"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  min={1}
+                  max={365}
+                  defaultValue={workspace.attributionWindowDays}
+                  className="max-w-32 tabular-nums"
+                />
                 <p className="text-xs text-muted-foreground">Touchpoints older than this before a first purchase get no credit. 30 days suits most businesses; use 60–90 for long B2B sales cycles.</p>
               </div>
             </fieldset>
             {canEdit ? (
               <div>
                 <Button type="submit" disabled={save.pending}>
-                  Save workspace
+                  {save.pending ? <Loader2Icon className="animate-spin" /> : null}
+                  {save.pending ? "Saving…" : "Save workspace"}
                 </Button>
               </div>
             ) : null}

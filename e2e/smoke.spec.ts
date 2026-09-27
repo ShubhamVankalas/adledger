@@ -72,7 +72,7 @@ test("performance drill-down and model switch", async ({ page }) => {
 test("dashboard numbers equal the REST API", async ({ page, request }) => {
   await login(page);
   await page.goto("/settings/workspace/api");
-  await page.getByPlaceholder("Key name, e.g. Claude Desktop").fill("e2e");
+  await page.getByLabel("Key name").fill("e2e");
   await page.getByRole("button", { name: "Create" }).click();
   const keyText = page.locator("code", { hasText: /^al_/ }).first();
   await expect(keyText).toBeVisible();

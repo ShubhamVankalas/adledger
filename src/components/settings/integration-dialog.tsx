@@ -11,7 +11,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { IntegrationMeta } from "@/lib/connectors/types";
-import { timeAgo } from "@/lib/format";
+import { num, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { IntegrationLogo } from "./integration-logo";
 import { TOUCH_TARGETS } from "./touch";
@@ -31,6 +31,9 @@ export type IntegrationState = {
   uploads?: { sent: number; failed: number; pending: number; skipped: number } | null;
 };
 
+/** Connector placeholders are examples; the ellipsis marks them as such. */
+const placeholder = (p: string | undefined) => (p && !p.endsWith("…") ? `${p}…` : p);
+
 /** Renders `code` spans in plain-text setup steps. */
 function Step({ text }: { text: string }) {
   const parts = text.split(/(`[^`]+`)/g);
@@ -38,7 +41,7 @@ function Step({ text }: { text: string }) {
     <>
       {parts.map((p, i) =>
         p.startsWith("`") ? (
-          <code key={i} className="rounded bg-muted px-1 py-0.5 text-[0.85em] break-all">
+          <code key={i} translate="no" className="rounded bg-muted px-1 py-0.5 text-[0.85em] break-all">
             {p.slice(1, -1)}
           </code>
         ) : (
@@ -78,11 +81,11 @@ export function IntegrationDialog({
     <>
       {meta.steps.length ? (
         <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">Setup</h3>
+          <h3 className="text-[11px] font-semibold tracking-wider text-balance text-muted-foreground uppercase">Setup</h3>
           <ol className="space-y-2 text-sm text-muted-foreground sm:text-xs">
             {meta.steps.map((s, i) => (
               <li key={i} className="flex gap-2.5">
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">{i + 1}</span>
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary tabular-nums">{i + 1}</span>
                 <span className="min-w-0 pt-px break-words">
                   <Step text={s} />
                 </span>
@@ -94,7 +97,7 @@ export function IntegrationDialog({
 
       {state.webhookUrl ? (
         <div className="grid min-w-0 grid-cols-1 gap-1.5">
-          <Label>Webhook URL</Label>
+          <span className="text-sm leading-none font-medium">Webhook URL</span>
           <CopyField value={state.webhookUrl} />
         </div>
       ) : null}
@@ -126,8 +129,9 @@ export function IntegrationDialog({
                   name={f.name}
                   type={f.secret ? "password" : "text"}
                   autoComplete="off"
+                  spellCheck={false}
                   defaultValue={f.secret ? "" : (state.config[f.name] ?? "")}
-                  placeholder={saved ? "•••••••• saved — leave blank to keep" : f.placeholder}
+                  placeholder={saved ? "•••••••• saved — leave blank to keep…" : placeholder(f.placeholder)}
                 />
                 {f.hint ? <p className="text-xs text-muted-foreground">{f.hint}</p> : null}
               </div>
@@ -137,7 +141,7 @@ export function IntegrationDialog({
             <div className="sm:col-span-2">
               <Button type="submit" variant="outline" disabled={save.pending} className="max-sm:w-full">
                 {save.pending ? <Loader2Icon className="animate-spin" /> : null}
-                Save credentials
+                {save.pending ? "Saving…" : "Save credentials"}
               </Button>
             </div>
           ) : null}
@@ -176,9 +180,9 @@ export function IntegrationDialog({
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
           {state.connected ? (
             <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground tabular-nums" suppressHydrationWarning>
                 {syncable ? `Last sync ${timeAgo(state.lastSyncedAt)}` : "Connected"}
-                {state.lastRun ? ` · ${state.lastRun.status}${state.lastRun.rows ? ` · ${state.lastRun.rows.toLocaleString()} rows` : ""}` : ""}
+                {state.lastRun ? ` · ${state.lastRun.status}${state.lastRun.rows ? ` · ${num(state.lastRun.rows)} rows` : ""}` : ""}
               </span>
               <div className="flex flex-wrap gap-2">
                 {syncable ? (
@@ -230,7 +234,7 @@ export function IntegrationDialog({
 
           {oauthReady ? (
             <details className="group text-sm">
-              <summary className="flex min-h-10 cursor-pointer items-center text-xs text-muted-foreground hover:text-foreground sm:min-h-0">Or enter credentials manually</summary>
+              <summary className="flex min-h-10 cursor-pointer items-center rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-0">Or enter credentials manually</summary>
               <div className="mt-3 space-y-4">{manual}</div>
             </details>
           ) : (
@@ -255,7 +259,7 @@ export function IntegrationDialog({
           {meta.fields.length && !oauthReady ? (
             <Button type="submit" form={formId} disabled={save.pending} className="max-sm:flex-1">
               {save.pending ? <Loader2Icon className="animate-spin" /> : null}
-              {state.connected && !isDemo ? "Save changes" : "Connect"}
+              {save.pending ? "Saving…" : state.connected && !isDemo ? "Save changes" : "Connect"}
             </Button>
           ) : (
             <DialogClose render={<Button variant="outline" className="max-sm:flex-1" />}>Close</DialogClose>
@@ -277,10 +281,10 @@ function UploadStats({ stats }: { stats: NonNullable<IntegrationState["uploads"]
       <span className="font-medium text-foreground">Conversion uploads · last 7 days</span>
       {items.map((i) => (
         <span key={i.label}>
-          <span className={`font-semibold tabular-nums ${i.className}`}>{i.value.toLocaleString()}</span> {i.label}
+          <span className={`font-semibold tabular-nums ${i.className}`}>{num(i.value)}</span> {i.label}
         </span>
       ))}
-      {stats.skipped ? <span>{stats.skipped.toLocaleString()} skipped (nothing to match on)</span> : null}
+      {stats.skipped ? <span className="tabular-nums">{num(stats.skipped)} skipped (nothing to match on)</span> : null}
     </div>
   );
 }

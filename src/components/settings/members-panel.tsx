@@ -1,6 +1,6 @@
 "use client";
 
-import { MailPlusIcon, ShieldCheckIcon, UserMinusIcon } from "lucide-react";
+import { Loader2Icon, MailPlusIcon, ShieldCheckIcon, UserMinusIcon } from "lucide-react";
 import { useState } from "react";
 import { inviteMemberAction, removeMemberAction, revokeInvitationAction, updateMemberAction } from "@/app/actions/org";
 import { ActionButton, useFormAction } from "@/components/action-button";
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Role } from "@/lib/db/schema";
-import { timeAgo } from "@/lib/format";
+import { shortDate, timeAgo } from "@/lib/format";
 
 type RoleDef = { role: Role; label: string; description: string; assignable: boolean };
 type Member = { id: string; userId: string; email: string; name: string | null; avatarUrl: string | null; role: Role; workspaceIds: string[] | null; lastLoginAt: string | null; editable: boolean };
@@ -47,7 +47,10 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
             {m.userId === me ? <Badge variant="secondary">You</Badge> : null}
           </div>
           <div className="text-xs text-muted-foreground">
-            <span className="break-all">{m.email}</span> <span className="whitespace-nowrap">· last active {timeAgo(m.lastLoginAt)}</span>
+            <span className="break-all">{m.email}</span>{" "}
+            <span className="whitespace-nowrap" suppressHydrationWarning>
+              · last active {timeAgo(m.lastLoginAt)}
+            </span>
           </div>
         </div>
       </div>
@@ -64,7 +67,7 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
                 ))}
             </NativeSelect>
             <Button type="submit" variant="outline" size="sm" disabled={save.pending}>
-              Save
+              {save.pending ? "Saving…" : "Save"}
             </Button>
             <ActionButton action={() => removeMemberAction(m.id)} variant="ghost" size="icon-sm" aria-label={`Remove ${m.email}`} confirm={`Remove ${m.email} from the organization?`}>
               <UserMinusIcon />
@@ -114,7 +117,7 @@ export function MembersPanel({
               <div className="grid gap-3 @2xl/settings:grid-cols-[minmax(0,1fr)_11rem_auto] @2xl/settings:items-end">
                 <div className="grid gap-1.5">
                   <Label htmlFor="inv-email">Email</Label>
-                  <Input id="inv-email" name="email" type="email" placeholder="teammate@company.com" required />
+                  <Input id="inv-email" name="email" type="email" autoComplete="off" spellCheck={false} placeholder="teammate@company.com…" required />
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="inv-role">Role</Label>
@@ -129,7 +132,8 @@ export function MembersPanel({
                   </NativeSelect>
                 </div>
                 <Button type="submit" disabled={invite.pending} className="md:h-9">
-                  Send invite
+                  {invite.pending ? <Loader2Icon className="animate-spin" /> : null}
+                  {invite.pending ? "Sending…" : "Send invite"}
                 </Button>
               </div>
               {inviteRole === "client" ? <WorkspacePicker workspaces={workspaces} selected={[]} name="workspaceIds" /> : null}
@@ -147,7 +151,7 @@ export function MembersPanel({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Members <Badge variant="secondary">{members.length}</Badge>
+              Members <Badge variant="secondary" className="tabular-nums">{members.length}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="-mb-(--card-spacing) px-0">
@@ -163,7 +167,7 @@ export function MembersPanel({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                Pending invitations <Badge variant="secondary">{invites.length}</Badge>
+                Pending invitations <Badge variant="secondary" className="tabular-nums">{invites.length}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="-mb-(--card-spacing) divide-y border-t px-0">
@@ -174,11 +178,16 @@ export function MembersPanel({
                     <div className="min-w-0">
                       <div className="font-medium break-all">{i.email}</div>
                       <div className="text-xs text-muted-foreground">
-                        {label(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                        {label(i.role)} · expires {shortDate(i.expiresAt)}
                       </div>
                     </div>
                   </div>
-                  <ActionButton action={() => revokeInvitationAction(i.id)} variant="ghost" size="sm">
+                  <ActionButton
+                    action={() => revokeInvitationAction(i.id)}
+                    variant="ghost"
+                    size="sm"
+                    confirm={`Revoke the invitation for ${i.email}? The link stops working.`}
+                  >
                     Revoke
                   </ActionButton>
                 </div>

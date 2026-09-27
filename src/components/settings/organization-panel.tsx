@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeftIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ArrowRightLeftIcon, Loader2Icon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
+import { plural } from "@/lib/format";
 import { ImageUpload } from "./image-upload";
 import { TOUCH_TARGETS } from "./touch";
 
@@ -62,7 +63,7 @@ export function OrganizationPanel({
         <CardHeader>
           <CardTitle>Organization</CardTitle>
           <CardDescription>
-            {organization.members} member{organization.members === 1 ? "" : "s"} · {workspaces.length} workspace{workspaces.length === 1 ? "" : "s"}
+            {plural(organization.members, "member")} · {plural(workspaces.length, "workspace")}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5">
@@ -83,11 +84,11 @@ export function OrganizationPanel({
           <form action={org.submit} className="grid gap-3 border-t pt-5 @lg/settings:grid-cols-[minmax(0,1fr)_auto] @lg/settings:items-end">
             <div className="grid gap-1.5">
               <Label htmlFor="org-name">Name</Label>
-              <Input id="org-name" name="name" defaultValue={organization.name} disabled={!canManageOrg} />
+              <Input id="org-name" name="name" autoComplete="off" defaultValue={organization.name} disabled={!canManageOrg} />
             </div>
             {canManageOrg ? (
               <Button type="submit" disabled={org.pending} className="md:h-9">
-                Save
+                {org.pending ? "Saving…" : "Save"}
               </Button>
             ) : null}
           </form>
@@ -117,12 +118,12 @@ export function OrganizationPanel({
                     {w.isDemo ? <Badge variant="secondary">Demo data</Badge> : null}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {w.currency} · {w.timezone} · {w.contacts.toLocaleString()} contacts
+                    <span translate="no">{w.currency}</span> · <span translate="no">{w.timezone}</span> · <span className="tabular-nums">{plural(w.contacts, "contact")}</span>
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
                   {w.id !== currentWorkspaceId ? (
-                    <Button variant="outline" size="sm" disabled={pending} onClick={() => switchTo(w.id)}>
+                    <Button variant="outline" size="sm" disabled={pending} onClick={() => switchTo(w.id)} aria-label={`Switch to ${w.name}`}>
                       <ArrowRightLeftIcon /> Switch
                     </Button>
                   ) : null}
@@ -147,7 +148,7 @@ export function OrganizationPanel({
           <form action={create.submit} className="grid gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="nw-name">Name</Label>
-              <Input id="nw-name" name="name" placeholder="Client name or brand" required autoFocus />
+              <Input id="nw-name" name="name" autoComplete="off" placeholder="Client name or brand…" required />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
@@ -173,7 +174,8 @@ export function OrganizationPanel({
             </div>
             <DialogFooter>
               <Button type="submit" disabled={create.pending}>
-                Create &amp; switch to it
+                {create.pending ? <Loader2Icon className="animate-spin" /> : null}
+                {create.pending ? "Creating…" : "Create & switch to it"}
               </Button>
             </DialogFooter>
           </form>
@@ -183,12 +185,20 @@ export function OrganizationPanel({
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent className={`max-h-[90dvh] overflow-y-auto sm:max-w-md ${TOUCH_TARGETS}`}>
           <DialogHeader className="pr-8">
-            <DialogTitle className="leading-snug break-words">Delete “{deleting?.name}”?</DialogTitle>
+            <DialogTitle className="leading-snug text-balance break-words">Delete “{deleting?.name}”?</DialogTitle>
             <DialogDescription>This permanently deletes the workspace and all of its visitors, contacts, revenue, ad data and settings. It cannot be undone.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
             <Label htmlFor="del-confirm">Type the workspace name to confirm</Label>
-            <Input id="del-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={deleting?.name} />
+            <Input
+              id="del-confirm"
+              name="confirm"
+              autoComplete="off"
+              spellCheck={false}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder={deleting?.name}
+            />
           </div>
           <DialogFooter>
             <Button
@@ -204,7 +214,8 @@ export function OrganizationPanel({
                 })
               }
             >
-              Delete workspace
+              {pending ? <Loader2Icon className="animate-spin" /> : null}
+              {pending ? "Deleting…" : "Delete workspace"}
             </Button>
           </DialogFooter>
         </DialogContent>

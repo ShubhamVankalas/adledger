@@ -20,13 +20,17 @@ export function Snippet({ code, label, wrap = false, className }: { code: string
           {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
           {copied ? "Copied" : "Copy"}
         </Button>
+        <span className="sr-only" aria-live="polite">
+          {copied ? "Copied to clipboard" : ""}
+        </span>
       </div>
       <pre
         className={cn(
-          "max-w-full overflow-x-auto p-3 font-mono text-xs leading-relaxed",
+          "max-w-full overflow-x-auto p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
           wrap ? "break-all whitespace-pre-wrap" : "whitespace-pre",
         )}
         tabIndex={0}
+        translate="no"
       >
         <code>{code}</code>
       </pre>
