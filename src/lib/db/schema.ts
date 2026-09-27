@@ -352,6 +352,12 @@ export const adInsightsDaily = pgTable(
     platformConversions: numeric("platform_conversions", { precision: 14, scale: 2 })
       .notNull()
       .default("0"),
+    /**
+     * Purchase value the platform itself claims for this ad-day (Meta action_values, Google
+     * conversions_value, TikTok payment value), in minor units of `currency`. null = not reported.
+     * Compared with verified revenue in the Truth Gap report (src/lib/reports-trust.ts).
+     */
+    platformConversionValueMinor: money("platform_conversion_value_minor"),
     createdAt: createdAt(),
   },
   (t) => [
