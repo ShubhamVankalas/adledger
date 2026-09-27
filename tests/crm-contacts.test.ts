@@ -191,7 +191,10 @@ describe("contacts table", () => {
     const page = await listContactsPage(db, ws, q({ q: "stranger" }), viewer);
     expect(page.rows).toEqual([]);
     const theirs = await listContactsPage(db, other, q(), viewer);
-    expect(theirs.rows.map((r) => r.email)).toEqual(["stranger@other.test"]);
+    // No viewer (or one without contacts.pii) gets the masked email; a PII-capable viewer gets the raw one.
+    expect(theirs.rows.map((r) => r.email)).toEqual(["s••••••@other.test"]);
+    const piiViewer = { role: "owner" as const, can: () => true };
+    expect((await listContactsPage(db, other, q(), piiViewer)).rows.map((r) => r.email)).toEqual(["stranger@other.test"]);
     const [foreign] = await contactIds(other.id, 1);
     expect(await contactRecord(db, ws, foreign, viewer, { withNotes: true })).toBeNull();
   });

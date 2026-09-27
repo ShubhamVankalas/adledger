@@ -236,7 +236,9 @@ describe("platform gap in mock mode", () => {
     const mock = mockMetaInsights({ since: "2026-07-01", until: "2026-07-07" }, "USD");
     await upsertAdRows(db, w.id, mock.flatMap((a) => parseMetaInsights(a.rows, a.account)));
     const campaigns = await performanceReport(db, w as Workspace, { start: "2026-07-01", end: "2026-07-07", model: "last_touch", level: "campaign" });
-    const reported = mock.flatMap((a) => a.rows).reduce((s, r) => s + Number(r.actions?.[0]?.value ?? 0), 0);
+    // Meta counts leads and purchases as conversions (see LEAD_ACTIONS in lib/connectors/ads.ts).
+    const counted = new Set(["lead", "purchase"]);
+    const reported = mock.flatMap((a) => a.rows).reduce((s, r) => s + (r.actions ?? []).filter((x) => counted.has(x.action_type)).reduce((t, x) => t + Number(x.value), 0), 0);
     expect(campaigns.rows.length).toBeGreaterThan(0);
     expect(campaigns.totals.platformConversions).toBeCloseTo(reported, 1);
     // Nothing verified yet: the gap stays empty rather than claiming an infinite over-count.

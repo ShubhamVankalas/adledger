@@ -276,6 +276,11 @@ export async function mergeContacts(db: DB, ws: Pick<Workspace, "id">, keepId: s
     const moved: Record<string, number> = {};
     for (const ref of await contactReferences(tx)) {
       if (ref.table === "contact_duplicate_dismissals") continue; // cascades away with the merged contact
+      if (ref.table === "contact_stats") {
+        // Derived per-contact roll-up (keyed by contact_id): drop the merged copy; the kept one is rebuilt after attribution recomputes.
+        await tx.execute(sql`delete from contact_stats where contact_id = ${mergeId} and workspace_id = ${ws.id}`);
+        continue;
+      }
       const n = await repoint(tx, ws.id, ref.table, ref.column, mergeId, keepId);
       if (n) moved[ref.table] = (moved[ref.table] ?? 0) + n;
     }

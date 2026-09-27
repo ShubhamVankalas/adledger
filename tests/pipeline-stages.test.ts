@@ -93,7 +93,7 @@ describe("stages", () => {
   });
 
   it("the migration backfills stages for existing workspaces and places customers in Won", async () => {
-    const migration = await import("node:fs").then((fs) => fs.readFileSync("drizzle/0007_pipeline.sql", "utf8"));
+    const migration = await import("node:fs").then((fs) => fs.readFileSync("drizzle/0011_pipeline.sql", "utf8"));
     expect(migration).toMatch(/INSERT INTO "pipeline_stages"[\s\S]+FROM "workspaces" w/);
     expect(migration).toMatch(/UPDATE "contacts" c[\s\S]+lifecycle" = 'customer' THEN 4 ELSE 0/);
   });
