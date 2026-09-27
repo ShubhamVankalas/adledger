@@ -15,6 +15,7 @@ import type { PerfLevel } from "@/lib/reports";
 import { performanceReport } from "@/lib/reports-performance";
 import { cn } from "@/lib/utils";
 import { listViews } from "@/lib/views";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Performance" };
 
@@ -27,6 +28,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function PerformancePage({ searchParams }: PageProps<"/performance">) {
+  const denied = await gatePage("page.performance");
+  if (denied) return denied;
   const user = await requireUser();
   const ws = user.workspace;
   const db = await getDb();

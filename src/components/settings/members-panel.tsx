@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2Icon, MailPlusIcon, ShieldCheckIcon, UserMinusIcon } from "lucide-react";
+import { ArrowRightIcon, Loader2Icon, MailPlusIcon, ShieldCheckIcon, UserMinusIcon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { inviteMemberAction, removeMemberAction, revokeInvitationAction, updateMemberAction } from "@/app/actions/org";
 import { ActionButton, useFormAction } from "@/components/action-button";
@@ -15,13 +16,14 @@ import { Label } from "@/components/ui/label";
 import type { Role } from "@/lib/db/schema";
 import { shortDate, timeAgo } from "@/lib/format";
 
-type RoleDef = { role: Role; label: string; description: string; assignable: boolean };
+type RoleDef = { role: Role; label: string; description: string; assignable: boolean; workspaceScoped: boolean };
+const scoped = (roles: RoleDef[], role: Role) => roles.find((r) => r.role === role)?.workspaceScoped ?? false;
 type Member = { id: string; userId: string; email: string; name: string | null; avatarUrl: string | null; role: Role; workspaceIds: string[] | null; lastLoginAt: string | null; editable: boolean };
 
 function WorkspacePicker({ workspaces, selected, name }: { workspaces: { id: string; name: string }[]; selected: string[]; name: string }) {
   return (
     <div className="grid gap-1.5 rounded-lg border bg-muted/30 p-3">
-      <span className="text-xs font-medium">Workspaces this client can see</span>
+      <span className="text-xs font-medium">Workspaces this person can see</span>
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {workspaces.map((w) => (
           <label key={w.id} className="flex min-h-8 items-center gap-2 text-sm max-md:min-h-10">
@@ -73,11 +75,11 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
               <UserMinusIcon />
             </ActionButton>
           </div>
-          {role === "client" ? <WorkspacePicker workspaces={workspaces} selected={m.workspaceIds ?? []} name="workspaceIds" /> : null}
+          {scoped(roles, role) ? <WorkspacePicker workspaces={workspaces} selected={m.workspaceIds ?? []} name="workspaceIds" /> : null}
         </form>
       ) : (
         <Badge variant="outline" className="ml-13 justify-self-start @3xl/settings:ml-0 @3xl/settings:justify-self-end">
-          {roles.find((r) => r.role === m.role)?.label}
+          {roles.find((r) => r.role === m.role)?.label ?? "Deleted role"}
         </Badge>
       )}
     </div>
@@ -90,14 +92,16 @@ export function MembersPanel({
   workspaces,
   members,
   invites,
+  canManageRoles = false,
 }: {
+  canManageRoles?: boolean;
   me: string;
   roles: RoleDef[];
   workspaces: { id: string; name: string }[];
   members: Member[];
   invites: { id: string; email: string; role: Role; expiresAt: string }[];
 }) {
-  const [inviteRole, setInviteRole] = useState<Role>("analyst");
+  const [inviteRole, setInviteRole] = useState<Role>(() => (roles.some((r) => r.role === "analyst" && r.assignable) ? "analyst" : (roles.find((r) => r.assignable)?.role ?? "")));
   const [link, setLink] = useState<string | null>(null);
   const invite = useFormAction(inviteMemberAction, (r) => r.ok && setLink(String(r.data?.link ?? "")));
   const label = (r: Role) => roles.find((x) => x.role === r)?.label ?? r;
@@ -136,7 +140,7 @@ export function MembersPanel({
                   {invite.pending ? "Sending…" : "Send invite"}
                 </Button>
               </div>
-              {inviteRole === "client" ? <WorkspacePicker workspaces={workspaces} selected={[]} name="workspaceIds" /> : null}
+              {scoped(roles, inviteRole) ? <WorkspacePicker workspaces={workspaces} selected={[]} name="workspaceIds" /> : null}
             </form>
             {link ? (
               <div className="space-y-1.5 rounded-lg border border-primary/40 bg-primary/5 p-3">
@@ -207,9 +211,14 @@ export function MembersPanel({
           {roles.map((r) => (
             <div key={r.role}>
               <div className="text-sm font-medium">{r.label}</div>
-              <p className="text-xs text-muted-foreground">{r.description}</p>
+              {r.description ? <p className="text-xs text-muted-foreground">{r.description}</p> : null}
             </div>
           ))}
+          {canManageRoles ? (
+            <Button variant="outline" size="sm" className="justify-self-start @2xl/settings:col-span-2 @6xl/settings:col-span-1" render={<Link href="/settings/organization/roles" />}>
+              Edit roles & permissions <ArrowRightIcon />
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
     </div>

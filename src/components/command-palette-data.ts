@@ -1,3 +1,4 @@
+import { hrefAllowed } from "@/lib/permissions";
 import {
   ActivityIcon,
   BadgeCheckIcon,
@@ -64,7 +65,12 @@ export type PaletteCan = {
   notes: boolean;
   /** contacts.edit (create notes and tasks, edit contacts) */
   editContacts: boolean;
+  /** Page permissions the viewer holds (page.performance…); entries for other pages are hidden. */
+  pages: readonly string[];
 };
+
+/** Is a palette entry available to this viewer (role checks and page access)? */
+export const navVisible = (n: NavEntry, can: PaletteCan) => (!n.show || n.show(can)) && hrefAllowed(n.href, can.pages);
 
 export type NavEntry = {
   id: string;

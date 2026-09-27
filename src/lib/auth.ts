@@ -7,11 +7,12 @@ import type { ApiScope, Role } from "./db/schema";
 import { ipFromHeaders } from "./http";
 import { log } from "./log";
 import { mediaUrl } from "./media";
-import { canAssignRole, type Permission } from "./permissions";
+import { canAssign, findRoleDef, roleDefCan, type Permission, type RoleDef } from "./permissions";
 import { appendAudit } from "./security/audit-chain";
 import { deviceKey, shortUserAgent, truncateIp } from "./security/device";
 import { createChallenge, MFA_COOKIE, openSecret, readChallenge } from "./security/mfa";
-import { parsePolicy, policyCan, sessionExpired, type SecurityPolicy } from "./security/policy";
+import { listOrgRoles, orgRolesCached } from "./roles";
+import { parsePolicy, sessionExpired, type SecurityPolicy } from "./security/policy";
 import { consumeRecoveryCode, looksLikeRecoveryCode } from "./security/recovery";
 import { DEFAULT_SCOPES } from "./security/scopes";
 import { verifyTotp } from "./security/totp";
@@ -45,6 +46,10 @@ export type SessionUser = {
   sessionId: string;
   organization: Organization;
   role: Role;
+  /** The organization's definition of that role (null if it was deleted: no permissions). */
+  roleDef: RoleDef | null;
+  /** Display name of the role ("Analyst", or a custom role's name). */
+  roleName: string;
   /** Current workspace (switchable). */
   workspace: Workspace;
   /** Workspaces this user can open in the organization. */
@@ -172,6 +177,7 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.memberships.organizationId))
     .where(eq(schema.memberships.userId, row.user.id));
   const role = membership.role;
+  const roleDef = findRoleDef(await orgRolesCached(row.organization.id), role);
   const has2fa = Boolean(row.user.totpEnabledAt);
   return {
     id: row.user.id,
@@ -181,10 +187,12 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     sessionId: row.session.id,
     organization: { ...row.organization, logoUrl: mediaUrl("org", row.organization.id, row.organization.logoUpdatedAt) },
     role,
+    roleDef,
+    roleName: roleDef?.name ?? role,
     workspace: row.workspace,
     workspaces: workspaces.map((w) => ({ id: w.id, name: w.name, isDemo: w.isDemo })),
     organizations: organizations.map((o) => ({ id: o.id, name: o.name, logoUrl: mediaUrl("org", o.id, o.logoUpdatedAt) })),
-    can: (p) => policyCan(role, p, security),
+    can: (p) => roleDefCan(roleDef, p, security),
     has2fa,
     needs2fa: security.require2fa && !has2fa,
     security,
@@ -544,7 +552,7 @@ export async function createInvitation(
       organizationId: actor.organization.id,
       email,
       role: input.role,
-      workspaceIds: input.role === "client" ? input.workspaceIds : null,
+      workspaceIds: input.workspaceIds,
       tokenHash: sha256(token),
       invitedBy: actor.id,
       expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000),
@@ -581,12 +589,15 @@ export async function acceptInvitation(db: Q, invitationId: string, userId: stri
     .returning();
   if (!inv) throw new InvitationError("This invitation has expired or was already used. Ask for a new one.");
 
+  const roles = await listOrgRoles(db, inv.organizationId);
+  const target = findRoleDef(roles, inv.role);
+  if (!target) throw new InvitationError("The role in this invitation no longer exists. Ask for a new invitation.");
   if (inv.invitedBy) {
     const [inviter] = await db
       .select({ role: schema.memberships.role })
       .from(schema.memberships)
       .where(and(eq(schema.memberships.organizationId, inv.organizationId), eq(schema.memberships.userId, inv.invitedBy)));
-    if (!inviter || !canAssignRole(inviter.role, inv.role)) {
+    if (!inviter || !canAssign(findRoleDef(roles, inviter.role), target)) {
       throw new InvitationError("The person who invited you can no longer grant this role. Ask for a new invitation.");
     }
   } else if (inv.role === "owner") {
@@ -602,14 +613,16 @@ export async function acceptInvitation(db: Q, invitationId: string, userId: stri
     const ws = await accessibleWorkspaces(db, inv.organizationId, existing.workspaceIds);
     return ws[0]?.id ?? null;
   }
+  // Only workspace-scoped roles (like Client) are limited to the invitation's workspaces.
+  const workspaceIds = target.workspaceScoped ? inv.workspaceIds : null;
   await db
     .insert(schema.memberships)
-    .values({ organizationId: inv.organizationId, userId, role: inv.role, workspaceIds: inv.workspaceIds })
+    .values({ organizationId: inv.organizationId, userId, role: inv.role, workspaceIds })
     .onConflictDoUpdate({
       target: [schema.memberships.organizationId, schema.memberships.userId],
-      set: { role: inv.role, workspaceIds: inv.workspaceIds },
+      set: { role: inv.role, workspaceIds },
     });
-  const ws = await accessibleWorkspaces(db, inv.organizationId, inv.workspaceIds);
+  const ws = await accessibleWorkspaces(db, inv.organizationId, workspaceIds);
   return ws[0]?.id ?? null;
 }
 

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { findInvitation, getSessionUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { roleLabel } from "@/lib/permissions";
+import { listOrgRoles } from "@/lib/roles";
 import { AcceptInviteForm } from "./accept-form";
 import { authCard, authTitle } from "../../styles";
 
@@ -39,6 +40,7 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   const db = await getDb();
   const [existing] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, invitation.email));
   const current = await getSessionUser();
+  const roles = await listOrgRoles(db, organization.id);
   const mode = current?.email === invitation.email ? "signed-in" : existing ? "existing" : "new";
   return (
     <Card className={authCard}>
@@ -53,7 +55,7 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
           <div className="flex items-center gap-2">
             <ShieldCheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
             <dt className="text-muted-foreground">Role</dt>
-            <dd className="ml-auto font-medium">{roleLabel(invitation.role)}</dd>
+            <dd className="ml-auto font-medium">{roleLabel(invitation.role, roles)}</dd>
           </div>
           <div className="flex min-w-0 items-center gap-2">
             <MailIcon aria-hidden className="size-4 shrink-0 text-primary" />

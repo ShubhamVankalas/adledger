@@ -48,7 +48,9 @@ export const appMeta = pgTable("app_meta", {
 //   ├── memberships: users + role (+ optional workspace restriction for clients)
 //   └── workspaces: one per business/brand/client — all tracked data hangs off these
 
-export type Role = "owner" | "admin" | "analyst" | "viewer" | "client";
+export type BuiltinRole = "owner" | "admin" | "analyst" | "viewer" | "client";
+/** A built-in role, or the key of a custom role in org_roles. */
+export type Role = BuiltinRole | (string & {});
 
 export const organizations = pgTable("organizations", {
   id: id(),
@@ -148,6 +150,35 @@ export const invitations = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("invitations_token_uq").on(t.tokenHash), index().on(t.organizationId)],
+);
+
+/**
+ * An organization's role definitions. Built-in roles (admin, analyst, viewer, client) come from
+ * lib/permissions.ts until an organization edits or deletes one; then a row with that key
+ * overrides the default (deleted_at set = deleted). Custom roles are rows with key `custom-…`.
+ * Owner is never stored: it always has every permission. See lib/roles.ts.
+ */
+export const orgRoles = pgTable(
+  "org_roles",
+  {
+    id: id(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** Stored in memberships.role / invitations.role. */
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    permissions: text("permissions").array().notNull().default(sql`'{}'::text[]`),
+    /** The built-in role this row overrides, or null for a custom role. */
+    base: text("base").$type<BuiltinRole>(),
+    /** Members only see the workspaces picked on their membership (like Client). */
+    workspaceScoped: boolean("workspace_scoped").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+    deletedAt: tstz("deleted_at"),
+  },
+  (t) => [uniqueIndex("org_roles_org_key_uq").on(t.organizationId, t.key)],
 );
 
 export const auditLog = pgTable(

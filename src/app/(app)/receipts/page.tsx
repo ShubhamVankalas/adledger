@@ -13,12 +13,15 @@ import { getDb } from "@/lib/db";
 import { dateRange, num } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { acquisitionLedger, parseCostBasis, receiptList } from "@/lib/reports-profit";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Receipts" };
 
 const PAGE_SIZE = 50;
 
 export default async function ReceiptsPage({ searchParams }: PageProps<"/receipts">) {
+  const denied = await gatePage("page.profit");
+  if (denied) return denied;
   const { workspace: ws, can } = await requireUser("reports.view");
   const db = await getDb();
   const sp = await searchParams;

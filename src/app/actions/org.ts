@@ -7,25 +7,25 @@ import { fail, guard, ok, run, str, type ActionResult } from "@/lib/actions";
 import { audit, createInvitation, ownerCount, slugify } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { sendEmail } from "@/lib/notify/channels/email";
-import { canAssignRole, roleLabel } from "@/lib/permissions";
+import { canAssign, findRoleDef } from "@/lib/permissions";
+import { listOrgRoles } from "@/lib/roles";
 import { getConnection } from "@/lib/settings";
 import { publicUrl } from "@/lib/url";
 
 // Organization-level actions: members, invitations, workspaces.
-
-const ROLE = z.enum(["owner", "admin", "analyst", "viewer", "client"]);
 
 export async function inviteMemberAction(form: FormData): Promise<ActionResult> {
   return run(async () => {
     const user = await guard("members.manage");
     const email = str(form, "email").toLowerCase();
     if (!z.email().safeParse(email).success) return fail("Enter a valid email address.");
-    const role = ROLE.safeParse(str(form, "role"));
-    if (!role.success) return fail("Pick a role.");
-    if (!canAssignRole(user.role, role.data)) return fail("Only owners can invite other owners.");
-    const workspaceIds = form.getAll("workspaceIds").map(String).filter((id) => user.workspaces.some((w) => w.id === id));
-    if (role.data === "client" && workspaceIds.length === 0) return fail("Choose at least one workspace this client can see.");
     const db = await getDb();
+    const roles = await listOrgRoles(db, user.organization.id);
+    const target = findRoleDef(roles, str(form, "role"));
+    if (!target) return fail("Pick a role.");
+    if (!canAssign(user.roleDef, target)) return fail(target.key === "owner" ? "Only owners can invite other owners." : "You can only give a role with permissions you have yourself.");
+    const workspaceIds = form.getAll("workspaceIds").map(String).filter((id) => user.workspaces.some((w) => w.id === id));
+    if (target.workspaceScoped && workspaceIds.length === 0) return fail("Choose at least one workspace this person can see.");
     const [already] = await db
       .select({ id: schema.memberships.id })
       .from(schema.memberships)
@@ -33,9 +33,9 @@ export async function inviteMemberAction(form: FormData): Promise<ActionResult> 
       .where(and(eq(schema.memberships.organizationId, user.organization.id), eq(schema.users.email, email)));
     if (already) return fail("That person is already a member. Change their role in the list instead.");
 
-    const { token } = await createInvitation(user, { email, role: role.data, workspaceIds: role.data === "client" ? workspaceIds : null });
+    const { token } = await createInvitation(user, { email, role: target.key, workspaceIds: target.workspaceScoped ? workspaceIds : null });
     const link = `${await publicUrl()}/invite/${token}`;
-    await audit(user, "member.invited", email, { role: role.data });
+    await audit(user, "member.invited", email, { role: target.key });
 
     // Email the invite when an email channel (or SMTP_URL) is configured; the link is always returned to copy.
     let emailed = false;
@@ -48,7 +48,7 @@ export async function inviteMemberAction(form: FormData): Promise<ActionResult> 
           conn: emailConn ?? undefined,
           msg: {
             title: `Join ${user.organization.name} on AdLedger`,
-            text: `${user.name || user.email} invited you as **${roleLabel(role.data)}**.\n\nAdLedger shows which ads actually make money. The invitation expires in 7 days.`,
+            text: `${user.name || user.email} invited you as **${target.name}**.\n\nAdLedger shows which ads actually make money. The invitation expires in 7 days.`,
             severity: "info",
             url: link,
           },
@@ -77,25 +77,30 @@ export async function revokeInvitationAction(id: string): Promise<ActionResult> 
 export async function updateMemberAction(membershipId: string, form: FormData): Promise<ActionResult> {
   return run(async () => {
     const user = await guard("members.manage");
-    const role = ROLE.safeParse(str(form, "role"));
-    if (!role.success) return fail("Pick a role.");
     const db = await getDb();
+    const roles = await listOrgRoles(db, user.organization.id);
+    const target = findRoleDef(roles, str(form, "role"));
+    if (!target) return fail("Pick a role.");
     const [m] = await db
       .select()
       .from(schema.memberships)
       .where(and(eq(schema.memberships.id, membershipId), eq(schema.memberships.organizationId, user.organization.id)));
     if (!m) return fail("Member not found.");
-    if (!canAssignRole(user.role, role.data) || !canAssignRole(user.role, m.role)) return fail("Only owners can change an owner's role.");
-    if (m.role === "owner" && role.data !== "owner" && (await ownerCount(user.organization.id, m.userId)) === 0) {
+    const current = findRoleDef(roles, m.role);
+    if (m.role === "owner" && !canAssign(user.roleDef, current)) return fail("Only owners can change an owner's role.");
+    if (!canAssign(user.roleDef, target) || (current && !canAssign(user.roleDef, current))) {
+      return fail(target.key === "owner" ? "Only owners can make someone an owner." : "You can only give a role with permissions you have yourself.");
+    }
+    if (m.role === "owner" && target.key !== "owner" && (await ownerCount(user.organization.id, m.userId)) === 0) {
       return fail("The organization needs at least one owner. Make someone else an owner first.");
     }
     const workspaceIds = form.getAll("workspaceIds").map(String).filter((id) => user.workspaces.some((w) => w.id === id));
-    if (role.data === "client" && workspaceIds.length === 0) return fail("Choose at least one workspace this client can see.");
+    if (target.workspaceScoped && workspaceIds.length === 0) return fail("Choose at least one workspace this person can see.");
     await db
       .update(schema.memberships)
-      .set({ role: role.data, workspaceIds: role.data === "client" ? workspaceIds : null })
+      .set({ role: target.key, workspaceIds: target.workspaceScoped ? workspaceIds : null })
       .where(eq(schema.memberships.id, m.id));
-    await audit(user, "member.updated", m.userId, { role: role.data });
+    await audit(user, "member.updated", m.userId, { role: target.key });
     revalidatePath("/settings", "layout");
     return ok("Access updated.");
   });
@@ -111,7 +116,9 @@ export async function removeMemberAction(membershipId: string): Promise<ActionRe
       .where(and(eq(schema.memberships.id, membershipId), eq(schema.memberships.organizationId, user.organization.id)));
     if (!m) return fail("Member not found.");
     if (m.userId === user.id) return fail("You can't remove yourself. Ask another owner or admin.");
-    if (!canAssignRole(user.role, m.role)) return fail("Only owners can remove an owner.");
+    const current = findRoleDef(await listOrgRoles(db, user.organization.id), m.role);
+    // A member whose role was deleted (no definition) can always be removed.
+    if (current && !canAssign(user.roleDef, current)) return fail(m.role === "owner" ? "Only owners can remove an owner." : "You can only remove members whose role has permissions you have yourself.");
     if (m.role === "owner" && (await ownerCount(user.organization.id, m.userId)) === 0) return fail("The organization needs at least one owner.");
     await db.delete(schema.memberships).where(eq(schema.memberships.id, m.id));
     // Sign them out of this organization's workspaces.

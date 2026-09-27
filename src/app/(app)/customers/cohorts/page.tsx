@@ -12,10 +12,13 @@ import { getDb } from "@/lib/db";
 import { dateRange, longDate, moneyKpi, num, pct, plural } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { cohortAverages, cohortRetention } from "@/lib/reports-analysis";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Cohorts" };
 
 export default async function CohortsPage({ searchParams }: PageProps<"/customers/cohorts">) {
+  const denied = await gatePage("page.customers");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const sp = await searchParams;

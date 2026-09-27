@@ -11,12 +11,15 @@ import type { AttributionModel } from "@/lib/db/schema";
 import { contactStage } from "@/lib/pipeline";
 import { contactRecord, crmAbilities, crmMembers, workspaceTags } from "@/lib/reports-crm";
 import { contactReceipt, parseCostBasis } from "@/lib/reports-profit";
+import { gatePage } from "@/components/access-denied";
 
 const MODELS: AttributionModel[] = ["linear", "first_touch", "last_touch"];
 
 export const metadata = { title: "Contact" };
 
 export default async function ContactPage({ params, searchParams }: PageProps<"/contacts/[id]">) {
+  const denied = await gatePage("page.contacts");
+  if (denied) return denied;
   const { id } = await params;
   const sp = await searchParams;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) notFound();

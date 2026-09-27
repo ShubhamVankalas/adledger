@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { hrefAllowed } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -34,10 +35,11 @@ function Tab({ icon: Icon, label, active }: { icon: LucideIcon; label: string; a
  * on the way up. "More" opens the sidebar sheet (every other page, workspace switching, account).
  * A spacer keeps the last content on the page clear of the bar.
  */
-export function MobileNav() {
+export function MobileNav({ pages }: { pages: readonly string[] }) {
   const pathname = usePathname();
+  const tabs = TABS.filter((t) => hrefAllowed(t.href, pages));
   const { openMobile, setOpenMobile } = useSidebar();
-  const onTab = TABS.some((t) => isActive(pathname, t.href));
+  const onTab = tabs.some((t) => isActive(pathname, t.href));
   const nav = useRef<HTMLElement>(null);
 
   // Close the "More" sheet once a link inside it navigates somewhere.
@@ -89,7 +91,7 @@ export function MobileNav() {
         )}
       >
         <ul className="flex h-[52px] items-stretch gap-0.5">
-          {TABS.map(({ href, label, icon }) => {
+          {tabs.map(({ href, label, icon }) => {
             const active = isActive(pathname, href);
             return (
               <li key={href} className="flex min-w-0 flex-1">

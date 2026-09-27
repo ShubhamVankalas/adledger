@@ -14,6 +14,7 @@ import { getDb } from "@/lib/db";
 import { dateRange, moneyKpi, pct, roas } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { getUnitEconomics, profitLedger, profitRows, type ProfitLevel } from "@/lib/reports-profit";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Profit" };
 
@@ -24,6 +25,8 @@ const LEVELS: { value: ProfitLevel; label: string }[] = [
 ];
 
 export default async function ProfitPage({ searchParams }: PageProps<"/profit">) {
+  const denied = await gatePage("page.profit");
+  if (denied) return denied;
   const user = await requireUser("reports.view");
   const ws = user.workspace;
   const db = await getDb();

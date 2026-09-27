@@ -13,10 +13,13 @@ import { getDb } from "@/lib/db";
 import { dateRange, longDate, MODEL_LABELS, moneyShort, num, pct, platformLabel } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { attributionPaths, funnel, type PathConversion } from "@/lib/reports-analysis";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Journey paths" };
 
 export default async function PathsPage({ searchParams }: PageProps<"/attribution/paths">) {
+  const denied = await gatePage("page.attribution");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const sp = await searchParams;

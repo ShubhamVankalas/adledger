@@ -18,7 +18,8 @@ import {
 } from "./crm-query";
 import { rows, type DB } from "./db";
 import { fromDecimalString } from "./money";
-import { roleCan, type Permission } from "./permissions";
+import { findRoleDef, roleDefCan, type Permission } from "./permissions";
+import { listOrgRoles } from "./roles";
 import { journey } from "./reports";
 import type { Workspace } from "./settings";
 
@@ -395,7 +396,8 @@ export async function crmMembers(db: DB, ws: Workspace): Promise<CrmMember[]> {
         and (m.workspace_ids is null or m.workspace_ids @> ${JSON.stringify([ws.id])}::jsonb)
       order by lower(coalesce(u.name, u.email))`),
   );
-  return result.map((m) => ({ ...m, canEdit: roleCan(m.role as never, "contacts.edit") }));
+  const roles = await listOrgRoles(db, ws.organizationId);
+  return result.map((m) => ({ ...m, canEdit: roleDefCan(findRoleDef(roles, m.role), "contacts.edit") }));
 }
 
 export async function isEditingMember(db: DB, ws: Workspace, userId: string): Promise<boolean> {

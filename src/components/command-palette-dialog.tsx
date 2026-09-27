@@ -44,6 +44,7 @@ import {
   DATE_PRESETS,
   MODELS,
   NAV,
+  navVisible,
   isReportPath,
   type PaletteCan,
 } from "./command-palette-data";
@@ -205,7 +206,7 @@ export function PaletteDialog({ open, onOpenChange, via, initialQuery, session, 
   const dark = resolvedTheme === "dark";
   const [streamer, setStreamer] = useLivePref("streamer");
 
-  const nav = useMemo(() => NAV.filter((n) => !n.show || n.show(can)), [can]);
+  const nav = useMemo(() => NAV.filter((n) => navVisible(n, can)), [can]);
 
   const actions = useMemo<(Item & { top?: boolean })[]>(() => {
     const applyParams = (patch: Record<string, string | null>) => {

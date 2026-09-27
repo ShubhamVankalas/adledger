@@ -10,7 +10,7 @@ import { ShortcutsSheet } from "@/components/shortcuts-sheet";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
-import { roleLabel } from "@/lib/permissions";
+import { PAGES } from "@/lib/permissions";
 import { overdueTaskCount } from "@/lib/reports-crm";
 import { livePulse } from "@/lib/reports-live";
 import { listPinnedViews } from "@/lib/views";
@@ -23,6 +23,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const open = jar.get("sidebar_state")?.value !== "false";
   const db = await getDb();
   const ws = user.workspace;
+  // Dashboard pages this role may open (custom roles can hide some): drives the sidebar, tab bar and palette.
+  const pages = PAGES.filter((p) => user.can(p.permission)).map((p) => p.permission);
   // Sidebar data, loaded together: setup progress, the live pulse, pinned views and the two badges.
   const [status, pulse, pinnedViews, overdueTasks, alertsTriggered] = await Promise.all([
     user.can("workspace.settings") && !ws.isDemo ? getSetupStatus(db, ws) : null,
@@ -55,12 +57,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }}
       >
         <AppSidebar
-          user={{ id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, roleLabel: roleLabel(user.role) }}
+          user={{ id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.roleName }}
           organization={{ id: user.organization.id, name: user.organization.name, logoUrl: user.organization.logoUrl }}
           organizations={user.organizations}
           workspace={{ id: user.workspace.id, name: user.workspace.name, isDemo: user.workspace.isDemo }}
           workspaces={user.workspaces}
-          can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage"), tasks: user.can("contacts.notes") }}
+          can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage"), tasks: user.can("contacts.notes"), pages }}
           setup={setup}
           pulse={pulse}
           pinnedViews={pinnedViews}
@@ -83,10 +85,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               data: user.can("workspace.data"),
               notes: user.can("contacts.notes"),
               editContacts: user.can("contacts.edit"),
+              pages,
             }}
           />
           <ShortcutsSheet />
-          <MobileNav />
+          <MobileNav pages={pages} />
         </SidebarInset>
       </ShellProvider>
     </SidebarProvider>

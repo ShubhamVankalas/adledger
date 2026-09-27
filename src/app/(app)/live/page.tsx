@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { cachedLiveSnapshot } from "@/lib/live";
 import { liveFeed, liveSnapshot } from "@/lib/reports-live";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Live" };
 
@@ -13,6 +14,8 @@ export const metadata = { title: "Live" };
 // subscribes to GET /api/v1/live (Server-Sent Events) for updates.
 
 export default async function LivePage({ searchParams }: PageProps<"/live">) {
+  const denied = await gatePage("page.live");
+  if (denied) return denied;
   const user = await requireUser("reports.view");
   const ws = user.workspace;
   const db = await getDb();

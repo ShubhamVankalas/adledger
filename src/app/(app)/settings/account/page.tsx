@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { mediaUrl } from "@/lib/media";
 import { roleLabel } from "@/lib/permissions";
+import { orgRolesCached } from "@/lib/roles";
 
 export const metadata = { title: "Profile" };
 
@@ -20,6 +21,7 @@ export default async function AccountPage() {
     .from(schema.memberships)
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.memberships.organizationId))
     .where(eq(schema.memberships.userId, user.id));
+  const roleSets = await Promise.all(memberships.map((m) => orgRolesCached(m.id)));
 
   return (
     <>
@@ -29,7 +31,7 @@ export default async function AccountPage() {
         name={user.name ?? ""}
         email={user.email}
         avatarUrl={user.avatarUrl}
-        memberships={memberships.map((m) => ({ id: m.id, org: m.org, logoUrl: mediaUrl("org", m.id, m.logoUpdatedAt), role: roleLabel(m.role) }))}
+        memberships={memberships.map((m, i) => ({ id: m.id, org: m.org, logoUrl: mediaUrl("org", m.id, m.logoUpdatedAt), role: roleLabel(m.role, roleSets[i]) }))}
         has2fa={user.has2fa}
         otherSessions={otherSessions}
       />

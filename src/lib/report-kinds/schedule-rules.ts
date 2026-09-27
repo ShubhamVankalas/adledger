@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { schema, type DB } from "../db";
-import { parsePolicy, policyCan } from "../security/policy";
+import { findRoleDef, roleDefCan } from "../permissions";
+import { listOrgRoles } from "../roles";
+import { parsePolicy } from "../security/policy";
 import type { Workspace } from "../settings";
 
 // When a scheduled report is due, which period it covers and who receives it. No PDF imports
@@ -76,7 +78,8 @@ export async function scheduleRecipients(db: DB, ws: Workspace, s: Pick<Schedule
     .where(eq(schema.memberships.organizationId, ws.organizationId));
   const [org] = await db.select({ security: schema.organizations.security }).from(schema.organizations).where(eq(schema.organizations.id, ws.organizationId));
   const policy = parsePolicy(org?.security);
-  const allowed = members.filter((m) => (!m.workspaceIds || m.workspaceIds.includes(ws.id)) && policyCan(m.role, "reports.pdf", policy));
+  const roles = await listOrgRoles(db, ws.organizationId);
+  const allowed = members.filter((m) => (!m.workspaceIds || m.workspaceIds.includes(ws.id)) && roleDefCan(findRoleDef(roles, m.role), "reports.pdf", policy));
   const picked = s.recipients.all ? allowed : allowed.filter((m) => s.recipients.userIds.includes(m.userId));
   return picked.map((m) => ({ userId: m.userId, email: m.email, name: m.name }));
 }

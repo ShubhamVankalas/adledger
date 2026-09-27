@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import { dateRange, MODEL_LABELS } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { biggestGap, truthGap } from "@/lib/reports-trust";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Truth gap" };
 
@@ -20,6 +21,8 @@ const REASONS: [string, string][] = [
 ];
 
 export default async function TruthPage({ searchParams }: PageProps<"/truth">) {
+  const denied = await gatePage("page.profit");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser("reports.view");
   const db = await getDb();
   const p = await resolvePeriodParams(db, ws, await searchParams);

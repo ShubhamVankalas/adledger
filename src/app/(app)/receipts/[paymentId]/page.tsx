@@ -12,12 +12,15 @@ import type { AttributionModel } from "@/lib/db/schema";
 import { money } from "@/lib/format";
 import { UUID_RE } from "@/lib/request-auth";
 import { adjacentPayments, parseCostBasis, paymentReceipt } from "@/lib/reports-profit";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Receipt" };
 
 const MODELS: AttributionModel[] = ["first_touch", "last_touch", "linear"];
 
 export default async function ReceiptPage({ params, searchParams }: PageProps<"/receipts/[paymentId]">) {
+  const denied = await gatePage("page.profit");
+  if (denied) return denied;
   const [{ paymentId }, sp, user] = await Promise.all([params, searchParams, requireUser("reports.view")]);
   if (!UUID_RE.test(paymentId)) notFound();
   const ws = user.workspace;

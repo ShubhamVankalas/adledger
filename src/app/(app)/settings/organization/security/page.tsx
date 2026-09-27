@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { mediaUrl } from "@/lib/media";
-import { ROLES, roleCan, roleLabel, type Permission } from "@/lib/permissions";
-import { IDLE_CHOICES, MAX_DAYS_CHOICES, policyCan } from "@/lib/security/policy";
+import { roleDefCan, roleLabel, type Permission } from "@/lib/permissions";
+import { orgRolesCached } from "@/lib/roles";
+import { IDLE_CHOICES, MAX_DAYS_CHOICES } from "@/lib/security/policy";
 import { securityPosture } from "@/lib/security/posture";
 
 export const metadata = { title: "Security policy" };
@@ -27,7 +28,7 @@ export default async function OrganizationSecurityPage() {
   const db = await getDb();
   const h = await headers();
   const https = (h.get("x-forwarded-proto") ?? "").split(",")[0].trim() === "https" || (process.env.PUBLIC_URL ?? "").startsWith("https://");
-  const [posture, members] = await Promise.all([
+  const [posture, members, roles] = await Promise.all([
     securityPosture(db, user.organization.id, user.security, { https }),
     db
       .select({ role: schema.memberships.role, id: schema.users.id, name: schema.users.name, email: schema.users.email, totp: schema.users.totpEnabledAt, avatarUpdatedAt: schema.users.avatarUpdatedAt, lastLoginAt: schema.users.lastLoginAt })
@@ -35,6 +36,7 @@ export default async function OrganizationSecurityPage() {
       .innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId))
       .where(eq(schema.memberships.organizationId, user.organization.id))
       .orderBy(schema.memberships.createdAt),
+    orgRolesCached(user.organization.id),
   ]);
   const editable = user.can("security.manage");
 
@@ -51,7 +53,7 @@ export default async function OrganizationSecurityPage() {
           name: m.name,
           email: m.email,
           avatarUrl: mediaUrl("user", m.id, m.avatarUpdatedAt),
-          role: roleLabel(m.role),
+          role: roleLabel(m.role, roles),
           has2fa: Boolean(m.totp),
           lastLoginAt: m.lastLoginAt?.toISOString() ?? null,
           me: m.id === user.id,
@@ -60,7 +62,7 @@ export default async function OrganizationSecurityPage() {
       <Card>
         <CardHeader>
           <CardTitle>Who can see and take data</CardTitle>
-          <CardDescription>Fixed per role. Viewers and clients always see contact emails masked, like p•••@gmail.com.</CardDescription>
+          <CardDescription>Per role (edit them in Roles & permissions). Roles without “See contact emails” see them masked, like p•••@gmail.com.</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <div tabIndex={0} aria-label="Permissions by role" className="overflow-x-auto overscroll-x-contain rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -71,9 +73,9 @@ export default async function OrganizationSecurityPage() {
                   <th scope="col" className="py-2 pr-3 pl-4 font-medium">
                     Permission
                   </th>
-                  {ROLES.map((r) => (
-                    <th key={r.role} scope="col" className="px-3 py-2 text-center font-medium">
-                      {r.label}
+                  {roles.map((r) => (
+                    <th key={r.key} scope="col" className="px-3 py-2 text-center font-medium">
+                      {r.name}
                     </th>
                   ))}
                 </tr>
@@ -84,10 +86,10 @@ export default async function OrganizationSecurityPage() {
                     <th scope="row" className="py-2.5 pr-3 pl-4 text-left font-normal">
                       {a.label}
                     </th>
-                    {ROLES.map((r) => {
-                      const yes = policyCan(r.role, a.permission, user.security) && roleCan(r.role, a.permission);
+                    {roles.map((r) => {
+                      const yes = roleDefCan(r, a.permission, user.security);
                       return (
-                        <td key={r.role} className="px-3 py-2.5 text-center">
+                        <td key={r.key} className="px-3 py-2.5 text-center">
                           {yes ? <CheckIcon aria-label="Yes" className="mx-auto size-4" strokeWidth={2} /> : <MinusIcon aria-label="No" className="mx-auto size-4 text-muted-foreground/60" />}
                         </td>
                       );
