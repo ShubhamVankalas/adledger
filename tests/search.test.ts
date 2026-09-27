@@ -69,8 +69,8 @@ beforeAll(async () => {
   ]);
   await addCampaignTree(wsA, { campaign: "Zephyr prospecting", group: "Zephyr lookalike 1%", ad: "Zephyr UGC v3" });
   await addCampaignTree(wsB, { campaign: "Zephyr leak campaign", group: "Zephyr leak set", ad: "Zephyr leak ad" });
-  keyA = (await createApiKey(wsA.id, "A")).key;
-  keyB = (await createApiKey(wsB.id, "B")).key;
+  keyA = (await createApiKey(wsA.id, "A", ["reports:read", "contacts:read", "contacts:pii"])).key;
+  keyB = (await createApiKey(wsB.id, "B", ["reports:read", "contacts:read", "contacts:pii"])).key;
 });
 
 beforeEach(() => resetRateLimits());
@@ -152,6 +152,26 @@ describe("POST /api/v1/search", () => {
     expect(b.map((x) => x.title)).toEqual(["Zeller Leak"]);
   });
 
+  it("follows API key scopes: contacts need contacts:read, raw emails need contacts:pii", async () => {
+    const reportsOnly = (await createApiKey(wsA.id, "reports", ["reports:read"])).key;
+    const r = await results(await call({ body: { q: "zeller" }, bearer: reportsOnly }));
+    expect(r.some((x) => x.kind === "contact")).toBe(false);
+    const masked = (await createApiKey(wsA.id, "masked", ["reports:read", "contacts:read"])).key;
+    const m = await results(await call({ body: { q: "zeller", kinds: ["contact"] }, bearer: masked }));
+    expect(m[0].subtitle).toBe("p••••••@northwind.test");
+    const mcpOnly = (await createApiKey(wsA.id, "mcp", ["mcp"])).key;
+    expect((await call({ body: { q: "zeller" }, bearer: mcpOnly })).status).toBe(403);
+  });
+
+  it("masks emails for members without contacts.pii", async () => {
+    const viewer = await member("viewer", wsA);
+    const r = await results(await call({ body: { q: "zeller", kinds: ["contact"] }, token: viewer }));
+    expect(r[0].subtitle).toBe("p••••••@northwind.test");
+    const owner = await member("owner", wsA);
+    const o = await results(await call({ body: { q: "zeller", kinds: ["contact"] }, token: owner }));
+    expect(o[0].subtitle).toBe(PRIYA);
+  });
+
   it("masks emails for agency clients and refuses workspaces they can't see", async () => {
     const client = await member("client", wsA, [wsA.id]);
     const r = await results(await call({ body: { q: "zeller", kinds: ["contact"] }, token: client }));
@@ -186,11 +206,17 @@ describe("POST /api/v1/search", () => {
   it("rate-limits each caller", async () => {
     const owner = await member("owner", wsA);
     let limited = 0;
-    for (let i = 0; i < 245; i++) {
-      // A malformed body is rejected after the rate limit check, so this stays cheap.
-      const r = await call({ raw: "{", token: owner });
-      if (r.status === 429) limited++;
+    // Freeze the token bucket's clock so a slow (shared) test machine can't refill it mid-loop.
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.now());
+    try {
+      for (let i = 0; i < 245; i++) {
+        // A malformed body is rejected after the rate limit check, so this stays cheap.
+        const r = await call({ raw: "{", token: owner });
+        if (r.status === 429) limited++;
+      }
+    } finally {
+      now.mockRestore();
     }
-    expect(limited).toBeGreaterThan(0);
+    expect(limited).toBe(5);
   });
 });

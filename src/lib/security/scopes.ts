@@ -2,7 +2,7 @@ import type { ApiScope } from "../db/schema";
 
 // API key scopes. A key carries a list; every REST/MCP route names the scope it needs.
 // New keys default to read-only reports. Keys created before scopes existed were migrated to
-// every scope except contacts:pii (see drizzle/0005_trust_core.sql).
+// every scope except contacts:pii (see drizzle/0007_trust_core.sql).
 
 export type { ApiScope };
 
