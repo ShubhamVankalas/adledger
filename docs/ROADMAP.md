@@ -55,6 +55,9 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 2 Targets | ✅ | `goals` table, Settings → Targets & goals, `goalsPacing()` (MTD/QTD vs target, projection, budget), `<GoalsPacingWidget/>`, `stoplight()` / `targetFor()` helpers. Next: wire the widget into the Overview registry and stoplights into Performance |
+| 4 Import & hygiene | ✅ | Contacts CSV import with column mapping and a new/update/invalid preview; duplicates review (same phone, Gmail variants, same name) with merge + re-attribution. Next: undo for merges (`contact_merges` snapshot), run very large imports as a job |
+| Public site | ✅ | `site/index.html` in the Quiet Ledger look (receipts, truth gap, profit, time to money, verified reports, CRM, PDF reports, security) + `site/trust.html` |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
