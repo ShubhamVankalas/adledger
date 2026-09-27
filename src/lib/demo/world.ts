@@ -484,5 +484,10 @@ export function buildDemoWorld(anchor: string, currency: string, days = 90): Dem
     }
   }
 
+  // Follow-up page views can land a few minutes past the window; nothing may happen after the anchor day.
+  for (const v of visitors) {
+    v.pageViews = v.pageViews.filter((pv) => pv.at.getTime() <= endMs);
+    v.touches = v.touches.filter((t) => t.at.getTime() <= endMs);
+  }
   return { anchor, since, currency, siteUrl: DEMO_SITE, visitors, contacts, payments };
 }

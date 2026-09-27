@@ -86,7 +86,7 @@ describe("MCP server", () => {
           union all select 'campaigns', count(*) from campaigns union all select 'events', count(*) from events
           union all select 'connections', count(*) from connections
           union all select 'last_synced', coalesce(extract(epoch from max(last_synced_at)), 0)::bigint from connections`),
-      );
+      ).sort((a, b) => a.t.localeCompare(b.t));
     const before = await snapshot();
     const [contact] = rows<{ id: string }>(await db.execute(sql`select id from contacts where lifecycle = 'customer' limit 1`));
     const calls: [string, Record<string, unknown>][] = [
