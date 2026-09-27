@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { schema, type DB } from "@/lib/db";
-import { comparisonParams, resolvePeriodParams, todayIn, toQueryString } from "@/lib/period";
+import { GET as ltvRedirect } from "@/app/(app)/reports/ltv/route";
+import { GET as modelsRedirect } from "@/app/(app)/reports/models/route";
+import { comparisonParams, resolvePeriodParams, todayIn } from "@/lib/period";
 import { addDays, comparisonRange, isIsoDate, parseCompare, presetRange, RANGE_PRESETS, shiftYears } from "@/lib/period-presets";
 import type { Workspace } from "@/lib/settings";
 import { setupWorkspace } from "./helpers";
@@ -60,11 +62,14 @@ describe("date presets", () => {
   });
 });
 
-describe("toQueryString", () => {
-  it("keeps every filter when an old report URL redirects", () => {
-    expect(toQueryString({})).toBe("");
-    expect(toQueryString({ range: "90d", platform: "meta", empty: undefined })).toBe("?range=90d&platform=meta");
-    expect(toQueryString({ tag: ["a", "b"], q: "a&b" })).toBe("?tag=a&tag=b&q=a%26b");
+describe("retired report URLs", () => {
+  it("permanently redirect to the new pages and keep every filter", () => {
+    const m = modelsRedirect(new Request("http://localhost/reports/models?range=90d&platform=meta&tag=a&tag=b"));
+    expect(m.status).toBe(308);
+    expect(m.headers.get("location")).toBe("/attribution?range=90d&platform=meta&tag=a&tag=b");
+    const l = ltvRedirect(new Request("http://localhost/reports/ltv"));
+    expect(l.status).toBe(308);
+    expect(l.headers.get("location")).toBe("/customers");
   });
 });
 

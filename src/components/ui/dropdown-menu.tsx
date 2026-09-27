@@ -239,7 +239,7 @@ function DropdownMenuShortcut({
       data-slot="dropdown-menu-shortcut"
       translate="no"
       className={cn(
-        "ml-auto pl-3 text-caption text-fg-faint group-focus/dropdown-menu-item:text-muted-foreground",
+        "ml-auto pl-3 text-caption text-muted-foreground",
         className
       )}
       {...props}

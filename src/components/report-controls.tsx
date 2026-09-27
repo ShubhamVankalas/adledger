@@ -375,7 +375,7 @@ function CompactControls({ start, end, range, model, platform, compare, showPlat
             {showCompare ? (
               <fieldset className="grid gap-2">
                 <legend className="mb-2 text-ui font-medium">Compare to</legend>
-                <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Compare to">
+                <div className="grid grid-cols-[1.35fr_1.25fr_0.8fr] gap-1.5" role="radiogroup" aria-label="Compare to">
                   {COMPARE_MODES.map((c) => (
                     <Chip key={c.key} checked={draft.compare === c.key} onClick={() => setDraft((d) => ({ ...d, compare: c.key }))}>
                       {c.key === "none" ? "None" : c.label}

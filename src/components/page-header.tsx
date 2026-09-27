@@ -47,7 +47,7 @@ export function PageHeader({
         <h1 className="min-w-0 truncate text-title-sm" title={description ? `${title}: ${description}` : title}>
           {title}
         </h1>
-        {description ? <p className="hidden min-w-0 truncate text-ui text-fg-faint 2xl:block">{description}</p> : null}
+        {description ? <p className="hidden min-w-0 truncate text-ui text-muted-foreground 2xl:block">{description}</p> : null}
         <DemoPill />
       </div>
       {children ? <div className="flex shrink-0 items-center gap-1.5">{children}</div> : null}

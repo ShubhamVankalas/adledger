@@ -165,7 +165,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                     <DropdownMenuItem key={w.id} onClick={() => w.id !== workspace.id && switchTo(() => switchWorkspaceAction(w.id))}>
                       <OrgLogo id={w.id} name={w.name} size="sm" />
                       <span className="min-w-0 flex-1 truncate">{w.name}</span>
-                      {w.isDemo ? <span className="text-caption text-fg-faint">Sample</span> : null}
+                      {w.isDemo ? <span className="text-caption text-muted-foreground">Sample</span> : null}
                       {w.id === workspace.id ? <CheckIcon aria-label="Current" className="text-foreground" /> : null}
                     </DropdownMenuItem>
                   ))}
@@ -197,7 +197,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             <SidebarMenuButton
               onClick={openPalette}
               tooltip={`Search (${paletteHint})`}
-              className="mt-1 h-8 border border-sidebar-border bg-surface text-fg-faint shadow-none hover:border-border-strong hover:bg-surface hover:text-muted-foreground group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
+              className="mt-1 h-8 border border-sidebar-border bg-surface text-muted-foreground shadow-none hover:border-border-strong hover:bg-surface hover:text-foreground group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
             >
               <SearchIcon />
               <span className="flex-1">Search…</span>
@@ -222,7 +222,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                         <span
                           aria-hidden
                           translate="no"
-                          className="hidden text-micro tracking-wide text-fg-faint opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline"
+                          className="hidden text-micro tracking-wide text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline"
                         >
                           {item.keys}
                         </span>
@@ -260,7 +260,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             <SidebarMenuButton isActive={isActive(pathname, "/settings")} tooltip="Settings" render={<Link href="/settings/workspace" />}>
               <SettingsIcon strokeWidth={1.75} />
               <span className="flex-1">Settings</span>
-              <span aria-hidden translate="no" className="hidden text-micro tracking-wide text-fg-faint opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline">
+              <span aria-hidden translate="no" className="hidden text-micro tracking-wide text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline">
                 G S
               </span>
             </SidebarMenuButton>

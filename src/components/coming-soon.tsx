@@ -19,7 +19,7 @@ export function ComingSoon({ title, icon: Icon, headline, body }: { title: strin
             <Button render={<Link href="/" />}>
               <ArrowLeftIcon aria-hidden /> Back to Overview
             </Button>
-            <span className="hidden items-center gap-1 text-caption text-fg-faint sm:inline-flex">
+            <span className="hidden items-center gap-1 text-caption text-muted-foreground sm:inline-flex">
               or press{" "}
               <kbd translate="no" className="kbd">
                 G

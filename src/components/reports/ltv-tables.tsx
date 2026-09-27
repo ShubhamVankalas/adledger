@@ -160,7 +160,7 @@ export function CohortTable({
                       <div
                         className="tabular rounded-md px-2 py-1.5 text-right text-xs font-medium"
                         style={{
-                          backgroundColor: `color-mix(in oklch, var(--primary) ${Math.round(alpha * 100)}%, transparent)`,
+                          backgroundColor: `color-mix(in oklch, var(--chart-revenue) ${Math.round(alpha * 100)}%, transparent)`,
                         }}
                         title={`${moneyWhole(co.revenueMinor[i], c)} revenue in month ${i}`}
                       >

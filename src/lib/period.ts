@@ -72,14 +72,13 @@ export async function resolvePeriodParams(db: DB, ws: Workspace, sp: SearchParam
   return withCompare(start, end, preset);
 }
 
-/** "?a=1&b=2" from Next's searchParams (repeated keys kept), or "" when empty. */
-export function toQueryString(sp: SearchParams): string {
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) {
-    for (const item of Array.isArray(v) ? v : v === undefined ? [] : [v]) qs.append(k, item);
-  }
-  const s = qs.toString();
-  return s ? `?${s}` : "";
+/**
+ * 308 from a retired report URL to its new path, keeping the query string (range, model…), so old
+ * links and bookmarks land on the same view. Relative Location, so it works behind any proxy.
+ */
+export function movedPermanently(req: Request, path: string): Response {
+  const { search } = new URL(req.url);
+  return new Response(null, { status: 308, headers: { Location: `${path}${search}` } });
 }
 
 /** The comparison period as full report params (null when compare=none). */
