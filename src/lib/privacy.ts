@@ -390,6 +390,8 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "contact_tags" },
   { table: "tasks" },
   { table: "contact_views" },
+  { table: "goals" },
+  { table: "contact_duplicate_dismissals" },
   { table: "audit_log" },
 ];
 

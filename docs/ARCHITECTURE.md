@@ -153,6 +153,10 @@ status — ids only, no personal data). `organizations.logo_png` holds the PNG c
 the workspace, otherwise personal). `params` only ever holds the page's whitelisted URL keys
 (`lib/view-params.ts`), never PII. Personal views need `reports.view`; shared ones `views.share`
 (owner/admin/analyst). The sidebar shows at most 8 pinned views.
+**Goals & hygiene** — `goals` (one per `(workspace_id, metric)`: metric revenue | attributed_revenue |
+leads | customers | roas | mer | cac | cpl, period month | quarter, `target_minor` for money or
+`target_value` numeric for counts/ratios, optional `budget_minor`, the currency it was set in),
+`contact_duplicate_dismissals` (pairs marked "not the same person", `contact_a_id < contact_b_id`).
 
 ## 5. Key flows
 
@@ -466,6 +470,30 @@ and `src/lib/reports-trust.ts`; pages `/receipts`, `/receipts/[paymentId]`, `/tr
   else 7 days) is "too early": `isTooEarly()` for alerts and Insights. Pause drafts (spend ≥ 2% of the
   period, POAS or ROAS < 0.5, old enough, still running) export as Meta / Google Ads Editor bulk CSVs;
   nothing is ever written to a platform.
+**Goals & pacing.** `src/lib/reports-goals.ts` paces each goal for the current month or quarter in the
+workspace timezone. Actuals are `overview()` for period-to-date (so a goal always equals its KPI tile);
+cumulative metrics project at the current run rate, ratios and costs are judged on the value to date, and
+nothing is judged before day 3. The ad budget is paced the same way. Pure maths and metric definitions
+live in `src/lib/goal-metrics.ts` (client-safe): `stoplight(metric, value, target)` and
+`targetFor(targets, metric)` colour table cells, `<GoalsPacingWidget/>` (`components/goals/`) renders the
+card. Settings → Workspace → Targets & goals (`guard("workspace.settings")` + `audit()`).
+
+**Contacts import.** `src/lib/contacts-import.ts`: the CSV is parsed by `parseCsvTable()` (imports.ts),
+columns are auto-mapped from their headers and re-mapped in the browser, and every mapping change
+re-previews "new / update / invalid / repeated" against the workspace's email and phone hashes before
+anything is written. The import upserts on `(workspace_id, email_hash)` (phone hash for phone-only rows),
+only fills blanks on existing contacts (name, phone, an earlier date added), folds repeated rows into one
+person, and can record a `csv` lead for each new person. Running it twice only updates.
+
+**Duplicates & merge.** `src/lib/contacts-merge.ts` suggests pairs that share a phone hash, the same
+canonical email (Gmail dots and `+tags` ignored) or the same multi-word name where one side has no email
+(groups larger than a few are ignored as shared or common values), minus dismissed pairs. A merge runs in
+one transaction: every column with a foreign key to `contacts(id)` is found in the catalog and re-pointed
+(so tables added later are covered; a row that would break a unique key is dropped because the kept
+contact already has it), plus `attribution_credits.contact_id`; blank columns on the kept contact are
+filled from the merged one, the email moves over only if the kept contact has none, the merged contact
+is deleted, and attribution is recomputed. Merging needs `workspace.data`, importing and dismissing
+`workspace.settings`; all three write `audit()` with IDs only.
 
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled

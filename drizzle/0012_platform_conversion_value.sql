@@ -1,1 +1,0 @@
-ALTER TABLE "ad_insights_daily" ADD COLUMN "platform_conversion_value_minor" bigint;

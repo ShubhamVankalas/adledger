@@ -84,3 +84,38 @@ describe("FAQ", () => {
     }
   });
 });
+
+describe("trust page and site copy", () => {
+  const trust = readFileSync("site/trust.html", "utf8");
+  const visible = (page: string) => page.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, " ");
+
+  it("is linked from the landing page and shares its stylesheet", () => {
+    expect(html).toContain('href="trust.html"');
+    expect(trust).toContain('href="site.css"');
+    expect(html).toContain('href="site.css"');
+    expect(existsSync("site/site.css")).toBe(true);
+  });
+
+  it("claims no certification: SOC 2 and GDPR appear only as things we don't claim", () => {
+    for (const page of [html, trust]) {
+      expect(page).not.toMatch(/certified by|<img[^>]*(soc|iso)/i);
+      for (const m of visible(page).matchAll(/(SOC 2|ISO 27001|GDPR|HIPAA)[^.]{0,40}(compliant|certified)/gi)) {
+        // Allowed only as a quoted "never say" example or in a negative sentence.
+        const at = visible(page).indexOf(m[0]);
+        expect(visible(page).slice(Math.max(0, at - 80), at + m[0].length + 5), m[0]).toMatch(/“|never|don’t|No badges|Is AdLedger/);
+      }
+    }
+    expect(trust).toContain("We don’t hold SOC 2 or ISO 27001");
+  });
+
+  it("has a target for every in-page link and uses no em or en dashes in visible copy", () => {
+    const ids = new Set([...trust.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+    for (const [, a] of trust.matchAll(/href="#([^"]+)"/g)) expect(ids.has(a), a).toBe(true);
+    for (const page of [html, trust]) expect(visible(page)).not.toMatch(/[–—]/);
+  });
+
+  it("is self-contained apart from fonts and GitHub links", () => {
+    const external = [...trust.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].map((m) => new URL(m[1]).hostname);
+    for (const host of external) expect(["fonts.googleapis.com", "fonts.gstatic.com", "github.com"]).toContain(host);
+  });
+});
