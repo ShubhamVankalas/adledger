@@ -157,6 +157,7 @@ export const CHANNEL_LABELS: Record<string, string> = {
   referral: "Referral",
   direct: "Direct",
   email: "Email",
+  ai_assistant: "AI assistants",
   unattributed: "Unattributed",
 };
 

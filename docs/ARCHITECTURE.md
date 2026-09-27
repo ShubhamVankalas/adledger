@@ -103,7 +103,7 @@ client: reporting_currency, timezone, attribution_window_days, is_demo, onboardi
 `users` (login identity; scrypt hash; optional profile picture), `memberships` (user × organization with a role: owner, admin,
 analyst, viewer, client — clients carry an explicit list of workspace ids), `invitations` (hashed
 token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace), `api_keys` (hashed),
-`pixel_sites` (public key, allowed domains), `lead_webhooks` (token, field mapping),
+`pixel_sites` (public key, allowed domains, consent_mode optout|required|cookieless), `lead_webhooks` (token, field mapping),
 `notification_rules` (event × channel, settings such as hour or threshold), `connections`
 (any provider id from the integration registry, `llm`, or a `notify_*` channel; mode mock|live, config jsonb,
 `secrets_enc` AES-256-GCM, last_synced_at, last_error), `app_meta` (generated app secret).
@@ -111,19 +111,19 @@ token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace),
 **Ads** — `ad_accounts`, `campaigns`, `ad_groups`, `ads`, `ad_insights_daily`
 (unique `(workspace_id, platform, ad_id, date)`, idempotent upserts), `sync_runs`.
 
-**First-party tracking** — `visitors` (anonymous_id, contact_id), `events` (raw, append-only,
+**First-party tracking** — `visitors` (anonymous_id, contact_id, consent granted|denied|unknown, gpc), `events` (raw, append-only,
 PII-redacted properties, truncated IP), `touchpoints` (UTMs, click id, fbp/fbc, channel,
 platform, matched campaign/ad group/ad).
 
 **People & money** — `contacts` (the only table with raw email; email_hash, phone_hash,
-lifecycle, external ids), `leads` (PII-redacted raw payload), `revenue_events` (payments
+lifecycle, external ids, ads_consent granted|denied|null), `leads` (PII-redacted raw payload), `revenue_events` (payments
 and refunds from every revenue source, plus won CRM deals; unique `(workspace_id, source, external_id)`).
 
 **Derived** — `attribution_credits` (model, conversion type/id/time, touchpoint or null for
 unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), revenue_minor),
 `ai_reports` (period, model name, facts, markdown, unverified numbers), `conversion_uploads` (platform ×
 conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
-error, mock, sent_at).
+error, mock, sent_at, skip_reason, consent_mode = the consent basis it was built with).
 
 **Overview layouts** — `dashboards` (name, preset, layout jsonb, version, updated_at; `user_id` null =
 the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
@@ -140,7 +140,9 @@ minutes with the same campaign/click are de-duplicated.
 
 **Channels.** gclid/gbraid/wbraid/msclkid → paid_search; paid mediums (cpc, ppc, paid_social,
 cpm, display…) → paid_social or paid_search by source; fbclid/ttclid → paid_social;
-email/newsletter → email; social/search referrers → organic; other referrers → referral.
+email/newsletter → email; AI assistants (chatgpt.com, chat.openai.com, perplexity.ai, gemini.google.com,
+copilot.microsoft.com, claude.ai as referrer, or utm_source=chatgpt.com and similar) → ai_assistant;
+social/search referrers → organic; other referrers → referral.
 
 **Identity stitching.** `identify`/`lead` with an email → normalized + hashed → find-or-create
 contact → link the visitor (first link wins). Several visitors per contact are allowed
@@ -241,14 +243,44 @@ IDs). An hourly job enqueues recent conversions (Meta: 7 days, its limit; Google
 Meta events carry `event_id = {lead|purchase}_{id}` for de-duplication, SHA-256 `em`/`ph`/`external_id`,
 fbc/fbp, the stored (truncated) IP and user agent, the page URL without its query string (stored URLs
 are not PII-redacted), and `value` in exact major units; without a user agent and page URL the
-`action_source` is `system_generated`. Google gets `uploadClickConversions` with the latest
-gclid/gbraid/wbraid within 90 days, or for leads without a click id an enhanced conversion with the
-Google-normalized hashed email; `orderId` = our id; `partialFailure` errors map back per conversion.
+`action_source` is `system_generated`. Google conversions go through the **Data Manager API**
+(`POST https://datamanager.googleapis.com/v1/events:ingest`, OAuth scope `auth/datamanager`, no
+developer token), because since 15 June 2026 the Google Ads API's `uploadClickConversions` rejects
+developer tokens that hadn't uploaded offline conversions before. Each event carries the latest
+gclid/gbraid/wbraid within 90 days (or, for leads without a click id, the Google-normalized hex SHA-256
+email: enhanced conversions for leads), `transactionId` = our id, an RFC 3339 `eventTimestamp`, and
+`destinationReferences` pointing at one destination per conversion action (operating account = the
+conversion account, login account = the manager ID when set). Up to 2,000 events per request. The API is
+fast-fail: a 400 naming `events[i]` fails those events permanently and re-sends the rest once; scope,
+disabled-API and access errors are retried with a fix hint ("Reconnect Google Ads…").
 Failures retry with backoff (15 min, 1 h, 4 h, 16 h) and are marked failed after 5 attempts; permanent
 errors fail at once (token, permission and unknown-pixel errors are retried so a fixed setup applies); a
-Meta batch rejected permanently is re-sent event by event. Mock mode marks rows sent (`mock = true`)
-without network calls; once the platform runs live, those rows (inside the look-back window) are queued
-again and really sent. The Meta / Google Ads dialogs show 7-day upload counts.
+Meta batch rejected permanently is re-sent event by event. Mock mode sends the same requests to an
+in-process mock of each API (`mockMetaFetch`, `mockDataManagerFetch`: real response and error formats,
+no network) and marks rows sent (`mock = true`); once the platform runs live, those rows (inside the
+look-back window) are queued again and really sent.
+
+**Consent-aware uploads.** `src/lib/capi/consent.ts` decides one basis per conversion from
+`contacts.ads_consent`, the GPC flag on the contact's visitors and whether the workspace has a strict
+pixel (`pixel_sites.consent_mode` `required` or `cookieless`): *denied* (skipped, `skip_reason =
+consent_denied`) → *none* (strict mode without a yes: skipped, `no_ads_consent`) → *limited* (Global
+Privacy Control: Meta `data_processing_options: ["LDU"]` with country/state 0; Google both consent fields
+`CONSENT_DENIED` and no user identifiers, so a lead without a click id is skipped as
+`limited_no_click_id`) → *granted* (Google `CONSENT_GRANTED`) → *implied* (opt-out mode, nobody objected:
+Google `CONSENT_STATUS_UNSPECIFIED`, Meta `data_processing_options: []`). The basis is stored in
+`conversion_uploads.consent_mode`; every skip has a machine `skip_reason`. The Meta / Google Ads dialogs
+show 7-day counts: sent, limited, pending, failed, skipped (with consent skips called out).
+
+**Pixel consent.** `data-consent` on the script tag (Settings → Tracking writes it into the snippet):
+`optout` (default: first-party cookie, `adledger.consent(false)` forgets the visitor), `required` (no
+cookie, storage or request until `adledger.consent(true)`; the current page's events wait in memory) and
+`cookieless` (a per-page ID; a yes upgrades to a cookie). The visitor cookie lasts 390 days (under 13
+months) and is never extended. Every batch carries `consent` and `navigator.globalPrivacyControl`; the
+collect endpoint stores them on `visitors` (an explicit answer is never overwritten by "unknown"),
+copies explicit answers to `contacts.ads_consent`, records a withdrawal sent as an empty batch, and
+drops events without consent for `required` sites even when an old snippet sends them. Settings →
+Tracking also has copy-paste glue for Cookiebot, CookieYes, Osano, Klaro and Google Consent Mode v2
+(`src/lib/tracking/consent-modes.ts`).
 
 **Imports.** The Spend API (`POST /api/v1/spend`), Conversions API (`POST /api/v1/conversions`) and
 CSV uploads share `src/lib/imports.ts`, so any ad network or checkout without a native connector can be

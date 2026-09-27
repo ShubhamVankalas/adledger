@@ -51,9 +51,13 @@ export function parseMarketingParams(url: string | null | undefined): MarketingP
   };
 }
 
+// AI assistants get their own channel (checked before search engines: gemini.google.com is not Google search).
+const AI_ASSISTANTS = ["chatgpt.com", "chat.openai.com", "perplexity.ai", "gemini.google.com", "copilot.microsoft.com", "claude.ai"];
+// ChatGPT tags outbound links with utm_source=chatgpt.com; others use their name.
+const AI_SOURCES = /^(chatgpt(\.com)?|openai|perplexity(\.ai)?|gemini(\.google\.com)?|copilot(\.microsoft\.com)?|claude(\.ai)?)$/i;
 const SEARCH_ENGINES = [
   "google.", "bing.com", "yahoo.", "duckduckgo.com", "baidu.com", "yandex.", "ecosia.org",
-  "search.brave.com", "naver.com", "perplexity.ai", "chatgpt.com",
+  "search.brave.com", "naver.com",
 ];
 const SOCIAL = [
   "facebook.com", "fb.com", "fb.me", "instagram.com", "l.instagram.com", "t.co", "twitter.com",
@@ -109,6 +113,7 @@ export function classify(
     return /social/i.test(medium) ? "paid_social" : "paid_search";
   }
   if (p.clickIdType) return "paid_social"; // fbclid, ttclid, li_fat_id
+  if (AI_SOURCES.test(source)) return "ai_assistant";
   if (/social/i.test(medium) || SOCIAL_SOURCES.test(source)) return "organic";
   if (/organic/i.test(medium)) return "organic";
   if (source || medium || p.utmCampaign) return "referral";
@@ -116,6 +121,7 @@ export function classify(
   const refHost = hostOf(referrer);
   if (!refHost || refHost === landingHost) return null;
   if (matchesAny(refHost, AD_DOMAINS)) return "paid_search";
+  if (matchesAny(refHost, AI_ASSISTANTS)) return "ai_assistant";
   if (matchesAny(refHost, SEARCH_ENGINES) || matchesAny(refHost, SOCIAL)) return "organic";
   return "referral";
 }

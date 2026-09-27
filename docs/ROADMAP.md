@@ -40,7 +40,8 @@ end to end in that form. Status below.
 | Revenue: Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal | 🟡 Beta | Signed webhooks + tests; backfill for Shopify and WooCommerce |
 | Stripe one-key setup | ✅ | Webhook created automatically on public https installs |
 | CSV import, Spend API, Conversions API | ✅ | Covers any other ad network or checkout |
-| Conversion upload: Meta Conversions API, Google Ads click conversions + enhanced conversions for leads | 🟡 Beta | Hourly, idempotent, retried with backoff; hashed PII only; not yet verified on live accounts |
+| Conversion upload: Meta Conversions API, Google Ads click conversions + enhanced conversions for leads (Data Manager API) | 🟡 Beta | Hourly, idempotent, retried with backoff; hashed PII only; consent-aware (Google consent, Meta LDU, skips without consent); not yet verified on live accounts |
+| Pixel consent modes (opt-out, consent required, cookieless), GPC, CMP snippets, AI assistants channel | ✅ | Hotfix lane of the redesign addendum |
 | Notifications: email, Slack, Discord, Teams, SMS, webhook | ✅ | Weekly report, daily digest, wasted spend, sync failed, new customer, large payment |
 | WordPress/WooCommerce plugin, Shopify pixel, GTM tag, site-builder guides | ✅ | `integrations/`, `docs/integrations/` |
 | First-run choice + guided setup checklist with live checks | ✅ | |

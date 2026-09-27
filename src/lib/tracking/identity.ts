@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { EMAIL_RE, hashEmail, hashPhone, normalizeEmail, redactPii } from "../crypto";
 import { schema, type DB } from "../db";
+import type { ConsentState } from "../db/schema";
 
 export type Traits = { email?: string | null; phone?: string | null; name?: string | null };
 
@@ -92,20 +93,46 @@ export async function recordLead(
   return lead;
 }
 
-/** Find (or create) a visitor by its pixel anonymous id. */
-export async function upsertVisitor(db: Q, workspaceId: string, anonymousId: string, at: Date) {
+export type ConsentSignals = { consent?: ConsentState; gpc?: boolean };
+
+/**
+ * Find (or create) a visitor by its pixel anonymous id. Consent signals from the pixel are stored
+ * on the visitor: an explicit answer (granted / denied) is never overwritten by "unknown", and GPC
+ * reflects the latest request (older pixels that don't send it leave it untouched).
+ */
+export async function upsertVisitor(db: Q, workspaceId: string, anonymousId: string, at: Date, signals: ConsentSignals = {}) {
   const [v] = await db
     .insert(schema.visitors)
-    .values({ workspaceId, anonymousId: anonymousId.slice(0, 64), firstSeenAt: at, lastSeenAt: at })
+    .values({
+      workspaceId,
+      anonymousId: anonymousId.slice(0, 64),
+      firstSeenAt: at,
+      lastSeenAt: at,
+      consent: signals.consent ?? null,
+      gpc: signals.gpc ?? false,
+    })
     .onConflictDoUpdate({
       target: [schema.visitors.workspaceId, schema.visitors.anonymousId],
       set: {
         lastSeenAt: sql`greatest(${schema.visitors.lastSeenAt}, excluded.last_seen_at)`,
         firstSeenAt: sql`least(${schema.visitors.firstSeenAt}, excluded.first_seen_at)`,
+        consent: sql`coalesce(nullif(excluded.consent, 'unknown'), ${schema.visitors.consent}, excluded.consent)`,
+        ...(signals.gpc === undefined ? {} : { gpc: sql`excluded.gpc` }),
       },
     })
     .returning();
   return v;
+}
+
+/**
+ * Carry an explicit answer from a visitor to its contact (contacts.ads_consent), which is what
+ * conversion uploads read. The latest explicit answer wins.
+ */
+export async function syncContactConsent(db: Q, visitorId: string, consent: "granted" | "denied") {
+  await db.execute(sql`
+    update contacts set ads_consent = ${consent}
+    where id = (select contact_id from visitors where id = ${visitorId})
+      and ads_consent is distinct from ${consent}`);
 }
 
 /** Pull email/phone/name out of an arbitrary form payload (Typeform, Tally, Webflow, custom). */

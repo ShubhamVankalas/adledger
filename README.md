@@ -75,7 +75,7 @@ pnpm install && pnpm dev
 | | |
 |---|---|
 | **Ad spend sync** | **Meta, Google Ads, Microsoft Ads, TikTok, LinkedIn, Pinterest, Snapchat, Reddit and X** — daily spend, impressions and clicks per campaign, ad set and ad. Any other network via CSV or the Spend API. Re-syncs never duplicate. |
-| **First-party pixel** | One `<script>` tag (**1.7 KB** gzipped). Page views, UTMs, click IDs (`gclid`, `fbclid`, `gbraid`, `wbraid`, `ttclid`…), `_fbp`/`_fbc`, SPA support, consent API. |
+| **First-party pixel** | One `<script>` tag (**2.4 KB** gzipped). Page views, UTMs, click IDs (`gclid`, `fbclid`, `gbraid`, `wbraid`, `ttclid`…), `_fbp`/`_fbc`, SPA support. Consent modes (opt-out, consent required, cookieless), Global Privacy Control, and ready-made glue for Cookiebot, CookieYes, Osano, Klaro and Google Consent Mode v2. |
 | **Lead capture** | `data-adledger-lead` on any form, `adledger.lead()` in JS, or a webhook for Typeform, Tally, Webflow, Zapier… (fields auto-detected). **Native ad lead forms** from Meta Lead Ads, Google Ads lead forms and TikTok Lead Generation, credited to the exact ad. **WhatsApp click-to-chat** conversations as leads, linked to the ad click that opened the chat. **WordPress/WooCommerce plugin**, Shopify custom pixel and guides for Webflow, Wix, Squarespace, Framer and GTM. |
 | **Revenue** | **Stripe, Shopify, WooCommerce, Paddle, Lemon Squeezy, Razorpay, PayPal, Chargebee, Recurly, Gumroad, Cashfree, Instamojo and PhonePe** via webhooks (Stripe: paste one key, the webhook is created for you). Won deals from **HubSpot** and **Pipedrive** for sales-led businesses. Anything else via CSV or the Conversions API. Refunds and renewals handled. |
 | **Identity stitching** | Anonymous visitor → lead → customer, across devices, by email. |
@@ -168,7 +168,8 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 ## Privacy & security
 
 - Raw emails are stored only in `contacts`; everywhere else emails/phones are SHA-256 hashed (lowercased, trimmed — the format Meta CAPI / Google Enhanced Conversions expect).
-- IPs are truncated before storage. The pixel honors `adledger.consent(false)` and optional Do-Not-Track.
+- IPs are truncated before storage. The pixel honors `adledger.consent(false)`, Global Privacy Control and optional Do-Not-Track, and can wait for consent before storing or sending anything (`data-consent="required"`, for EU and UK visitors). Its cookie lasts 13 months.
+- Conversions sent back to Meta and Google carry consent signals (Google `adUserData`/`adPersonalization`, Meta Limited Data Use for GPC visitors); people who said no are never uploaded.
 - Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
 - API keys and sessions are stored hashed. The MCP server is read-only.
 - Your data is yours: export contacts as CSV, download the whole workspace as JSON (Settings → Workspace), and set a retention period for raw website events.

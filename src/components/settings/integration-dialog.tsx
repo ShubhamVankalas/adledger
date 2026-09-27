@@ -28,7 +28,7 @@ export type IntegrationState = {
   /** One-click connect is available (the admin set the OAuth app env vars). */
   oauthReady?: boolean;
   /** Conversions API uploads in the last 7 days (Meta, Google Ads only). */
-  uploads?: { sent: number; failed: number; pending: number; skipped: number } | null;
+  uploads?: { sent: number; limited: number; failed: number; pending: number; skipped: number; skippedConsent: number } | null;
 };
 
 /** Connector placeholders are examples; the ellipsis marks them as such. */
@@ -271,20 +271,26 @@ export function IntegrationDialog({
 }
 
 function UploadStats({ stats }: { stats: NonNullable<IntegrationState["uploads"]> }) {
+  // limited: sent with reduced data for Global Privacy Control. skipped: held back for consent or nothing to match on.
   const items = [
-    { label: "sent", value: stats.sent, className: "text-success" },
-    { label: "pending", value: stats.pending, className: "" },
-    { label: "failed", value: stats.failed, className: stats.failed ? "text-destructive" : "" },
+    { label: "sent", value: stats.sent, className: "text-foreground", title: undefined },
+    { label: "limited", value: stats.limited, className: "", title: "Sent with limited data because the visitor's browser sent Global Privacy Control" },
+    { label: "pending", value: stats.pending, className: "", title: undefined },
+    { label: "failed", value: stats.failed, className: stats.failed ? "text-destructive" : "", title: undefined },
   ];
+  const other = stats.skipped - stats.skippedConsent;
+  const why = [stats.skippedConsent ? `${num(stats.skippedConsent)} no consent` : null, other ? `${num(other)} nothing to match on` : null].filter(Boolean).join(", ");
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
       <span className="font-medium text-foreground">Conversion uploads · last 7 days</span>
       {items.map((i) => (
-        <span key={i.label}>
+        <span key={i.label} title={i.title}>
           <span className={`font-semibold tabular-nums ${i.className}`}>{num(i.value)}</span> {i.label}
         </span>
       ))}
-      {stats.skipped ? <span className="tabular-nums">{num(stats.skipped)} skipped (nothing to match on)</span> : null}
+      <span>
+        <span className="font-semibold tabular-nums">{num(stats.skipped)}</span> skipped{why ? <span className="tabular-nums"> ({why})</span> : null}
+      </span>
     </div>
   );
 }

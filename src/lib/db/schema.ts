@@ -186,6 +186,8 @@ export const pixelSites = pgTable(
     // Allowed hostnames, comma separated. Empty = accept any origin.
     domains: text("domains").notNull().default(""),
     publicKey: text("public_key").notNull(),
+    // How the pixel handles consent: optout (default), required (nothing until consent) or cookieless.
+    consentMode: text("consent_mode").$type<PixelConsentMode>().notNull().default("optout"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("pixel_sites_key_uq").on(t.publicKey), index().on(t.workspaceId)],
@@ -390,6 +392,9 @@ export const visitors = pgTable(
     firstSeenAt: tstz("first_seen_at").notNull(),
     lastSeenAt: tstz("last_seen_at").notNull(),
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    // Ads consent reported by the pixel (granted | denied | unknown) and the Global Privacy Control signal.
+    consent: text("consent").$type<ConsentState>(),
+    gpc: boolean("gpc").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [
@@ -458,7 +463,8 @@ export type Channel =
   | "organic"
   | "referral"
   | "direct"
-  | "email";
+  | "email"
+  | "ai_assistant";
 
 // ---------------------------------------------------------------- people & money
 
@@ -475,6 +481,8 @@ export const contacts = pgTable(
     firstSeenAt: tstz("first_seen_at").notNull(),
     lifecycle: text("lifecycle").$type<"lead" | "customer">().notNull().default("lead"),
     externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
+    // Latest explicit ads consent (granted | denied); null = never asked.
+    adsConsent: text("ads_consent").$type<ConsentState>(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -598,6 +606,9 @@ export const conversionUploads = pgTable(
     // true when mock mode recorded the upload as sent without a network call
     mock: boolean("mock").notNull().default(false),
     sentAt: tstz("sent_at"),
+    // Why a row was skipped (machine code, see src/lib/capi/consent.ts) and the consent basis it was built with.
+    skipReason: text("skip_reason").$type<UploadSkipReason>(),
+    consentMode: text("consent_mode").$type<UploadConsentBasis>(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -608,6 +619,19 @@ export const conversionUploads = pgTable(
 export type UploadPlatform = "meta" | "google";
 export type UploadConversionType = "lead" | "purchase";
 export type UploadStatus = "pending" | "sent" | "failed" | "skipped";
+/** granted: explicit consent · implied: opt-out notice, no objection · limited: GPC (Meta LDU, Google without identifiers) · denied / none: not uploaded. */
+export type UploadConsentBasis = "granted" | "implied" | "limited" | "denied" | "none";
+export type UploadSkipReason =
+  | "consent_denied"
+  | "no_ads_consent"
+  | "limited_no_click_id"
+  | "no_match_keys"
+  | "too_old"
+  | "no_value"
+  | "no_action"
+  | "missing";
+export type ConsentState = "granted" | "denied" | "unknown";
+export type PixelConsentMode = "optout" | "required" | "cookieless";
 
 // ---------------------------------------------------------------- overview dashboards
 

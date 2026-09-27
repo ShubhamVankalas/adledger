@@ -303,7 +303,8 @@ export const googleConnector: AdsConnector = {
     oauth: {
       label: "Google",
       env: ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_ADS_DEVELOPER_TOKEN"],
-      scopes: ["https://www.googleapis.com/auth/adwords"],
+      // adwords: reporting. datamanager: conversion uploads (Data Manager API, replaces uploadClickConversions).
+      scopes: ["https://www.googleapis.com/auth/adwords", "https://www.googleapis.com/auth/datamanager"],
     },
     fields: [
       { name: "customerIds", label: "Customer IDs", placeholder: "123-456-7890", hint: "Comma-separated account IDs to import." },
@@ -311,17 +312,17 @@ export const googleConnector: AdsConnector = {
       { name: "developerToken", label: "Developer token", secret: true, hint: "Google Ads → Tools → API Center." },
       { name: "clientId", label: "OAuth client ID", placeholder: "…apps.googleusercontent.com" },
       { name: "clientSecret", label: "OAuth client secret", secret: true },
-      { name: "refreshToken", label: "OAuth refresh token", secret: true, hint: "From the OAuth Playground with scope https://www.googleapis.com/auth/adwords." },
+      { name: "refreshToken", label: "OAuth refresh token", secret: true, hint: "From the OAuth Playground with the scopes https://www.googleapis.com/auth/adwords and https://www.googleapis.com/auth/datamanager." },
       { name: "apiVersion", label: "API version", placeholder: GOOGLE_ADS_API_VERSION_DEFAULT, optional: true },
-      { name: "conversionUploads", label: "Upload conversions to Google Ads", type: "toggle", optional: true, hint: "Offline click conversions (gclid/gbraid/wbraid) and enhanced conversions for leads." },
+      { name: "conversionUploads", label: "Upload conversions to Google Ads", type: "toggle", optional: true, hint: "Offline click conversions (gclid/gbraid/wbraid) and enhanced conversions for leads, sent through the Google Data Manager API with consent signals." },
       { name: "leadConversionActionId", label: "Lead conversion action ID", placeholder: "987654321", optional: true, hint: "Goals → Conversions → an Import (clicks) action → its ctId." },
       { name: "purchaseConversionActionId", label: "Purchase conversion action ID", placeholder: "987654322", optional: true },
       { name: "uploadCustomerId", label: "Conversion account ID", placeholder: "123-456-7890", optional: true, hint: "Account that owns the conversion actions. Defaults to the first customer ID." },
     ],
     steps: [
       "Apply for a developer token in Google Ads → Tools → API Center (a test account token works immediately).",
-      "Google Cloud Console → enable the Google Ads API → create an OAuth client (Web, redirect https://developers.google.com/oauthplayground).",
-      "OAuth Playground → use your own credentials → authorize the adwords scope → exchange for a refresh token.",
+      "Google Cloud Console → enable the Google Ads API (and the Data Manager API for conversion uploads) → create an OAuth client (Web, redirect https://developers.google.com/oauthplayground).",
+      "OAuth Playground → use your own credentials → authorize the adwords and datamanager scopes → exchange for a refresh token.",
       "Optional: create Import → Clicks conversion actions for leads and purchases, switch on uploads and paste their IDs to send conversions back to Google Ads.",
     ],
   },

@@ -43,6 +43,13 @@
       "when": 1790492837141,
       "tag": "0005_dashboards",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790498696249,
+      "tag": "0006_consent",
+      "breakpoints": true
     }
   ]
 }

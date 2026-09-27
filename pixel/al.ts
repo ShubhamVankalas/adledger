@@ -5,8 +5,15 @@
 //   adledger.lead({ email, phone, name }, "Form name")   record a lead (+ identify)
 //   adledger.track("event_name", { any: "props" })
 //   adledger.getVisitorId()
-//   adledger.consent(false)   stop tracking and clear the visitor ID
+//   adledger.consent(true | false)   record the visitor's answer from your cookie banner
 //   adledger.whatsapp("919876543210", "Hi!")   open a WhatsApp chat tagged "Ref: AL-XXXXX"
+// Consent modes (data-consent on the script tag):
+//   optout (default)  track with a first-party cookie; consent(false) stops and forgets the visitor
+//   required          no cookie, no storage and nothing sent until consent(true); events from the
+//                     current page are held in memory and sent once the visitor agrees
+//   cookieless        no cookie or storage: a fresh ID per page load; consent(true) upgrades to a cookie
+// Global Privacy Control (navigator.globalPrivacyControl) is always sent, so server-side uploads
+// go out with limited data (Meta LDU, Google without identifiers).
 // Clicks on wa.me / api.whatsapp.com / whatsapp:// links are tagged the same way and sent as
 // "whatsapp_click" (opt out per link with data-adledger-noref); tel: links send "call_click".
 
@@ -23,9 +30,11 @@ type QueueItem = [string, ...unknown[]];
   const site = script.getAttribute("data-site") || "";
   const endpoint = script.getAttribute("data-endpoint") || new URL(script.src).origin + "/api/v1/collect";
   const respectDnt = script.getAttribute("data-dnt") === "true";
+  const mode = script.getAttribute("data-consent") || "optout";
+  const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
   const COOKIE = "_al_vid";
   const CONSENT = "_al_consent";
-  const YEAR2 = 63072000;
+  const MAX_AGE = 33696000; // 390 days: under the 13-month cap regulators expect
 
   const store = {
     get(k: string): string | null {
@@ -39,7 +48,7 @@ type QueueItem = [string, ...unknown[]];
     },
     set(k: string, v: string) {
       const secure = location.protocol === "https:" ? "; Secure" : "";
-      d.cookie = k + "=" + encodeURIComponent(v) + "; Max-Age=" + YEAR2 + "; Path=/; SameSite=Lax" + secure + rootDomain();
+      d.cookie = k + "=" + encodeURIComponent(v) + "; Max-Age=" + MAX_AGE + "; Path=/; SameSite=Lax" + secure + rootDomain();
       try {
         localStorage.setItem(k, v);
       } catch {
@@ -47,6 +56,7 @@ type QueueItem = [string, ...unknown[]];
       }
     },
     del(k: string) {
+      if (store.get(k) === null) return; // nothing to delete: don't touch cookies at all
       d.cookie = k + "=; Max-Age=0; Path=/" + rootDomain();
       try {
         localStorage.removeItem(k);
@@ -84,29 +94,53 @@ type QueueItem = [string, ...unknown[]];
   }
 
   const dnt = respectDnt && (navigator.doNotTrack === "1" || (w as unknown as { doNotTrack?: string }).doNotTrack === "1");
-  let enabled = !dnt && store.get(CONSENT) !== "0";
-  let vid = store.get(COOKIE);
-  if (enabled && !vid) {
-    vid = uuid();
-    store.set(COOKIE, vid);
+  // "1" = said yes, "0" = said no (only remembered in optout mode), null = no answer yet.
+  // Our own consent cookie only exists after the visitor answered, so reading it is fine in every mode.
+  let answer = store.get(CONSENT);
+  // persist: allowed to keep a cookie. enabled: allowed to send. held: required mode, waiting for an answer.
+  let persist = false;
+  let enabled = false;
+  let vid: string | null = null;
+  function apply() {
+    persist = !dnt && (answer === "1" || (mode === "optout" && answer !== "0"));
+    enabled = !dnt && answer !== "0" && (persist || mode === "cookieless");
+    if (persist) {
+      // Set once: the 13-month lifetime is never extended by later visits.
+      const saved = store.get(COOKIE);
+      if (saved) vid = saved;
+      else store.set(COOKIE, (vid = vid || uuid()));
+    } else if (enabled) {
+      vid = vid || uuid(); // cookieless: lives for this page load only
+    }
   }
+  apply();
+  const held = () => !dnt && mode === "required" && answer === null;
 
   let queue: Ev[] = [];
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  function payload(events: Ev[]) {
-    return JSON.stringify({ site, vid, fbp: store.get("_fbp"), fbc: store.get("_fbc"), events });
+  function payload(events: Ev[], consent?: string) {
+    // Meta browser IDs are other cookies: only read them where we may use cookies.
+    return JSON.stringify({
+      site,
+      vid,
+      fbp: persist ? store.get("_fbp") : null,
+      fbc: persist ? store.get("_fbc") : null,
+      consent: consent || (answer === "1" ? "granted" : "unknown"),
+      gpc,
+      events,
+    });
   }
 
-  function send(events: Ev[], retry: boolean) {
-    const body = payload(events);
+  function send(events: Ev[], retry: boolean, consent?: string) {
+    const body = payload(events, consent);
     try {
       if (navigator.sendBeacon && navigator.sendBeacon(endpoint, new Blob([body], { type: "text/plain" }))) return;
     } catch {
       /* fall through */
     }
     fetch(endpoint, { method: "POST", body, keepalive: true, headers: { "Content-Type": "text/plain" }, mode: "no-cors" }).catch(() => {
-      if (retry) setTimeout(() => send(events, false), 2000);
+      if (retry) setTimeout(() => send(events, false, consent), 2000);
     });
   }
 
@@ -120,8 +154,10 @@ type QueueItem = [string, ...unknown[]];
   }
 
   function push(e: Omit<Ev, "ts" | "url">, now?: boolean) {
-    if (!enabled) return;
+    const wait = held();
+    if (!enabled && !wait) return;
     queue.push({ ts: Date.now(), url: location.href, ...e } as Ev);
+    if (wait) return; // kept in memory only, until consent(true)
     if (now) flush();
     else if (!timer) timer = setTimeout(flush, 1000);
   }
@@ -138,7 +174,7 @@ type QueueItem = [string, ...unknown[]];
 
   let lastUrl = "";
   function pageView() {
-    if (location.href === lastUrl) return;
+    if (location.href === lastUrl || (!enabled && !held())) return;
     const ref = lastUrl || d.referrer || null;
     lastUrl = location.href;
     push({ t: "page_view", ref });
@@ -194,20 +230,24 @@ type QueueItem = [string, ...unknown[]];
       return vid;
     },
     consent(granted: boolean) {
-      enabled = !!granted;
       if (granted) {
-        store.del(CONSENT);
-        if (!vid) {
-          vid = uuid();
-          store.set(COOKIE, vid);
-        }
+        if (answer === "1") return;
+        store.set(CONSENT, (answer = "1"));
+        apply();
+        flush(); // events held while waiting (required mode)
         pageView();
-      } else {
-        store.set(CONSENT, "0");
-        store.del(COOKIE);
-        vid = null;
-        queue = [];
+        return;
       }
+      // Tell the server once, so conversions already linked to this visitor aren't uploaded.
+      if (enabled && vid && answer !== "0") send([], false, "denied");
+      queue = [];
+      store.del(COOKIE);
+      vid = null;
+      answer = "0";
+      // Remember the refusal (a strictly necessary cookie); in required mode no answer already means no.
+      if (mode === "required") store.del(CONSENT);
+      else store.set(CONSENT, "0");
+      enabled = persist = false;
     },
   };
 
