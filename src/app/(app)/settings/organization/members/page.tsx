@@ -3,6 +3,7 @@ import { MembersPanel } from "@/components/settings/members-panel";
 import { SettingsHeader } from "@/components/settings/section";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
+import { mediaUrl } from "@/lib/media";
 import { canAssignRole, ROLES } from "@/lib/permissions";
 
 export const metadata = { title: "Members" };
@@ -13,7 +14,7 @@ export default async function MembersPage() {
   const orgId = user.organization.id;
   const [members, invites] = await Promise.all([
     db
-      .select({ membership: schema.memberships, user: { id: schema.users.id, email: schema.users.email, name: schema.users.name, lastLoginAt: schema.users.lastLoginAt } })
+      .select({ membership: schema.memberships, user: { id: schema.users.id, email: schema.users.email, name: schema.users.name, lastLoginAt: schema.users.lastLoginAt, avatarUpdatedAt: schema.users.avatarUpdatedAt } })
       .from(schema.memberships)
       .innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId))
       .where(eq(schema.memberships.organizationId, orgId))
@@ -36,6 +37,7 @@ export default async function MembersPage() {
           userId: m.user.id,
           email: m.user.email,
           name: m.user.name,
+          avatarUrl: mediaUrl("user", m.user.id, m.user.avatarUpdatedAt),
           role: m.membership.role,
           workspaceIds: m.membership.workspaceIds,
           lastLoginAt: m.user.lastLoginAt?.toISOString() ?? null,

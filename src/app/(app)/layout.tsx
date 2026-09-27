@@ -19,8 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Tablets (md–lg) start with the icon rail so reports get the width; the toggle still expands it.
     <SidebarProvider defaultOpen={open} collapseBelow={1024}>
       <AppSidebar
-        user={{ email: user.email, name: user.name, roleLabel: roleLabel(user.role) }}
-        organization={{ id: user.organization.id, name: user.organization.name }}
+        user={{ id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, roleLabel: roleLabel(user.role) }}
+        organization={{ id: user.organization.id, name: user.organization.name, logoUrl: user.organization.logoUrl }}
         organizations={user.organizations}
         workspace={{ id: user.workspace.id, name: user.workspace.name, isDemo: user.workspace.isDemo }}
         workspaces={user.workspaces}

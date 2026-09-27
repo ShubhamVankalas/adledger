@@ -3,7 +3,6 @@
 import {
   BarChart3Icon,
   BookOpenIcon,
-  Building2Icon,
   CableIcon,
   CheckIcon,
   ChevronsUpDownIcon,
@@ -28,7 +27,7 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { switchOrganizationAction, switchWorkspaceAction } from "@/app/actions/account";
 import { logoutAction } from "@/app/actions/auth";
-import { LogoMark } from "@/components/logo";
+import { OrgLogo, UserAvatar } from "@/components/avatars";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,9 +64,9 @@ const NAV = [
 ];
 
 type Props = {
-  user: { email: string; name: string | null; roleLabel: string };
-  organization: { id: string; name: string };
-  organizations: { id: string; name: string }[];
+  user: { id: string; email: string; name: string | null; avatarUrl: string | null; roleLabel: string };
+  organization: { id: string; name: string; logoUrl: string | null };
+  organizations: { id: string; name: string; logoUrl: string | null }[];
   workspace: { id: string; name: string; isDemo: boolean };
   workspaces: { id: string; name: string; isDemo: boolean }[];
   can: { settings: boolean; members: boolean; workspaces: boolean };
@@ -79,8 +78,10 @@ export function AppSidebar({ user, organization, organizations, workspace, works
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [pending, start] = useTransition();
+  // Don't repeat the name when the workspace is named after the organization (the default).
+  const sameName = organization.name.trim().toLowerCase() === workspace.name.trim().toLowerCase();
+  const subtitle = [sameName ? null : organization.name, workspace.isDemo ? "Demo data" : null].filter(Boolean).join(" · ");
   const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-  const initials = (user.name || user.email).slice(0, 2).toUpperCase();
 
   const switchTo = (fn: () => Promise<{ ok: boolean; message?: string }>) =>
     start(async () => {
@@ -97,13 +98,10 @@ export function AppSidebar({ user, organization, organizations, workspace, works
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent" />} disabled={pending}>
-                <LogoMark className="size-8" />
+                <OrgLogo id={organization.id} name={organization.name} src={organization.logoUrl} size="md" />
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-semibold">{workspace.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {organization.name}
-                    {workspace.isDemo ? " · demo" : ""}
-                  </span>
+                  {subtitle ? <span className="truncate text-xs text-muted-foreground">{subtitle}</span> : null}
                 </div>
                 <ChevronsUpDownIcon className="ml-auto size-4" />
               </DropdownMenuTrigger>
@@ -112,7 +110,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                   <DropdownMenuLabel>Workspaces in {organization.name}</DropdownMenuLabel>
                   {workspaces.map((w) => (
                     <DropdownMenuItem key={w.id} onClick={() => w.id !== workspace.id && switchTo(() => switchWorkspaceAction(w.id))}>
-                      <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-[11px] font-semibold text-primary">{w.name.slice(0, 1).toUpperCase()}</span>
+                      <OrgLogo id={w.id} name={w.name} size="sm" />
                       <span className="truncate">{w.name}</span>
                       {w.id === workspace.id ? <CheckIcon className="ml-auto" /> : null}
                     </DropdownMenuItem>
@@ -130,7 +128,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                       <DropdownMenuLabel>Organizations</DropdownMenuLabel>
                       {organizations.map((o) => (
                         <DropdownMenuItem key={o.id} onClick={() => o.id !== organization.id && switchTo(() => switchOrganizationAction(o.id))}>
-                          <Building2Icon />
+                          <OrgLogo id={o.id} name={o.name} src={o.logoUrl} size="sm" />
                           <span className="truncate">{o.name}</span>
                           {o.id === organization.id ? <CheckIcon className="ml-auto" /> : null}
                         </DropdownMenuItem>
@@ -213,7 +211,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-xs font-semibold text-primary">{initials}</span>
+                <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="md" />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name || user.email}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.roleLabel}</span>
@@ -222,7 +220,14 @@ export function AppSidebar({ user, organization, organizations, workspace, works
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="min-w-56">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                  <div className="flex items-center gap-2.5 px-2 py-1.5">
+                    <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="md" />
+                    <div className="grid min-w-0 leading-tight">
+                      <span className="truncate text-sm font-medium">{user.name || user.email}</span>
+                      {user.name ? <span className="truncate text-xs text-muted-foreground">{user.email}</span> : null}
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem render={<Link href="/settings/account" />}>
                     <UserIcon /> Account settings
                   </DropdownMenuItem>

@@ -2,6 +2,7 @@ import type { Platform } from "../connectors/types";
 import {
   bigint,
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -24,6 +25,8 @@ const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const tstz = (name: string) => timestamp(name, { withTimezone: true });
 const money = (name: string) => bigint(name, { mode: "number" });
+/** Raw bytes (small images only: avatars and logos, validated and capped at upload). */
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => "bytea" });
 const workspaceId = () =>
   uuid("workspace_id")
     .notNull()
@@ -48,6 +51,10 @@ export const organizations = pgTable("organizations", {
   id: id(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  /** Logo shown in the sidebar and switcher: square 256px PNG/JPEG/WebP (<= 300 KB), see lib/media.ts. */
+  logo: bytea("logo"),
+  logoType: text("logo_type"),
+  logoUpdatedAt: tstz("logo_updated_at"),
   createdAt: createdAt(),
 });
 
@@ -76,6 +83,10 @@ export const users = pgTable(
     name: text("name"),
     passwordHash: text("password_hash").notNull(),
     lastLoginAt: tstz("last_login_at"),
+    /** Profile picture: square 256px PNG/JPEG/WebP (<= 300 KB), see lib/media.ts. */
+    avatar: bytea("avatar"),
+    avatarType: text("avatar_type"),
+    avatarUpdatedAt: tstz("avatar_updated_at"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_uq").on(t.email)],

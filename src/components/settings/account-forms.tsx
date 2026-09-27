@@ -2,29 +2,44 @@
 
 import { LaptopIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
 import { changePasswordAction, revokeOtherSessionsAction, revokeSessionAction, updateProfileAction } from "@/app/actions/account";
+import { removeAvatarAction, setAvatarAction } from "@/app/actions/media";
 import { ActionButton, useFormAction } from "@/components/action-button";
+import { OrgLogo, UserAvatar } from "@/components/avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { ImageUpload } from "./image-upload";
 
 export function AccountForms({
+  id,
   name,
   email,
+  avatarUrl,
   memberships,
   sessions,
 }: {
+  id: string;
   name: string;
   email: string;
-  memberships: { org: string; role: string }[];
+  avatarUrl: string | null;
+  memberships: { id: string; org: string; logoUrl: string | null; role: string }[];
   sessions: { id: string; createdAt: string; workspace: string; current: boolean }[];
 }) {
   const profile = useFormAction(updateProfileAction);
   const pw = useFormAction(changePasswordAction);
-  const { theme, setTheme } = useTheme();
+  const { theme: activeTheme, setTheme } = useTheme();
+  // The theme is only known in the browser: render it unselected on the server to avoid a hydration mismatch.
+  const mounted = useSyncExternalStore(
+    () => () => undefined,
+    () => true,
+    () => false,
+  );
+  const theme = mounted ? activeTheme : undefined;
   const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
   return (
@@ -34,8 +49,17 @@ export function AccountForms({
           <CardTitle>Profile</CardTitle>
           <CardDescription>How teammates see you in AdLedger.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={profile.submit} className="grid gap-4">
+        <CardContent className="grid gap-5">
+          <ImageUpload
+            src={avatarUrl}
+            preview={(src) => <UserAvatar id={id} name={name} email={email} src={src} size="xl" />}
+            upload={setAvatarAction}
+            remove={removeAvatarAction}
+            fit="cover"
+            label="Profile picture"
+            help="PNG, JPG or WebP, up to 2 MB. Cropped to a square."
+          />
+          <form action={profile.submit} className="grid gap-4 border-t pt-5">
             <div className="grid gap-1.5">
               <Label htmlFor="profile-name">Name</Label>
               <Input id="profile-name" name="name" defaultValue={name} placeholder="Your name" />
@@ -113,8 +137,11 @@ export function AccountForms({
         </CardHeader>
         <CardContent className="divide-y">
           {memberships.map((m) => (
-            <div key={m.org} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
-              <span className="min-w-0 truncate font-medium">{m.org}</span>
+            <div key={m.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+              <span className="flex min-w-0 items-center gap-3">
+                <OrgLogo id={m.id} name={m.org} src={m.logoUrl} size="md" />
+                <span className="min-w-0 truncate font-medium">{m.org}</span>
+              </span>
               <Badge variant="secondary">{m.role}</Badge>
             </div>
           ))}

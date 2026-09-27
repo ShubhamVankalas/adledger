@@ -4,6 +4,7 @@ import { MailPlusIcon, ShieldCheckIcon, UserMinusIcon } from "lucide-react";
 import { useState } from "react";
 import { inviteMemberAction, removeMemberAction, revokeInvitationAction, updateMemberAction } from "@/app/actions/org";
 import { ActionButton, useFormAction } from "@/components/action-button";
+import { UserAvatar } from "@/components/avatars";
 import { CopyField } from "@/components/copy-field";
 import { NativeSelect } from "@/components/native-select";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import type { Role } from "@/lib/db/schema";
 import { timeAgo } from "@/lib/format";
 
 type RoleDef = { role: Role; label: string; description: string; assignable: boolean };
-type Member = { id: string; userId: string; email: string; name: string | null; role: Role; workspaceIds: string[] | null; lastLoginAt: string | null; editable: boolean };
+type Member = { id: string; userId: string; email: string; name: string | null; avatarUrl: string | null; role: Role; workspaceIds: string[] | null; lastLoginAt: string | null; editable: boolean };
 
 function WorkspacePicker({ workspaces, selected, name }: { workspaces: { id: string; name: string }[]; selected: string[]; name: string }) {
   return (
@@ -36,11 +37,10 @@ function WorkspacePicker({ workspaces, selected, name }: { workspaces: { id: str
 function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; workspaces: { id: string; name: string }[]; me: string }) {
   const [role, setRole] = useState<Role>(m.role);
   const save = useFormAction((f) => updateMemberAction(m.id, f));
-  const initials = (m.name || m.email).slice(0, 2).toUpperCase();
   return (
     <div className="grid gap-3 px-4 py-3 @3xl/settings:grid-cols-[minmax(0,1fr)_auto] @3xl/settings:items-center">
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{initials}</span>
+        <UserAvatar id={m.userId} name={m.name} email={m.email} src={m.avatarUrl} size="lg" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
             <span className="min-w-0 break-all">{m.name || m.email}</span>
@@ -53,7 +53,7 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
       </div>
       {m.editable ? (
         <form action={save.submit} className="grid gap-2">
-          <div className="flex items-center gap-2 pl-12 @3xl/settings:pl-0">
+          <div className="flex items-center gap-2 pl-13 @3xl/settings:pl-0">
             <NativeSelect name="role" value={role} onChange={(e) => setRole(e.target.value as Role)} className="min-w-0 flex-1 @3xl/settings:w-36 @3xl/settings:flex-none" aria-label="Role">
               {roles
                 .filter((r) => r.assignable)
@@ -73,7 +73,7 @@ function MemberRow({ m, roles, workspaces, me }: { m: Member; roles: RoleDef[]; 
           {role === "client" ? <WorkspacePicker workspaces={workspaces} selected={m.workspaceIds ?? []} name="workspaceIds" /> : null}
         </form>
       ) : (
-        <Badge variant="outline" className="ml-12 justify-self-start @3xl/settings:ml-0 @3xl/settings:justify-self-end">
+        <Badge variant="outline" className="ml-13 justify-self-start @3xl/settings:ml-0 @3xl/settings:justify-self-end">
           {roles.find((r) => r.role === m.role)?.label}
         </Badge>
       )}
@@ -169,10 +169,13 @@ export function MembersPanel({
             <CardContent className="-mb-(--card-spacing) divide-y border-t px-0">
               {invites.map((i) => (
                 <div key={i.id} className="flex items-center justify-between gap-3 py-2.5 pr-2 pl-4 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium break-all">{i.email}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {label(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString()}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <UserAvatar email={i.email} size="lg" className="opacity-70 after:border-dashed after:border-foreground/30" />
+                    <div className="min-w-0">
+                      <div className="font-medium break-all">{i.email}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {label(i.role)} · expires {new Date(i.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </div>
                     </div>
                   </div>
                   <ActionButton action={() => revokeInvitationAction(i.id)} variant="ghost" size="sm">

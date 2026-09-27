@@ -98,9 +98,9 @@ Every tenant table has `id uuid pk`, `workspace_id uuid fk`, `created_at timesta
 (`workspaces` and the instance-level `app_meta` are the exceptions). Money is
 `*_minor bigint` + `currency`. Timestamps are UTC `timestamptz`.
 
-**Tenancy & access** — `organizations` (a business or agency) → `workspaces` (one per brand or
+**Tenancy & access** — `organizations` (a business or agency; optional logo) → `workspaces` (one per brand or
 client: reporting_currency, timezone, attribution_window_days, is_demo, onboarding),
-`users` (login identity; scrypt hash), `memberships` (user × organization with a role: owner, admin,
+`users` (login identity; scrypt hash; optional profile picture), `memberships` (user × organization with a role: owner, admin,
 analyst, viewer, client — clients carry an explicit list of workspace ids), `invitations` (hashed
 token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace), `api_keys` (hashed),
 `pixel_sites` (public key, allowed domains), `lead_webhooks` (token, field mapping),
@@ -319,6 +319,13 @@ get an `aria-label`, and phones/touch screens get >= 36px tap targets (see `glob
 - **2026-09-27 — organizations & roles.** Agencies need many client workspaces and read-only client
   access; teams need roles. Existing installs are migrated automatically (each workspace becomes its own
   organization; its admin becomes the owner).
+- **2026-09-27 — profile pictures and logos in the database.** `users.avatar` and `organizations.logo`
+  are `bytea` columns (+ content type and updated-at) instead of files on disk, so there is no volume
+  or object store to configure and backups stay one `pg_dump`. The browser crops/resizes to a 256px
+  square (WebP, PNG fallback) before upload; the server accepts only PNG/JPEG/WebP (magic bytes checked,
+  never SVG) up to 300 KB. Images are served session-only from `/api/media/{user|org}/{id}?v=<updated-at>`
+  (members of the same organization; `nosniff`, private long-lived cache). Admins and owners
+  (`org.branding`) manage the logo; everyone manages their own picture.
 - **2026-09-27 — retention setting stored in `connections`.** The raw-event retention policy is a
   `connections` row with provider `retention` (`config.eventsDays`, `enabled`, `last_synced_at` = last run)
   instead of a new column: connections is already the per-workspace, unique-per-provider settings store,

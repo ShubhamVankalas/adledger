@@ -1,9 +1,10 @@
-import { and, asc, count, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns, gt, isNull, lte, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hashPassword, randomToken, sha256, verifyPassword } from "./crypto";
 import { getDb, schema, type DB } from "./db";
 import type { Role } from "./db/schema";
+import { mediaUrl } from "./media";
 import { canAssignRole, roleCan, type Permission } from "./permissions";
 import type { Workspace } from "./settings";
 
@@ -13,11 +14,22 @@ const SESSION_DAYS = 30;
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 type Q = DB | Tx;
 
-export type Organization = typeof schema.organizations.$inferSelect;
+// Image bytes stay out of the per-request session query; they are served by /api/media.
+function without<T extends object, K extends keyof T>(o: T, ...keys: K[]): Omit<T, K> {
+  const copy = { ...o };
+  for (const k of keys) delete copy[k];
+  return copy;
+}
+const organizationColumns = without(getTableColumns(schema.organizations), "logo");
+const userColumns = without(getTableColumns(schema.users), "avatar", "passwordHash");
+
+export type Organization = Omit<typeof schema.organizations.$inferSelect, "logo"> & { logoUrl: string | null };
 export type SessionUser = {
   id: string;
   email: string;
   name: string | null;
+  /** Profile picture URL (cache-busting), or null to show initials. */
+  avatarUrl: string | null;
   sessionId: string;
   organization: Organization;
   role: Role;
@@ -26,7 +38,7 @@ export type SessionUser = {
   /** Workspaces this user can open in the organization. */
   workspaces: Pick<Workspace, "id" | "name" | "isDemo">[];
   /** Every organization the user belongs to (for the organization switcher). */
-  organizations: { id: string; name: string }[];
+  organizations: { id: string; name: string; logoUrl: string | null }[];
   can: (permission: Permission) => boolean;
 };
 
@@ -95,7 +107,7 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
   if (!token) return null;
   const db = await getDb();
   const [row] = await db
-    .select({ session: schema.sessions, user: schema.users, workspace: schema.workspaces, organization: schema.organizations })
+    .select({ session: schema.sessions, user: userColumns, workspace: schema.workspaces, organization: organizationColumns })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
     .innerJoin(schema.workspaces, eq(schema.workspaces.id, schema.sessions.workspaceId))
@@ -111,7 +123,7 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
   if (membership.workspaceIds && !membership.workspaceIds.includes(row.workspace.id)) return null;
   const workspaces = await accessibleWorkspaces(db, row.organization.id, membership.workspaceIds);
   const organizations = await db
-    .select({ id: schema.organizations.id, name: schema.organizations.name })
+    .select({ id: schema.organizations.id, name: schema.organizations.name, logoUpdatedAt: schema.organizations.logoUpdatedAt })
     .from(schema.memberships)
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.memberships.organizationId))
     .where(eq(schema.memberships.userId, row.user.id));
@@ -120,12 +132,13 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     id: row.user.id,
     email: row.user.email,
     name: row.user.name,
+    avatarUrl: mediaUrl("user", row.user.id, row.user.avatarUpdatedAt),
     sessionId: row.session.id,
-    organization: row.organization,
+    organization: { ...row.organization, logoUrl: mediaUrl("org", row.organization.id, row.organization.logoUpdatedAt) },
     role,
     workspace: row.workspace,
     workspaces: workspaces.map((w) => ({ id: w.id, name: w.name, isDemo: w.isDemo })),
-    organizations,
+    organizations: organizations.map((o) => ({ id: o.id, name: o.name, logoUrl: mediaUrl("org", o.id, o.logoUpdatedAt) })),
     can: (p) => roleCan(role, p),
   };
 }

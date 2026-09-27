@@ -3,6 +3,7 @@ import { AccountForms } from "@/components/settings/account-forms";
 import { SettingsHeader } from "@/components/settings/section";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
+import { mediaUrl } from "@/lib/media";
 import { roleLabel } from "@/lib/permissions";
 
 export const metadata = { title: "Account" };
@@ -17,7 +18,7 @@ export default async function AccountPage() {
     .where(and(eq(schema.sessions.userId, user.id), gt(schema.sessions.expiresAt, new Date())))
     .orderBy(desc(schema.sessions.createdAt));
   const memberships = await db
-    .select({ org: schema.organizations.name, role: schema.memberships.role })
+    .select({ id: schema.organizations.id, org: schema.organizations.name, logoUpdatedAt: schema.organizations.logoUpdatedAt, role: schema.memberships.role })
     .from(schema.memberships)
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.memberships.organizationId))
     .where(eq(schema.memberships.userId, user.id));
@@ -26,9 +27,11 @@ export default async function AccountPage() {
     <>
       <SettingsHeader title="Profile & security" description="Your personal details, password and the devices you're signed in on." />
       <AccountForms
+        id={user.id}
         name={user.name ?? ""}
         email={user.email}
-        memberships={memberships.map((m) => ({ org: m.org, role: roleLabel(m.role) }))}
+        avatarUrl={user.avatarUrl}
+        memberships={memberships.map((m) => ({ id: m.id, org: m.org, logoUrl: mediaUrl("org", m.id, m.logoUpdatedAt), role: roleLabel(m.role) }))}
         sessions={sessions.map((s) => ({ id: s.id, createdAt: s.createdAt.toISOString(), workspace: s.workspace, current: s.id === user.sessionId }))}
       />
     </>

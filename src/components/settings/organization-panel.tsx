@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { switchWorkspaceAction } from "@/app/actions/account";
+import { removeOrganizationLogoAction, setOrganizationLogoAction } from "@/app/actions/media";
 import { createWorkspaceAction, deleteWorkspaceAction, updateOrganizationAction } from "@/app/actions/org";
 import { useFormAction } from "@/components/action-button";
+import { OrgLogo } from "@/components/avatars";
 import { NativeSelect } from "@/components/native-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
+import { ImageUpload } from "./image-upload";
 import { TOUCH_TARGETS } from "./touch";
 
 type WS = { id: string; name: string; currency: string; timezone: string; isDemo: boolean; contacts: number; createdAt: string };
@@ -25,13 +28,15 @@ export function OrganizationPanel({
   currentWorkspaceId,
   defaults,
   canManageOrg,
+  canBrandOrg,
   canManageWorkspaces,
 }: {
-  organization: { name: string; members: number };
+  organization: { id: string; name: string; logoUrl: string | null; members: number };
   workspaces: WS[];
   currentWorkspaceId: string;
   defaults: { currency: string; timezone: string };
   canManageOrg: boolean;
+  canBrandOrg: boolean;
   canManageWorkspaces: boolean;
 }) {
   const router = useRouter();
@@ -60,8 +65,22 @@ export function OrganizationPanel({
             {organization.members} member{organization.members === 1 ? "" : "s"} · {workspaces.length} workspace{workspaces.length === 1 ? "" : "s"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={org.submit} className="grid gap-3 @lg/settings:grid-cols-[minmax(0,1fr)_auto] @lg/settings:items-end">
+        <CardContent className="grid gap-5">
+          <ImageUpload
+            src={organization.logoUrl}
+            preview={(src) => <OrgLogo id={organization.id} name={organization.name} src={src} size="xl" />}
+            upload={setOrganizationLogoAction}
+            remove={removeOrganizationLogoAction}
+            fit="contain"
+            label="Logo"
+            help={
+              canBrandOrg
+                ? "Shown in the sidebar for everyone in the organization. PNG, JPG or WebP, up to 2 MB."
+                : "Shown in the sidebar for everyone. Owners and admins can change it."
+            }
+            disabled={!canBrandOrg}
+          />
+          <form action={org.submit} className="grid gap-3 border-t pt-5 @lg/settings:grid-cols-[minmax(0,1fr)_auto] @lg/settings:items-end">
             <div className="grid gap-1.5">
               <Label htmlFor="org-name">Name</Label>
               <Input id="org-name" name="name" defaultValue={organization.name} disabled={!canManageOrg} />

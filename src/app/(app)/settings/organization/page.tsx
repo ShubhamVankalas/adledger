@@ -26,7 +26,7 @@ export default async function OrganizationPage() {
         description="An organization is your business or agency. Create a workspace for each brand, store or client — each has its own tracking, integrations and reports."
       />
       <OrganizationPanel
-        organization={{ name: user.organization.name, members: memberCount[0]?.n ?? 0 }}
+        organization={{ id: user.organization.id, name: user.organization.name, logoUrl: user.organization.logoUrl, members: memberCount[0]?.n ?? 0 }}
         currentWorkspaceId={user.workspace.id}
         workspaces={workspaces
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -41,6 +41,7 @@ export default async function OrganizationPage() {
           }))}
         defaults={{ currency: user.workspace.reportingCurrency, timezone: user.workspace.timezone }}
         canManageOrg={user.can("org.manage")}
+        canBrandOrg={user.can("org.branding")}
         canManageWorkspaces={user.can("workspaces.manage")}
       />
     </>

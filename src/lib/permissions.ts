@@ -21,6 +21,7 @@ export type Permission =
   | "workspaces.manage"
   | "members.manage"
   | "audit.view"
+  | "org.branding"
   | "org.manage";
 
 const MATRIX: Record<Permission, Role[]> = {
@@ -33,6 +34,7 @@ const MATRIX: Record<Permission, Role[]> = {
   "workspaces.manage": ["owner", "admin"],
   "members.manage": ["owner", "admin"],
   "audit.view": ["owner", "admin"],
+  "org.branding": ["owner", "admin"],
   "org.manage": ["owner"],
 };
 
