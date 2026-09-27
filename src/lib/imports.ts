@@ -161,6 +161,14 @@ export class CsvLimitError extends Error {}
 
 /** Minimal RFC 4180 CSV parser (quotes, escaped quotes, CRLF). Throws CsvLimitError past CSV_LIMITS. */
 export function parseCsv(text: string, limits = CSV_LIMITS): Record<string, string>[] {
+  const rows = parseCsvTable(text, limits);
+  if (rows.length < 2) return [];
+  const header = rows[0].map((h) => normalizeHeader(h));
+  return rows.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])));
+}
+
+/** The raw cells of a CSV file, header row included (blank lines skipped). Throws CsvLimitError past CSV_LIMITS. */
+export function parseCsvTable(text: string, limits = CSV_LIMITS): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -198,9 +206,7 @@ export function parseCsv(text: string, limits = CSV_LIMITS): Record<string, stri
   }
   pushField();
   pushRow();
-  if (rows.length < 2) return [];
-  const header = rows[0].map((h) => normalizeHeader(h));
-  return rows.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, (r[i] ?? "").trim()])));
+  return rows;
 }
 
 const ALIASES: Record<string, string> = {
