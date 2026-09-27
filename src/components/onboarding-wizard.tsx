@@ -28,7 +28,7 @@ const BUILDERS = [
   { key: "site:squarespace", label: "Squarespace", doc: "squarespace.md", tip: "Settings → Advanced → Code injection → Header." },
   { key: "site:framer", label: "Framer", doc: "framer.md", tip: "Site settings → General → Custom code → Start of <head> tag." },
   { key: "site:gtm", label: "Google Tag Manager", doc: "gtm.md", tip: "Create a Custom HTML tag with the snippet and fire it on All Pages." },
-  { key: "site:code", label: "Custom code / React / Next.js", doc: "nextjs-react.md", tip: "Paste the snippet in your root layout's <head>. It follows client-side navigation automatically." },
+  { key: "site:code", label: "Custom code / React / Next.js", doc: "nextjs-react.md", tip: "Paste the snippet in your root layout’s <head>. It follows client-side navigation automatically." },
 ];
 
 /** Code or URL to copy. Wraps instead of scrolling sideways (unreadable on phones); the copy button sits in its own header row. */
@@ -40,11 +40,15 @@ function StepCard({ id, n, title, done, children, detail }: { id: string; n: num
           {done ? <CheckCircle2Icon className="size-4" /> : n}
         </span>
         <div className="min-w-0 flex-1 pt-1">
-          <CardTitle className="flex flex-wrap items-center gap-2">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-balance">
             {title}
             {done ? <Badge className="bg-success/15 text-success">Done</Badge> : null}
           </CardTitle>
-          {detail ? <CardDescription className="mt-1">{detail}</CardDescription> : null}
+          {detail ? (
+            <CardDescription className="mt-1" aria-live="polite">
+              {detail}
+            </CardDescription>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="min-w-0 space-y-4 lg:pl-[3.75rem]">{children}</CardContent>
@@ -70,9 +74,9 @@ function IntegrationChoices({ items, connected, highlight }: { items: Integratio
             <IntegrationLogo provider={i.provider} name={i.name} color={i.color} className="size-7 rounded-lg sm:size-8" />
             <span className="min-w-0 flex-1 leading-tight font-medium break-words">{i.name}</span>
             {on ? (
-              <CheckCircle2Icon className="size-4 shrink-0 text-success" aria-label="Connected" />
+              <CheckCircle2Icon className="size-4 shrink-0 text-success" role="img" aria-label="Connected" />
             ) : (
-              <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+              <ArrowRightIcon className="hidden size-3.5 shrink-0 text-muted-foreground transition-transform motion-safe:group-hover:translate-x-0.5 sm:block" />
             )}
           </Link>
         );
@@ -153,7 +157,7 @@ export function OnboardingWizard({
                     )}
                   >
                     {s.done ? (
-                      <CheckCircle2Icon className="size-4 shrink-0 text-success" />
+                      <CheckCircle2Icon className="size-4 shrink-0 text-success" role="img" aria-label="Done" />
                     ) : (
                       <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">{i + 1}</span>
                     )}
@@ -198,7 +202,7 @@ export function OnboardingWizard({
                         )}
                       >
                         {/* Brand marks sit on a white tile so dark logos stay visible in dark mode. */}
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-black/5">
+                        <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-black/5">
                           <BrandGlyph id={it.key} name={it.label} onWhite className="size-3.5 text-emerald-700" />
                         </span>
                         <span className="min-w-0">{it.label}</span>
@@ -219,7 +223,13 @@ export function OnboardingWizard({
           done={pixelDone}
           detail={
             pixelDone ? (
-              <>Receiving data — last event {timeAgo(status.lastEventAt)}.</>
+              <>
+                Receiving data — last event{" "}
+                <time dateTime={status.lastEventAt ?? undefined} suppressHydrationWarning>
+                  {timeAgo(status.lastEventAt)}
+                </time>
+                .
+              </>
             ) : (
               <span className="inline-flex items-start gap-1.5">
                 <Loader2Icon className="mt-0.5 size-3.5 shrink-0 animate-spin" /> Waiting for the first visit… open your website after installing and this ticks itself off.
@@ -283,7 +293,11 @@ export function OnboardingWizard({
               {status.steps.map((s) => (
                 <li key={s.key}>
                   <Link href={s.href} className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 hover:text-primary">
-                    {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" />}
+                    {s.done ? (
+                      <CheckCircle2Icon className="size-4 shrink-0 text-success" role="img" aria-label="Done" />
+                    ) : (
+                      <CircleDashedIcon className="size-4 shrink-0 text-muted-foreground" />
+                    )}
                     <span className={cn("min-w-0", s.done && "text-muted-foreground line-through")}>{s.label}</span>
                     {s.optional ? <span className="ml-auto text-[10px] tracking-wide text-muted-foreground uppercase">optional</span> : null}
                   </Link>
@@ -302,9 +316,9 @@ export function OnboardingWizard({
             {optional.map((s) => (
               <Link key={s.key} href={s.href} className="group block rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-accent/40">
                 <div className="flex items-center gap-2 text-sm font-medium">
-                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : null}
+                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" role="img" aria-label="Done" /> : null}
                   <span className="min-w-0 flex-1">{s.label}</span>
-                  <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-safe:group-hover:translate-x-0.5" />
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">{s.desc}</p>
               </Link>
@@ -314,7 +328,7 @@ export function OnboardingWizard({
 
         <div className="space-y-2">
           <Button className="h-11 w-full text-[0.95rem] sm:h-10 sm:text-sm" size="lg" disabled={finishing} onClick={finish}>
-            {finishing ? <Loader2Icon className="animate-spin" /> : <PartyPopperIcon />} {status.complete ? "Finish setup" : "Continue to dashboard"}
+            {finishing ? <Loader2Icon className="animate-spin" /> : <PartyPopperIcon />} {finishing ? "Opening dashboard…" : status.complete ? "Finish setup" : "Continue to dashboard"}
           </Button>
           {!status.complete ? <p className="text-center text-xs text-muted-foreground">You can come back to this checklist any time from the sidebar.</p> : null}
         </div>

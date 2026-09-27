@@ -98,7 +98,7 @@ export function Onboarding({ status, canSetup = true }: { status: SetupStatus; c
             const body = (
               <>
                 <span className="flex items-center gap-2 text-sm font-medium">
-                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" /> : <CircleIcon className={cn("size-4 shrink-0", isNext ? "text-primary" : "text-muted-foreground")} />}
+                  {s.done ? <CheckCircle2Icon className="size-4 shrink-0 text-success" role="img" aria-label="Done" /> : <CircleIcon className={cn("size-4 shrink-0", isNext ? "text-primary" : "text-muted-foreground")} />}
                   <span className={cn("min-w-0", s.done && "line-through decoration-muted-foreground/40")}>{s.label}</span>
                   {isNext && canSetup ? <ArrowRightIcon className="ml-auto size-3.5 shrink-0 text-primary sm:hidden" /> : null}
                 </span>
@@ -158,8 +158,8 @@ export function NoAdDataYet({ canSetup }: { canSetup: boolean }) {
 
 const PREVIEW = [
   { icon: TrendingUpIcon, title: "ROAS per campaign, ad set and ad", body: "Real revenue from Stripe or your store, matched to the ad that brought each customer in." },
-  { icon: RouteIcon, title: "Every customer's journey", body: "The clicks, visits and forms that led to each lead and sale, across every ad platform." },
-  { icon: SparklesIcon, title: "Weekly insights", body: "What changed, what's wasting money, and what to scale — from your own AI model, or none." },
+  { icon: RouteIcon, title: "Every customer’s journey", body: "The clicks, visits and forms that led to each lead and sale, across every ad platform." },
+  { icon: SparklesIcon, title: "Weekly insights", body: "What changed, what’s wasting money, and what to scale — from your own AI model, or none." },
 ];
 
 /** Replaces the dashboard on a brand-new workspace, where every number would be zero. */
@@ -167,9 +167,9 @@ export function Welcome({ status, name, canSetup }: { status: SetupStatus; name:
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden ring-primary/25">
-        <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-primary/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-primary/10 blur-3xl" />
         <CardHeader className="relative">
-          <CardTitle className="text-lg break-words sm:text-xl">Let&apos;s get {name} tracking</CardTitle>
+          <CardTitle className="text-lg text-balance break-words sm:text-xl">Let&rsquo;s get {name} tracking</CardTitle>
           <CardDescription className="max-w-2xl">
             {canSetup
               ? "Your dashboard fills in as soon as data arrives. Four steps, about 15 minutes — and you can do them in any order."
@@ -217,8 +217,8 @@ export function Welcome({ status, name, canSetup }: { status: SetupStatus; name:
       </Card>
 
       <section aria-labelledby="preview-heading" className="space-y-3">
-        <h2 id="preview-heading" className="text-sm font-medium text-muted-foreground">
-          What you&apos;ll see here
+        <h2 id="preview-heading" className="text-sm font-medium text-balance text-muted-foreground">
+          What you&rsquo;ll see here
         </h2>
         <div className="grid gap-3 xl:grid-cols-3">
           {PREVIEW.map((p) => (

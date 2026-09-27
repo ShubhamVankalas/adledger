@@ -253,6 +253,9 @@ export function PerformanceTable({
             />
             <Input
               type="search"
+              name="q"
+              autoComplete="off"
+              spellCheck={false}
               placeholder={`Filter ${noun}…`}
               aria-label={`Filter ${noun}`}
               value={q}
@@ -375,7 +378,7 @@ export function PerformanceTable({
                         {href ? (
                           <Link
                             href={href}
-                            className="flex items-center gap-1 font-medium outline-none hover:text-primary focus-visible:underline"
+                            className="flex items-center gap-1 font-medium outline-none hover:text-primary focus-visible:text-primary focus-visible:underline"
                             title={r.name}
                           >
                             <span className="truncate">{r.name}</span>
@@ -580,13 +583,14 @@ export function PerformanceTable({
           </p>
           <div className="relative">
             <select
+              name="sort"
               aria-label="Sort by"
               value={`${sort.key}:${sort.dir}`}
               onChange={(e) => {
                 const [key, dir] = e.target.value.split(":");
                 setSort({ key: key as Key, dir: Number(dir) === 1 ? 1 : -1 });
               }}
-              className="h-10 appearance-none rounded-lg border border-input bg-background pr-9 pl-3 text-sm font-medium shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover"
+              className="h-10 appearance-none rounded-lg border border-input bg-background pr-9 pl-3 text-sm font-medium text-foreground shadow-xs outline-none transition-[border-color,box-shadow] hover:border-ring/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-popover [&>option]:text-popover-foreground"
             >
               {/* A sort picked from the table header (e.g. before rotating the phone) may not be in the list. */}
               {MOBILE_SORTS.some(
@@ -671,7 +675,7 @@ export function PerformanceTable({
               </>
             );
             return (
-              <li key={r.id}>
+              <li key={r.id} className="[contain-intrinsic-size:auto_9rem] [content-visibility:auto]">
                 {href ? (
                   <Link
                     href={href}

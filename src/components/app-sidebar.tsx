@@ -86,7 +86,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
   const switchTo = (fn: () => Promise<{ ok: boolean; message?: string }>) =>
     start(async () => {
       const r = await fn();
-      if (!r.ok) toast.error(r.message ?? "Couldn't switch");
+      if (!r.ok) toast.error(r.message ?? "Couldn’t switch. Refresh the page and try again.");
       router.push("/");
       router.refresh();
     });
@@ -99,7 +99,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent" />} disabled={pending}>
                 <OrgLogo id={organization.id} name={organization.name} src={organization.logoUrl} size="md" />
-                <div className="grid flex-1 text-left leading-tight">
+                <div className="grid min-w-0 flex-1 text-left leading-tight">
                   <span className="truncate font-semibold">{workspace.name}</span>
                   {subtitle ? <span className="truncate text-xs text-muted-foreground">{subtitle}</span> : null}
                 </div>
@@ -111,7 +111,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                   {workspaces.map((w) => (
                     <DropdownMenuItem key={w.id} onClick={() => w.id !== workspace.id && switchTo(() => switchWorkspaceAction(w.id))}>
                       <OrgLogo id={w.id} name={w.name} size="sm" />
-                      <span className="truncate">{w.name}</span>
+                      <span className="min-w-0 truncate">{w.name}</span>
                       {w.id === workspace.id ? <CheckIcon className="ml-auto" /> : null}
                     </DropdownMenuItem>
                   ))}
@@ -129,7 +129,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                       {organizations.map((o) => (
                         <DropdownMenuItem key={o.id} onClick={() => o.id !== organization.id && switchTo(() => switchOrganizationAction(o.id))}>
                           <OrgLogo id={o.id} name={o.name} src={o.logoUrl} size="sm" />
-                          <span className="truncate">{o.name}</span>
+                          <span className="min-w-0 truncate">{o.name}</span>
                           {o.id === organization.id ? <CheckIcon className="ml-auto" /> : null}
                         </DropdownMenuItem>
                       ))}
@@ -168,7 +168,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                       <ListChecksIcon />
                       <span>Setup checklist</span>
                     </SidebarMenuButton>
-                    {setupLeft > 0 ? <SidebarMenuBadge className="bg-primary/15 text-primary">{setupLeft}</SidebarMenuBadge> : null}
+                    {setupLeft > 0 ? <SidebarMenuBadge className="bg-primary/15 text-primary tabular-nums">{setupLeft}</SidebarMenuBadge> : null}
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton isActive={active("/settings/workspace/integrations")} tooltip="Integrations" render={<Link href="/settings/workspace/integrations" />}>
@@ -212,7 +212,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
                 <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="md" />
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name || user.email}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.roleLabel}</span>
                 </div>

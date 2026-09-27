@@ -16,7 +16,9 @@ export function PageHeader({ title, description, children }: { title: string; de
         <Separator orientation="vertical" className="h-5 self-center" />
       </div>
       <div className="min-w-0 flex-1 basis-24">
-        <h1 className="truncate text-lg leading-tight font-semibold tracking-tight md:text-xl">{title}</h1>
+        <h1 className="truncate text-lg leading-tight font-semibold tracking-tight md:text-xl" title={title}>
+          {title}
+        </h1>
         {description ? <p className="mt-0.5 hidden truncate text-[13px] text-muted-foreground md:block">{description}</p> : null}
       </div>
       {children ? <div className="flex max-w-full flex-wrap items-center gap-2">{children}</div> : null}

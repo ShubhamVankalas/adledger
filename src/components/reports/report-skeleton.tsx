@@ -9,7 +9,8 @@ export function ReportSkeleton({
   rows?: number;
 }) {
   return (
-    <div aria-busy="true" aria-label="Loading report">
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Loading report…</span>
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3 md:px-6">
         <Skeleton className="size-7 rounded-md" />
         <div className="min-w-0 flex-1 space-y-1.5">

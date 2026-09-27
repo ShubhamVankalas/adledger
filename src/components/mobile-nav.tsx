@@ -17,7 +17,7 @@ const TABS = [
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
 const item =
-  "group/tab flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl pt-1.5 pb-1 text-[11px] leading-none font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
+  "group/tab flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl pt-1.5 pb-1 text-[11px] leading-none font-medium outline-none transition-colors touch-manipulation [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-ring active:bg-muted/60";
 
 function TabIcon({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
   return (

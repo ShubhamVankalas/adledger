@@ -22,7 +22,7 @@ export function ContactPrivacyActions({ contactId, label, canExport, canDelete }
     start(async () => {
       const r = await deleteContactAction(contactId);
       if (!r.ok) {
-        toast.error(r.message ?? "Something went wrong");
+        toast.error(r.message ?? "Something went wrong. Try again.");
         return;
       }
       toast.success(r.message ?? "Contact deleted");
@@ -65,7 +65,7 @@ export function ContactPrivacyActions({ contactId, label, canExport, canDelete }
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete {label}?</DialogTitle>
+              <DialogTitle className="break-words text-balance">Delete {label}?</DialogTitle>
               <DialogDescription>
                 Use this for erasure requests (GDPR, CCPA). The contact, their email, name and form submissions are permanently deleted, and their
                 browsing history is anonymized. Their payments stay in your totals as unattributed revenue. This cannot be undone.
@@ -74,7 +74,7 @@ export function ContactPrivacyActions({ contactId, label, canExport, canDelete }
             <DialogFooter>
               <DialogClose render={<Button variant="outline" disabled={pending} />}>Cancel</DialogClose>
               <Button variant="destructive" onClick={erase} disabled={pending}>
-                {pending ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />} Delete permanently
+                {pending ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />} {pending ? "Deleting…" : "Delete permanently"}
               </Button>
             </DialogFooter>
           </DialogContent>

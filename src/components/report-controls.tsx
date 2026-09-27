@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const RANGES = { "7d": "Last 7 days", "14d": "Last 14 days", "30d": "Last 30 days", "90d": "Last 90 days", "180d": "Last 180 days", custom: "Custom range" };
@@ -34,7 +35,20 @@ const PLATFORMS = {
   other: "Other / imported",
 };
 
-const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const fmt = (d: string) => (d ? shortDate(d) : "…");
+
+/** Arrow keys move between (and select) the options of a role="radiogroup", like native radio buttons. */
+function onRadioKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+  const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+  if (!step) return;
+  const radios = Array.from(e.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+  const i = radios.indexOf(e.currentTarget);
+  if (i === -1) return;
+  e.preventDefault();
+  const next = radios[(i + step + radios.length) % radios.length];
+  next.focus();
+  next.click();
+}
 
 type Props = {
   start: string;
@@ -80,6 +94,7 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
   const [customOpen, setCustomOpen] = useState(false);
   const [from, setFrom] = useState(start);
   const [to, setTo] = useState(end);
+  const invalid = !from || !to || from > to;
 
   return (
     <div className="hidden flex-wrap items-center gap-2 md:flex">
@@ -114,7 +129,7 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
               className="grid gap-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (from && to && from <= to) {
+                if (!invalid) {
                   update({ range: "custom", from, to });
                   setCustomOpen(false);
                 }
@@ -122,13 +137,18 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
             >
               <div className="grid gap-1.5">
                 <Label htmlFor="from">From</Label>
-                <Input id="from" type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+                <Input id="from" name="from" type="date" autoComplete="off" value={from} max={to} aria-invalid={invalid || undefined} onChange={(e) => setFrom(e.target.value)} />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="to">To</Label>
-                <Input id="to" type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+                <Input id="to" name="to" type="date" autoComplete="off" value={to} min={from} aria-invalid={invalid || undefined} onChange={(e) => setTo(e.target.value)} />
               </div>
-              <Button type="submit">Apply</Button>
+              {invalid ? (
+                <p role="alert" className="text-xs text-destructive">
+                  Pick a start date on or before the end date.
+                </p>
+              ) : null}
+              <Button type="submit">Apply range</Button>
             </form>
           </PopoverContent>
         </Popover>
@@ -157,7 +177,8 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
               type="button"
               role="radio"
               aria-checked={model === k}
-              onClick={() => update({ model: k })}
+              onClick={() => model !== k && update({ model: k })}
+              onKeyDown={onRadioKeyDown}
               className={cn(
                 "h-full rounded-md px-2.5 text-[0.8125rem] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
                 model === k && "bg-background text-foreground shadow-xs ring-1 ring-foreground/10 dark:bg-input/70 dark:ring-foreground/10",
@@ -203,7 +224,7 @@ function MobileFilters({ start, end, range, model, platform, showPlatform = true
         }}
       >
         <SlidersHorizontalIcon className="text-muted-foreground" />
-        <span className="tabular truncate">{summary}</span>
+        <span className="tabular min-w-0 truncate">{summary}</span>
         {platformActive ? <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-primary" /> : null}
       </Button>
 
@@ -234,15 +255,15 @@ function MobileFilters({ start, end, range, model, platform, showPlatform = true
                     <Label htmlFor="m-from" className="text-xs text-muted-foreground">
                       From
                     </Label>
-                    <Input id="m-from" type="date" value={draft.from} max={draft.to} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
+                    <Input id="m-from" name="from" type="date" autoComplete="off" value={draft.from} max={draft.to} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="m-to" className="text-xs text-muted-foreground">
                       To
                     </Label>
-                    <Input id="m-to" type="date" value={draft.to} min={draft.from} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
+                    <Input id="m-to" name="to" type="date" autoComplete="off" value={draft.to} min={draft.from} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
                   </div>
-                  {customInvalid ? <p className="col-span-2 text-xs text-destructive">Pick a start date on or before the end date.</p> : null}
+                  {customInvalid ? <p role="alert" className="col-span-2 text-xs text-destructive">Pick a start date on or before the end date.</p> : null}
                 </div>
               ) : null}
             </fieldset>
@@ -250,7 +271,7 @@ function MobileFilters({ start, end, range, model, platform, showPlatform = true
             {showPlatform ? (
               <div className="grid gap-2.5">
                 <Label htmlFor="m-platform">Ad platform</Label>
-                <NativeSelect id="m-platform" value={draft.platform} onChange={(e) => setDraft((d) => ({ ...d, platform: e.target.value }))} className="[&>select]:h-11">
+                <NativeSelect id="m-platform" name="platform" value={draft.platform} onChange={(e) => setDraft((d) => ({ ...d, platform: e.target.value }))} className="[&>select]:h-11">
                   {Object.entries(PLATFORMS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
@@ -271,6 +292,7 @@ function MobileFilters({ start, end, range, model, platform, showPlatform = true
                       role="radio"
                       aria-checked={draft.model === k}
                       onClick={() => setDraft((d) => ({ ...d, model: k }))}
+                      onKeyDown={onRadioKeyDown}
                       className={cn(
                         "flex min-h-14 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                         draft.model === k ? "border-primary/60 bg-primary/8" : "hover:bg-muted",
@@ -321,6 +343,7 @@ function Chip({ checked, onClick, children }: { checked: boolean; onClick: () =>
       role="radio"
       aria-checked={checked}
       onClick={onClick}
+      onKeyDown={onRadioKeyDown}
       className={cn(
         "h-10 rounded-lg border text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
         checked ? "border-primary/60 bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",

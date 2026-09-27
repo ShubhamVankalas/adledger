@@ -31,6 +31,10 @@ export function CopyButton({ value, className, label }: { value: string; classNa
     <Button type="button" variant="outline" size={label ? "sm" : "icon-sm"} className={className} onClick={() => copy(value)} aria-label={label ? undefined : "Copy"}>
       {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}
       {label ? (copied ? "Copied" : label) : null}
+      {/* Announce the copy for screen readers (the icon swap alone is silent). */}
+      <span className="sr-only" aria-live="polite">
+        {copied && !label ? "Copied" : ""}
+      </span>
     </Button>
   );
 }
@@ -38,7 +42,9 @@ export function CopyButton({ value, className, label }: { value: string; classNa
 export function CopyField({ value, mono = true, className }: { value: string; mono?: boolean; className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 rounded-lg border bg-muted/40 py-1 pr-1 pl-3", className)}>
-      <code className={cn("min-w-0 flex-1 truncate text-xs", !mono && "font-sans")}>{value}</code>
+      <code translate="no" className={cn("min-w-0 flex-1 truncate text-xs", !mono && "font-sans")} title={value}>
+        {value}
+      </code>
       <CopyButton value={value} />
     </div>
   );

@@ -10,8 +10,11 @@ import { cn } from "@/lib/utils";
 export function PlatformBadge({ platform, className, compact }: { platform: string | null; className?: string; compact?: boolean | "auto" }) {
   const label = platformLabel(platform);
   return (
-    <span title={label} className={cn("inline-flex min-w-0 shrink-0 items-center gap-1.5 font-normal whitespace-nowrap text-muted-foreground", className)}>
-      <BrandGlyph id={platform ?? "other"} className="size-3.5 shrink-0" />
+    <span title={label} translate="no" className={cn("inline-flex min-w-0 shrink-0 items-center gap-1.5 font-normal whitespace-nowrap text-muted-foreground", className)}>
+      {/* The name is always in the text (visible or sr-only), so the logo itself stays out of the accessibility tree. */}
+      <span aria-hidden className="contents">
+        <BrandGlyph id={platform ?? "other"} className="size-3.5 shrink-0" />
+      </span>
       {compact === true ? (
         <span className="sr-only">{label}</span>
       ) : compact === "auto" ? (
