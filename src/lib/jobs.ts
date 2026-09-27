@@ -1,6 +1,6 @@
 import { recomputeAttribution } from "./attribution";
-import { sql } from "drizzle-orm";
-import { getDb, isEmbeddedDb, rows } from "./db";
+import { eq, sql } from "drizzle-orm";
+import { getDb, isEmbeddedDb, rows, schema } from "./db";
 import { log } from "./log";
 
 // In-process background work. AdLedger runs as a single app container, so there
@@ -40,10 +40,35 @@ export function requestAttribution(workspaceId: string) {
 
 type Scheduled = { name: string; everyMs: number; run: () => Promise<unknown> };
 
-/** Start interval jobs; each tick takes a cluster-wide advisory lock. */
+const HOUR_MS = 3_600_000;
+
+/**
+ * Jobs every install runs, appended to the list boot passes in. Modules are imported lazily so
+ * jobs.ts stays free of import cycles (alerts → notify → reports).
+ */
+export const BUILTIN_JOBS: Scheduled[] = [
+  {
+    // Insights → Alerts: threshold rules and anomaly detection over the last complete days.
+    name: "alerts",
+    everyMs: HOUR_MS,
+    run: async () => (await import("./alerts")).runAlertsAll(),
+  },
+];
+
+/** Re-check alert rules soon for one workspace (e.g. right after a sync brought new numbers). */
+export function requestAlertCheck(workspaceId: string) {
+  return debounce(`alerts:${workspaceId}`, 30_000, async () => {
+    const [{ runAlerts }, db] = await Promise.all([import("./alerts"), getDb()]);
+    const [ws] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+    if (ws) await runAlerts(db, ws);
+  });
+}
+
+/** Start interval jobs (plus BUILTIN_JOBS); each tick takes a cluster-wide advisory lock. */
 export function startScheduler(jobs: Scheduled[]) {
   if (g.__adledgerScheduler) return;
-  g.__adledgerScheduler = jobs.map((job) => {
+  const all = [...jobs, ...BUILTIN_JOBS.filter((b) => !jobs.some((j) => j.name === b.name))];
+  g.__adledgerScheduler = all.map((job) => {
     const tick = async () => {
       try {
         const db = await getDb();
@@ -65,5 +90,5 @@ export function startScheduler(jobs: Scheduled[]) {
     handle.unref?.();
     return handle;
   });
-  log.info(`scheduler started: ${jobs.map((j) => j.name).join(", ")}`);
+  log.info(`scheduler started: ${all.map((j) => j.name).join(", ")}`);
 }

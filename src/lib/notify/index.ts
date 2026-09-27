@@ -11,9 +11,31 @@ import { getConnection, type Workspace } from "../settings";
 // Delivers workspace events (weekly report, alerts…) to the channels the team configured
 // in Settings → Notifications. Never throws: a broken Slack webhook must not break a sync.
 
-export const EVENTS: { event: NotificationEvent; label: string; description: string; defaults: Record<string, string | number> }[] = [
+export type DigestCadence = "daily" | "weekly" | "monthly";
+export const DIGEST_CADENCES: { value: DigestCadence; label: string; description: string }[] = [
+  { value: "daily", label: "Daily", description: "Yesterday, every morning" },
+  { value: "weekly", label: "Weekly", description: "The last 7 days, on Mondays" },
+  { value: "monthly", label: "Monthly", description: "Last month, on the 1st" },
+];
+
+export type EventDef = {
+  event: NotificationEvent;
+  label: string;
+  description: string;
+  defaults: Record<string, string | number>;
+  /** A per-channel choice shown instead of the on/off tick (stored in the rule's settings under `key`). */
+  perChannel?: { key: string; options: { value: string; label: string }[] };
+};
+
+export const EVENTS: EventDef[] = [
   { event: "weekly_report", label: "Weekly report", description: "The AI (or rule-based) weekly note every Monday morning.", defaults: {} },
-  { event: "daily_digest", label: "Daily digest", description: "Yesterday's spend, revenue, ROAS, leads and customers.", defaults: { hour: 8 } },
+  {
+    event: "daily_digest",
+    label: "KPI digest",
+    description: "Spend, revenue, ROAS, leads and customers. Choose daily, weekly (Mondays) or monthly (on the 1st) for each channel.",
+    defaults: { hour: 8 },
+    perChannel: { key: "cadence", options: DIGEST_CADENCES.map((c) => ({ value: c.value, label: c.label })) },
+  },
   { event: "wasted_spend", label: "Wasted spend alert", description: "Daily check: campaigns over a spend threshold with ROAS below 0.5x in the last 7 days.", defaults: { hour: 9, minSpend: 100 } },
   { event: "sync_failed", label: "Sync failed", description: "An ad platform or payment sync returned an error.", defaults: {} },
   { event: "new_customer", label: "New customer", description: "Someone paid for the first time, with the ad that brought them.", defaults: {} },
@@ -81,6 +103,27 @@ function localParts(tz: string, now = new Date()) {
 
 const yesterdayOf = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
+export function digestCadence(settings: Record<string, string | number>): DigestCadence {
+  const c = settings.cadence;
+  return c === "weekly" || c === "monthly" ? c : "daily";
+}
+
+/**
+ * The period a digest covers when it is sent on local day `local.date`, or null when this
+ * cadence doesn't send today: daily = yesterday; weekly = the 7 days to Sunday, sent on
+ * Mondays; monthly = the previous calendar month, sent on the 1st.
+ */
+export function digestPeriod(cadence: DigestCadence, local: { date: string; weekday: string }) {
+  const end = yesterdayOf(local.date);
+  if (cadence === "daily") return { start: end, end, title: "Yesterday" };
+  if (cadence === "weekly") {
+    if (local.weekday !== "Mon") return null;
+    return { start: new Date(Date.parse(`${end}T00:00:00Z`) - 6 * 86_400_000).toISOString().slice(0, 10), end, title: "Last week" };
+  }
+  if (!local.date.endsWith("-01")) return null;
+  return { start: `${end.slice(0, 7)}-01`, end, title: "Last month" };
+}
+
 async function dueRules(db: DB, ws: Workspace, event: NotificationEvent, now: Date) {
   const local = localParts(ws.timezone, now);
   const rules = await db
@@ -100,13 +143,17 @@ export async function runScheduledNotifications(db: DB, ws: Workspace, now = new
   const x = (v: number | null) => (v === null ? "—" : `${v.toFixed(2)}x`);
 
   for (const rule of await dueRules(db, ws, "daily_digest", now)) {
-    const day = yesterdayOf(local.date);
-    const o = await overview(db, ws, { start: day, end: day, model: "linear" });
+    const digest = digestPeriod(digestCadence(rule.settings), local);
+    if (!digest) continue; // weekly/monthly digests wait for Monday / the 1st
+    const o = await overview(db, ws, { start: digest.start, end: digest.end, model: "linear" });
     const msg: NotificationMessage = {
-      title: `Yesterday in ${ws.name}: ${money(o.revenueMinor)} revenue`,
-      text: `Here's ${day} at a glance (linear attribution).`,
+      title: `${digest.title} in ${ws.name}: ${money(o.revenueMinor)} revenue`,
+      text:
+        digest.start === digest.end
+          ? `Here's ${digest.start} at a glance (linear attribution).`
+          : `Here's ${digest.start} to ${digest.end} at a glance (linear attribution).`,
       severity: "info",
-      url: appUrl(`/?range=7d`),
+      url: appUrl(digest.start === digest.end ? "/?range=7d" : `/?from=${digest.start}&to=${digest.end}`),
       fields: [
         { label: "Ad spend", value: money(o.spendMinor) },
         { label: "Revenue", value: money(o.revenueMinor) },

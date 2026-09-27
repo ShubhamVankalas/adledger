@@ -15,6 +15,8 @@ export type Permission =
   | "reports.view"
   | "reports.export"
   | "insights.generate"
+  | "alerts.manage"
+  | "reports.share"
   | "apikeys.manage"
   | "workspace.settings"
   | "workspace.data"
@@ -29,6 +31,8 @@ const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   "reports.export": ["owner", "admin", "analyst"],
   "insights.generate": ["owner", "admin", "analyst"],
+  "alerts.manage": ["owner", "admin", "analyst"],
+  "reports.share": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],
   "workspace.data": ["owner", "admin"],
