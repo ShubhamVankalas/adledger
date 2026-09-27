@@ -7,15 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AuthField, FormError, PasswordInput, authButton, authInput } from "../fields";
+import { authCard, authTitle } from "../styles";
 
 const code = "rounded bg-muted px-1 py-0.5 font-mono text-[0.7rem] break-all";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(loginAction, undefined);
   return (
-    <Card className="shadow-xl shadow-primary/5">
+    <Card className={authCard}>
       <CardHeader>
-        <CardTitle className="text-xl">
+        <CardTitle className={authTitle}>
           <h1>Welcome back</h1>
         </CardTitle>
         <CardDescription>Sign in to see which ads are making you money.</CardDescription>

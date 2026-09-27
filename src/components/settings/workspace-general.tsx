@@ -24,7 +24,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
           <CardDescription>Reporting currency, the timezone used for day boundaries, and the attribution lookback window.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={save.submit} className="grid gap-4">
+          <form action={save.submit} className="grid max-w-2xl gap-4">
             <fieldset disabled={!canEdit} className="grid gap-4 disabled:opacity-70">
               <div className="grid gap-1.5">
                 <Label htmlFor="ws-name">Name</Label>
@@ -80,7 +80,7 @@ export function WorkspaceGeneral({ workspace, canEdit, canData }: { workspace: W
           {!canData ? (
             <p className="text-sm text-muted-foreground">Only owners and admins can load or delete data.</p>
           ) : workspace.isDemo ? (
-            <ActionButton action={clearDataAction} confirm="Remove all demo data? Your settings, pixel snippets and API keys are kept.">
+            <ActionButton action={clearDataAction} variant="outline" confirm="Remove all demo data? Your settings, pixel snippets and API keys are kept.">
               <Trash2Icon /> Clear demo data &amp; start fresh
             </ActionButton>
           ) : (
