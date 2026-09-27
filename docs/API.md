@@ -21,6 +21,8 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
 | POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
+| GET | [`/api/v1/live`](#get-apiv1live) | Live activity stream (Server-Sent Events) | session |
+| GET | [`/api/v1/live/pulse`](#get-apiv1livepulse) | Today's revenue and visitors now | API key |
 | DELETE | [`/api/v1/contacts/{id}`](#delete-apiv1contactsid) | Erase a contact | API key |
 | GET | [`/api/v1/contacts/{id}/export`](#get-apiv1contactsidexport) | Export a contact | API key |
 | GET | [`/api/v1/exports/contacts`](#get-apiv1exportscontacts) | Export contacts as CSV | API key |
@@ -130,6 +132,40 @@ Request body: `application/json`: object
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
 | 413 | Too many rows in one request. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+## Live
+
+Real-time activity for the dashboard's Live view: counters, a feed of visits, leads and payments, and the sidebar pulse.
+
+### GET /api/v1/live
+
+**Live activity stream (Server-Sent Events).** A `text/event-stream` for the dashboard's Live view. Dashboard session only (any role that can view reports); API keys get 403. Events: `feed` (`{ items: LiveFeedItem[], reset?: true }`, with the resume cursor as the event `id`), `snapshot` (the live counters: visitors in the last 5 minutes, today so far vs the same time yesterday in the workspace timezone, today and yesterday by hour, top pages and sources in the last 30 minutes), `end` (`{ reason: "signed_out" | "busy" }`) and a `: ping` comment every 15 seconds. Reconnects resume from the `Last-Event-ID` header (sent automatically by `EventSource`) or `?after=<cursor>`; a cursor older than 10 minutes starts a fresh feed. Streams are recycled every 15 minutes and closed when the session ends. Payloads carry counts, amounts and masked labels (initials or `p•••@gmail.com`), never an email address, phone number or full name; paths have no query string. Rate limit: 60 connections per minute per user.
+
+Auth: dashboard session only (API keys are refused).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `after` | query | string | no | Resume cursor (the `id` of the last `feed` event, an ISO timestamp with microseconds). Ignored when malformed. (pattern `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$`) |
+
+| Status | Response |
+|---|---|
+| 200 | Event stream. — `text/event-stream`: string |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
+| 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
+
+### GET /api/v1/live/pulse
+
+**Today's revenue and visitors now.** Net revenue so far today (payments minus refunds in the reporting currency, local day in the workspace timezone) and distinct visitors on the site in the last 5 minutes. Cheap enough to poll (the dashboard sidebar polls every 30 seconds). Rate limit: 240 requests per minute per workspace.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Status | Response |
+|---|---|
+| 200 | The pulse. — `application/json`: object |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
 | 429 | Too many requests; retry later. — `application/json`: [Error](#error) |
 
 ## Privacy

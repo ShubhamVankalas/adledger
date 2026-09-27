@@ -13,6 +13,8 @@ import type { Workspace } from "./settings";
 
 export const POLL_MS = 2_000;
 export const SNAPSHOT_MS = 10_000;
+/** New activity refreshes the counters sooner, but never more than once per this interval (busy sites). */
+export const SNAPSHOT_MIN_MS = 3_000;
 /** Protects a small instance from a runaway number of open tabs. */
 export const MAX_SUBSCRIBERS_PER_WORKSPACE = 50;
 
@@ -29,6 +31,8 @@ type Hub = {
   polling: boolean;
   again: boolean;
   lastSnapshotAt: number;
+  /** New feed items since the last snapshot. */
+  dirty: boolean;
   snapshot: LiveSnapshot | null;
 };
 
@@ -52,7 +56,7 @@ export function cachedLiveSnapshot(workspaceId: string): LiveSnapshot | null {
 export function subscribeLive(ws: Workspace, listener: Listener): (() => void) | null {
   let hub = hubs.get(ws.id);
   if (!hub) {
-    hub = { ws, listeners: new Set(), cursor: null, seen: new Map(), timer: null, polling: false, again: false, lastSnapshotAt: 0, snapshot: null };
+    hub = { ws, listeners: new Set(), cursor: null, seen: new Map(), timer: null, polling: false, again: false, lastSnapshotAt: 0, dirty: false, snapshot: null };
     hubs.set(ws.id, hub);
   }
   if (hub.listeners.size >= MAX_SUBSCRIBERS_PER_WORKSPACE) return null;
@@ -104,12 +108,14 @@ async function poll(hub: Hub) {
       for (const i of fresh) hub.seen.set(i.key, now);
       if (fresh.length) {
         broadcast(hub, { type: "feed", items: fresh, cursor });
-        hub.lastSnapshotAt = 0; // new activity: refresh counters now
+        hub.dirty = true; // new activity: refresh the counters soon
       }
     }
-    if (Date.now() - hub.lastSnapshotAt >= SNAPSHOT_MS) {
+    const age = Date.now() - hub.lastSnapshotAt;
+    if (age >= SNAPSHOT_MS || (hub.dirty && age >= SNAPSHOT_MIN_MS)) {
       hub.snapshot = await liveSnapshot(db, hub.ws);
       hub.lastSnapshotAt = Date.now();
+      hub.dirty = false;
       broadcast(hub, { type: "snapshot", snapshot: hub.snapshot });
     }
   } catch (err) {

@@ -38,6 +38,10 @@
       "description": "Find contacts, campaigns, ad sets and ads by name (powers the dashboard's ⌘K palette)."
     },
     {
+      "name": "Live",
+      "description": "Real-time activity for the dashboard's Live view: counters, a feed of visits, leads and payments, and the sidebar pulse."
+    },
+    {
       "name": "Privacy",
       "description": "Erasure and data exports (GDPR / CCPA)."
     },
@@ -450,6 +454,110 @@
           },
           "413": {
             "$ref": "#/components/responses/TooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/live": {
+      "get": {
+        "tags": [
+          "Live"
+        ],
+        "operationId": "streamLive",
+        "summary": "Live activity stream (Server-Sent Events)",
+        "description": "A `text/event-stream` for the dashboard's Live view. Dashboard session only (any role that can view reports); API keys get 403. Events: `feed` (`{ items: LiveFeedItem[], reset?: true }`, with the resume cursor as the event `id`), `snapshot` (the live counters: visitors in the last 5 minutes, today so far vs the same time yesterday in the workspace timezone, today and yesterday by hour, top pages and sources in the last 30 minutes), `end` (`{ reason: \"signed_out\" | \"busy\" }`) and a `: ping` comment every 15 seconds. Reconnects resume from the `Last-Event-ID` header (sent automatically by `EventSource`) or `?after=<cursor>`; a cursor older than 10 minutes starts a fresh feed. Streams are recycled every 15 minutes and closed when the session ends. Payloads carry counts, amounts and masked labels (initials or `p•••@gmail.com`), never an email address, phone number or full name; paths have no query string. Rate limit: 60 connections per minute per user.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Resume cursor (the `id` of the last `feed` event, an ISO timestamp with microseconds). Ignored when malformed.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events: `feed`, `snapshot`, `end` and `: ping` heartbeats."
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/live/pulse": {
+      "get": {
+        "tags": [
+          "Live"
+        ],
+        "operationId": "getLivePulse",
+        "summary": "Today's revenue and visitors now",
+        "description": "Net revenue so far today (payments minus refunds in the reporting currency, local day in the workspace timezone) and distinct visitors on the site in the last 5 minutes. Cheap enough to poll (the dashboard sidebar polls every 30 seconds). Rate limit: 240 requests per minute per workspace.",
+        "responses": {
+          "200": {
+            "description": "The pulse.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "revenueMinor",
+                    "visitorsNow",
+                    "currency",
+                    "asOf"
+                  ],
+                  "properties": {
+                    "revenueMinor": {
+                      "type": "integer",
+                      "description": "Integer minor units (cents, paise…) in `currency`."
+                    },
+                    "visitorsNow": {
+                      "type": "integer",
+                      "description": "Distinct visitors with any pixel event in the last 5 minutes."
+                    },
+                    "currency": {
+                      "type": "string",
+                      "description": "The workspace's reporting currency (ISO 4217)."
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"

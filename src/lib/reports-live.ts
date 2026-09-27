@@ -48,6 +48,8 @@ export type LiveSnapshot = {
   visitorsNow: number;
   /** Visitors in the 5 minutes before the live window (for a small trend arrow). */
   visitorsPrev: number;
+  /** Distinct visitors per minute over the last 30 minutes, oldest first (30 entries; the last is the current minute). */
+  visitorsByMinute: number[];
   today: LiveDay;
   sameTimeYesterday: LiveDay;
   yesterdaySpendMinor: number;
@@ -186,6 +188,27 @@ async function hourly(db: DB, ws: Workspace, now: Date): Promise<LiveHour[]> {
   }));
 }
 
+/** Distinct visitors in each of the last 30 minutes (index 29 = the minute ending now). */
+async function visitorsByMinute(db: DB, ws: Workspace, now: Date): Promise<number[]> {
+  const at = now.toISOString();
+  const result = rows<{ i: string | number; visitors: string | number }>(
+    await db.execute(sql`
+      select ${ACTIVE_WINDOW_MINUTES - 1} - floor(extract(epoch from ${at}::timestamptz - occurred_at) / 60)::int as i,
+        count(distinct visitor_id) as visitors
+      from events
+      where workspace_id = ${ws.id}
+        and occurred_at > ${at}::timestamptz - make_interval(mins => ${ACTIVE_WINDOW_MINUTES})
+        and occurred_at <= ${at}::timestamptz
+      group by 1`),
+  );
+  const out = Array.from({ length: ACTIVE_WINDOW_MINUTES }, () => 0);
+  for (const r of result) {
+    const i = n(r.i);
+    if (i >= 0 && i < ACTIVE_WINDOW_MINUTES) out[i] = n(r.visitors);
+  }
+  return out;
+}
+
 /** Pages with the most distinct visitors in the last 30 minutes. Paths only: no query string or fragment. */
 async function topPages(db: DB, ws: Workspace, now: Date, limit = 8) {
   const result = rows<{ path: string; visitors: string | number }>(
@@ -232,10 +255,14 @@ async function topSources(db: DB, ws: Workspace, now: Date, limit = 6) {
 }
 
 export async function liveSnapshot(db: DB, ws: Workspace, now = new Date()): Promise<LiveSnapshot> {
-  const c = await counters(db, ws, now);
-  const h = await hourly(db, ws, now);
-  const pages = await topPages(db, ws, now);
-  const sources = await topSources(db, ws, now);
+  // Independent queries: parallel on a Postgres pool (PGlite serialises them, which is fine).
+  const [c, h, perMinute, pages, sources] = await Promise.all([
+    counters(db, ws, now),
+    hourly(db, ws, now),
+    visitorsByMinute(db, ws, now),
+    topPages(db, ws, now),
+    topSources(db, ws, now),
+  ]);
   const day = (p: "t" | "y", spendMinor: number): LiveDay => ({
     visitors: n(c[`${p}_visitors`]),
     pageviews: n(c[`${p}_pageviews`]),
@@ -256,6 +283,7 @@ export async function liveSnapshot(db: DB, ws: Workspace, now = new Date()): Pro
     windowMinutes: LIVE_WINDOW_MINUTES,
     visitorsNow: n(c.visitors_now),
     visitorsPrev: n(c.visitors_prev),
+    visitorsByMinute: perMinute,
     today: day("t", todaySpend),
     // Integer minor units: the prorated figure is rounded to the nearest minor unit.
     sameTimeYesterday: day("y", Math.round(yesterdaySpend * fraction)),
