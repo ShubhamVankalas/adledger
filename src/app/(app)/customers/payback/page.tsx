@@ -55,7 +55,7 @@ export default async function PaybackPage({ searchParams }: PageProps<"/customer
           ) : paid.status === "paid_back" ? (
             <>
               Customers from ads pay back their <Num>{moneyShort(paid.cacMinor, c)}</Num> acquisition cost <Num>{when(paid.paybackDays)}</Num> on average
-              {fastest && platforms.length > 1 ? (
+              {fastest && platforms.length > 1 && paid.paybackDays !== 0 ? (
                 <>
                   ; <Num>{stepLabel(fastest.key)}</Num> is fastest, <Num>{when(fastest.paybackDays)}</Num>
                 </>

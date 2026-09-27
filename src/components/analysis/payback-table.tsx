@@ -28,7 +28,7 @@ export function PaybackTable({ report, currency }: { report: PaybackReport; curr
       <table className="w-full min-w-[52rem] border-collapse text-ui">
         <thead>
           <tr className="border-b">
-            <th scope="col" className={cn(TH, "pl-0 text-left")}>
+            <th scope="col" className={cn(TH, "sticky left-0 z-10 bg-card pl-0 text-left")}>
               Acquired by
             </th>
             <th scope="col" className={TH}>
@@ -55,8 +55,8 @@ export function PaybackTable({ report, currency }: { report: PaybackReport; curr
         </thead>
         <tbody className="divide-y">
           {rows.map((r) => (
-            <tr key={r.key} className={cn("transition-colors duration-100 hover:bg-fill/60", r.total && "border-t-2 border-border-strong font-medium")}>
-              <th scope="row" className={cn(TD, "pl-0 text-left font-medium")}>
+            <tr key={r.key} className={cn(r.total && "border-t-2 border-border-strong font-medium")}>
+              <th scope="row" className={cn(TD, "sticky left-0 z-10 bg-card pl-0 text-left font-medium")}>
                 {r.total ? "All paid platforms" : <SourceLabel id={r.key} />}
               </th>
               <td className={TD} title={creditTitle(r.customers, "customers")}>

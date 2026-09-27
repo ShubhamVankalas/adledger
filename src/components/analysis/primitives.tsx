@@ -3,7 +3,7 @@
 import { SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { BrandGlyph, hasBrandIcon } from "@/components/brand-icon";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { channelLabel, PLATFORM_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -43,15 +43,15 @@ export function Panel({
   const headingId = id ? `${id}-title` : undefined;
   return (
     <Card className={cn("min-w-0 gap-3", className)} aria-labelledby={headingId} role={id ? "region" : undefined} id={id}>
-      <CardHeader>
-        <CardTitle>
-          <h2 id={headingId} className="text-body font-semibold tracking-[-0.006em]">
+      <div className="flex flex-col gap-2.5 px-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h2 id={headingId} className="text-body font-semibold tracking-[-0.006em] text-balance">
             {title}
           </h2>
-        </CardTitle>
-        {description ? <CardDescription className="max-w-3xl">{description}</CardDescription> : null}
-        {action ? <CardAction className="max-sm:col-span-2 max-sm:col-start-1 max-sm:row-start-3 max-sm:mt-2 max-sm:justify-self-start">{action}</CardAction> : null}
-      </CardHeader>
+          {description ? <p className="mt-0.5 max-w-3xl text-caption/[1.125rem] text-pretty text-muted-foreground">{description}</p> : null}
+        </div>
+        {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+      </div>
       <CardContent className={bodyClassName}>{children}</CardContent>
     </Card>
   );
@@ -140,7 +140,7 @@ export function daysLabel(d: number | null | undefined, opts: { short?: boolean 
   if (d === null || d === undefined || !Number.isFinite(d)) return "—";
   if (d < 1) {
     const h = Math.round(d * 24);
-    if (h < 1) return opts.short ? "<1h" : "under an hour";
+    if (h < 1) return opts.short ? "<1h" : "<1 hour";
     return opts.short ? `${h}h` : `${h} ${h === 1 ? "hour" : "hours"}`;
   }
   const v = d >= 10 ? Math.round(d) : Math.round(d * 10) / 10;

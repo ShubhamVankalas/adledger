@@ -93,7 +93,7 @@ export function HeatmapGrid({ data, compact = false }: { data: ConversionsHeatma
                       aria-label={sentence(c, kind)}
                       onPointerEnter={() => setHover(c)}
                       onFocus={() => setHover(c)}
-                      className={cn("p-0", compact ? "h-4" : "h-5 md:h-6")}
+                      className={cn("p-0", compact ? "h-5" : "h-5 md:h-6")}
                     >
                       <span
                         aria-hidden

@@ -18,7 +18,7 @@ export function CampaignLagTable({ rows, windowDays }: { rows: CampaignLagRow[];
       <table className="w-full min-w-[40rem] border-collapse text-ui">
         <thead>
           <tr className="border-b">
-            <th scope="col" className={cn(TH, "text-left")}>
+            <th scope="col" className={cn(TH, "sticky left-0 z-10 bg-card text-left")}>
               Campaign
             </th>
             <th scope="col" className={TH}>
@@ -47,8 +47,8 @@ export function CampaignLagTable({ rows, windowDays }: { rows: CampaignLagRow[];
             const p80 = r.p80Days;
             const slow = p80 !== null && p80 > windowDays * 0.8;
             return (
-              <tr key={r.id} className="transition-colors duration-100 hover:bg-fill/60">
-                <td className={cn(TD, "max-w-[16rem] text-left")}>
+              <tr key={r.id}>
+                <td className={cn(TD, "sticky left-0 z-10 max-w-[11rem] bg-card text-left sm:max-w-[16rem]")}>
                   <span className="flex min-w-0 items-center gap-2">
                     <PlatformBadge platform={r.platform} compact />
                     <span className="truncate font-medium" title={r.name}>

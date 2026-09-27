@@ -64,12 +64,13 @@ export function PathsList({ report, currency, noun }: { report: PathsReport; cur
           </li>
         ))}
         {report.other.paths > 0 ? (
-          <li className={`grid grid-cols-2 items-center gap-x-4 gap-y-1 py-2.5 text-muted-foreground ${COLS}`}>
-            <span className="col-span-2 pl-6.5 sm:col-span-1">{plural(report.other.paths, "other journey")}</span>
-            <span className="text-right tabular-nums max-sm:text-left">
+          <li className={`flex items-center justify-between gap-x-4 py-2.5 text-muted-foreground sm:grid ${COLS}`}>
+            <span className="sm:pl-6.5">{plural(report.other.paths, "other journey")}</span>
+            <span className="text-right tabular-nums">
               {num(report.other.converters)} <span className="text-caption">{pct(report.converters ? report.other.converters / report.converters : 0, 0)}</span>
+              <span className="text-caption sm:hidden"> · {moneyShort(report.other.revenueMinor, currency)}</span>
             </span>
-            <span className="text-right tabular-nums">{moneyShort(report.other.revenueMinor, currency)}</span>
+            <span className="text-right tabular-nums max-sm:hidden">{moneyShort(report.other.revenueMinor, currency)}</span>
           </li>
         ) : null}
       </ol>

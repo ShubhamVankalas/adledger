@@ -4,6 +4,7 @@ import { schema, type DB } from "@/lib/db";
 import type { Channel, Platform } from "@/lib/db/schema";
 import {
   attributionPaths,
+  cohortAverages,
   cohortRetention,
   conversionsHeatmap,
   funnel,
@@ -251,6 +252,19 @@ describe("cohort retention", () => {
     expect(r.month1Retention).toBeCloseTo(1 / 3);
   });
 
+  it("averages cohorts per month over the cohorts old enough to have that month", async () => {
+    const avg = cohortAverages(await cohortRetention(db, ws, Q3));
+    // M0: Alice, Bob, Carol all paid; M1: Alice of 3; M2: only July (2 customers) has an M2, Bob paid.
+    expect(avg.customers).toEqual([3, 3, 2]);
+    expect(avg.retention[0]).toBe(1);
+    expect(avg.retention[1]).toBeCloseTo(1 / 3);
+    expect(avg.retention[2]).toBe(0.5);
+    // Cumulative per customer: (150 + 40) / 3, (180 + 40) / 3, 230 / 2
+    expect(avg.cumulativeLtvMinor).toEqual([6_333, 7_333, 11_500]);
+    expect(avg.revenueMinor).toEqual([19_000, 3_000, 5_000]);
+    expect(cohortAverages({ cohorts: [], months: 0 })).toEqual({ retention: [], cumulativeLtvMinor: [], revenueMinor: [], customers: [] });
+  });
+
   it("marks months that have not happened as unknown", async () => {
     const r = await cohortRetention(db, ws, { start: "2026-07-01", end: "2026-07-31" });
     expect(r.cohorts).toHaveLength(1);
@@ -318,6 +332,12 @@ describe("funnel", () => {
     // Visitors: Alice ×2 browsers, Bob, Dan, anonymous
     expect(r).toMatchObject({ visitors: 5, leads: 3, customers: 3, revenueMinor: 27_000, leadRate: 0.6, closeRate: 1, visitorRate: 0.6, revenuePerVisitorMinor: 5_400 });
     expect(r.previous).toMatchObject({ start: "2026-03-31", end: "2026-06-30", visitors: 0, leads: 0, customers: 0, leadRate: null });
+  });
+
+  it("compares against an explicit period (e.g. last year) or none", async () => {
+    const same = await funnel(db, ws, Q3, { previous: { start: Q3.start, end: Q3.end } });
+    expect(same.previous).toMatchObject({ visitors: 5, leads: 3, customers: 3, revenueMinor: 27_000 });
+    expect((await funnel(db, ws, Q3, { previous: null })).previous).toBeNull();
   });
 
   it("credits leads and customers to a platform with the selected model", async () => {
