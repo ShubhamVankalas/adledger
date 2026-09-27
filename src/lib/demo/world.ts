@@ -224,6 +224,37 @@ export function adDayMetrics(ad: DemoAd, date: string, currency: string): AdDayM
   return { spend: spendRounded, clicks, impressions, conversions };
 }
 
+/**
+ * How much ad platforms over-report purchases in the demo world (view-through, modeled and
+ * cross-device conversions). Real-world gaps are commonly 1.2-2x; TikTok and Meta sit highest.
+ */
+const OVERCLAIM: Partial<Record<Platform, [number, number]>> = {
+  meta: [1.45, 2.05],
+  google: [1.15, 1.45],
+  tiktok: [1.7, 2.5],
+  microsoft: [1.05, 1.3],
+  linkedin: [1.3, 1.7],
+};
+
+export type PlatformClaim = { purchases: number; value: number };
+
+/**
+ * What the ad platform itself claims for one ad-day: purchases and purchase value (major units).
+ * Pure function of (ad, date) on its own random stream, so `adDayMetrics` is unchanged. The claim
+ * is the purchases this ad-day's clicks should produce, inflated by the platform's over-claim factor.
+ */
+export function platformClaim(ad: DemoAd, date: string, currency: string): PlatformClaim {
+  const m = adDayMetrics(ad, date, currency);
+  const r = rng(`claim:${ad.ad.externalId}:${date}`);
+  const spec = ad.campaign.spec;
+  const [lo, hi] = OVERCLAIM[ad.platform] ?? [1.2, 1.6];
+  const expected = m.clicks * 0.7 * spec.leadRate * spec.custRate * r.range(lo, hi);
+  const purchases = Math.floor(expected) + (r.next() < expected - Math.floor(expected) ? 1 : 0);
+  const exp = currencyExponent(currency);
+  const value = purchases * spec.firstOrder * currencyScale(currency) * r.range(0.85, 1.2);
+  return { purchases, value: Math.round(value * 10 ** exp) / 10 ** exp };
+}
+
 // ---------------------------------------------------------------- people & journeys
 
 const FIRST = ["Aarav", "Maya", "Liam", "Sofia", "Noah", "Priya", "Ethan", "Zara", "Lucas", "Ananya", "Oliver", "Isla", "Arjun", "Emma", "Kabir", "Mia", "Leo", "Diya", "Mateo", "Chloe", "Rohan", "Ava", "Omar", "Nora", "Ishaan", "Grace", "Hugo", "Sara", "Vihaan", "Lena"];
