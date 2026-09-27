@@ -50,7 +50,7 @@ function Track({ value, marker, tone, label }: { value: number; marker?: number 
   );
 }
 
-function GoalRow({ item, currency }: { item: GoalPacing; currency: string }) {
+export function GoalRow({ item, currency }: { item: GoalPacing; currency: string }) {
   const f = (v: number | null | undefined) => formatGoalValue(item, v, currency);
   const tone = item.achieved ? "good" : STATUS[item.status].tone;
   const periodWord = item.period === "quarter" ? "quarter" : "month";

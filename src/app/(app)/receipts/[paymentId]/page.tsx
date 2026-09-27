@@ -26,7 +26,7 @@ export default async function ReceiptPage({ params, searchParams }: PageProps<"/
   const db = await getDb();
   const [r, adjacent] = await Promise.all([
     // Agency clients see masked emails; everyone else sees the address they already see on Contacts.
-    paymentReceipt(db, ws, paymentId, model, { revealEmail: user.role !== "client", basis }),
+    paymentReceipt(db, ws, paymentId, model, { revealEmail: user.can("contacts.pii"), basis }),
     adjacentPayments(db, ws, paymentId),
   ]);
   if (!r) notFound();

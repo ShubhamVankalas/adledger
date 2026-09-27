@@ -145,7 +145,7 @@ export const DATE_PRESETS = [
 ] as const;
 
 export const COMPARE_OPTIONS = [
-  { value: "previous", label: "Compare to previous period", keywords: ["vs prev", "comparison", "delta"] },
+  { value: "prev", label: "Compare to previous period", keywords: ["vs prev", "comparison", "delta"] },
   { value: "year", label: "Compare to previous year", keywords: ["yoy", "year over year", "last year", "comparison"] },
   { value: "none", label: "Turn off comparison", keywords: ["no compare", "compare off", "hide comparison"] },
 ] as const;

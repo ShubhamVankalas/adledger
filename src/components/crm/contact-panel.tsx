@@ -39,6 +39,10 @@ type Props = {
   /** Re-read the record after a change (the page refreshes; the peek re-fetches). */
   onChanged: () => Promise<void> | void;
   commandsRef?: React.RefObject<PanelCommands | null>;
+  /** Pipeline stage pill (record page), rendered as the "Stage" property. */
+  stage?: React.ReactNode;
+  /** Ad receipt for this contact (record page), rendered as the "Receipt" tab. */
+  receipt?: React.ReactNode;
 };
 
 export type PanelCommands = { note: () => void; task: () => void };
@@ -50,7 +54,7 @@ type Props0 = { name: string | null; lifecycle: Lifecycle; ownerUserId: string |
  * timeline, notes and tasks, and attribution credit. The same component renders in the preview
  * sheet on /contacts and as the full record page.
  */
-export function ContactPanel({ record, members, tagSuggestions, abilities, viewerId, now, variant, onChanged, commandsRef }: Props) {
+export function ContactPanel({ record, members, tagSuggestions, abilities, viewerId, now, variant, onChanged, commandsRef, stage, receipt }: Props) {
   const c = record.contact;
   const tz = record.timezone;
   const peek = variant === "peek";
@@ -195,6 +199,7 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
             <Prop label="Status">
               <LifecyclePicker value={props.lifecycle} onChange={setLifecycle} disabled={!abilities.edit} />
             </Prop>
+            {stage ? <Prop label="Stage">{stage}</Prop> : null}
             <Prop label="Owner">
               <OwnerPicker value={props.ownerUserId} members={members} viewerId={viewerId} onChange={setOwner} disabled={!abilities.edit} />
             </Prop>
@@ -232,6 +237,7 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
               </TabsTrigger>
             ) : null}
             <TabsTrigger value="credit">Attribution</TabsTrigger>
+            {receipt ? <TabsTrigger value="receipt">Receipt</TabsTrigger> : null}
           </TabsList>
           <TabsContent value="activity" className="pt-1">
             <Timeline entries={record.timeline} tz={tz} now={now} capped={record.pageViewsCapped} memberName={memberLabel} compact={peek} />
@@ -258,6 +264,11 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
           <TabsContent value="credit" className="pt-1">
             <Credit record={record} />
           </TabsContent>
+          {receipt ? (
+            <TabsContent value="receipt" className="pt-1">
+              {receipt}
+            </TabsContent>
+          ) : null}
         </Tabs>
       </div>
     </div>

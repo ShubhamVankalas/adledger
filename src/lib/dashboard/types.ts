@@ -26,7 +26,7 @@ export const MAX_SECTIONS = 12;
 export const MAX_SECTION_ITEMS = 24;
 export const MAX_TITLE = 60;
 
-export const PRESET_KEYS = ["minimal", "ecommerce", "leadgen", "agency"] as const;
+export const PRESET_KEYS = ["minimal", "ecommerce", "leadgen", "saas", "agency"] as const;
 export type PresetKey = (typeof PRESET_KEYS)[number];
 
 /** Which saved layout a viewer is looking at. */

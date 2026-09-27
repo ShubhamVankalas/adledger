@@ -11,7 +11,16 @@ import { ContactPanel } from "./contact-panel";
 import { LIST_CONTEXT_KEY } from "./contacts-view";
 
 /** The record page body: the shared ContactPanel. Server actions revalidate the page, so props refresh on their own. */
-export function RecordView(props: { record: ContactRecord; members: CrmMember[]; tagSuggestions: string[]; abilities: CrmAbilities; viewerId: string; now: string }) {
+export function RecordView(props: {
+  record: ContactRecord;
+  members: CrmMember[];
+  tagSuggestions: string[];
+  abilities: CrmAbilities;
+  viewerId: string;
+  now: string;
+  stage?: React.ReactNode;
+  receipt?: React.ReactNode;
+}) {
   return <ContactPanel {...props} variant="page" onChanged={noop} />;
 }
 const noop = () => undefined;

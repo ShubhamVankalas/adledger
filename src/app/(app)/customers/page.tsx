@@ -6,6 +6,9 @@ import {
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { SectionTabs } from "@/components/analysis/section-tabs";
+import { CUSTOMERS_TABS, SectionTabsStatic } from "@/components/analysis/tabs";
 import { KpiCard } from "@/components/kpi-card";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { ReportControls } from "@/components/report-controls";
@@ -63,6 +66,9 @@ export default async function CustomersPage({
         />
       </PageHeader>
       <PageBody>
+        <Suspense fallback={<SectionTabsStatic tabs={CUSTOMERS_TABS} active="/customers" label="Customer views" />}>
+          <SectionTabs tabs={CUSTOMERS_TABS} label="Customer views" />
+        </Suspense>
         <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
             label="New customers"

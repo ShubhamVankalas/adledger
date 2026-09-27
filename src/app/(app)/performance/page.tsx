@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { MODEL_LABELS } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
+import { getTargets, targetFor } from "@/lib/reports-goals";
 import type { PerfLevel } from "@/lib/reports";
 import { performanceReport } from "@/lib/reports-performance";
 import { cn } from "@/lib/utils";
@@ -36,9 +37,18 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
   const parent = rawParent && UUID.test(rawParent) && level !== "campaign" ? rawParent : undefined;
   const q = (one(sp.q) ?? "").trim().slice(0, 200);
 
-  // Workspace targets colour the stoplights and set the quadrant's ROAS bar. Goals ship separately:
-  // until then there are none, and the table shows no dots and splits the quadrant at break-even.
-  const targets: PerfTargets = {};
+  // Workspace targets (Settings → Targets & goals) colour the stoplights and set the quadrant's ROAS
+  // bar. With none set, the table shows no dots and splits the quadrant at break-even.
+  const goals = await getTargets(db, ws);
+  const targets: PerfTargets = Object.fromEntries(
+    (
+      [
+        ["roas", targetFor(goals, "roas")],
+        ["cacMinor", targetFor(goals, "cac")],
+        ["cplMinor", targetFor(goals, "cpl")],
+      ] as const
+    ).filter(([, v]) => v !== null),
+  );
 
   const [report, views, crumbs] = await Promise.all([
     performanceReport(db, ws, { ...p, level, parentId: parent, q: q || undefined, comparison: p.comparison, roasSplit: targets.roas }),

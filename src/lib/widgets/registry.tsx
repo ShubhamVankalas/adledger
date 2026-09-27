@@ -1,9 +1,13 @@
 import { Suspense, type ReactNode } from "react";
+import { FunnelWidget, HeatmapWidget } from "@/components/analysis/widgets";
+import { GoalsWidget } from "@/components/goals/goals-widget";
+import { LiveNowWidget } from "@/components/live/live-now-widget";
 import { CardSkeleton, KpiSkeleton } from "@/components/overview/skeletons";
 import { WidgetErrorBoundary } from "@/components/overview/widget-error-boundary";
 import { ChannelsWidget, ExplorerWidget, SpendRevenueWidget } from "@/components/overview/widgets/charts";
 import { KpiWidget } from "@/components/overview/widgets/kpi";
 import { InsightWidget, PlatformsWidget, RecentWidget, TopCampaignsWidget, WastedSpendWidget } from "@/components/overview/widgets/lists";
+import { ProfitWidget, TruthGapWidget } from "@/components/profit/widgets";
 import type { DashParams } from "@/lib/dashboard/data";
 import type { WidgetInstance } from "@/lib/dashboard/types";
 import { METRICS } from "@/lib/metrics";
@@ -37,6 +41,13 @@ const RENDER: Record<WidgetType, (meta: WidgetMeta) => Pick<WidgetEntry, "compon
   "list.platforms": () => ({ component: (ctx) => <PlatformsWidget {...ctx} />, skeleton: () => <CardSkeleton title="Platform scorecard" /> }),
   "crm.recent": () => ({ component: (ctx) => <RecentWidget {...ctx} />, skeleton: () => <CardSkeleton title="Recent leads & customers" /> }),
   "utility.insight": () => ({ component: () => <InsightWidget />, skeleton: () => <CardSkeleton title="This week in one read" variant="text" /> }),
+  // Ignores the board's date range: it is always "right now".
+  "live.now": () => ({ component: () => <LiveNowWidget />, skeleton: () => <CardSkeleton title="Live now" description="Visitors on your site in the last 5 minutes" /> }),
+  "utility.goals": () => ({ component: (ctx) => <GoalsWidget {...ctx} />, skeleton: () => <CardSkeleton title="Goals & pacing" description="Progress against your targets" /> }),
+  "list.truthGap": () => ({ component: (ctx) => <TruthGapWidget {...ctx} />, skeleton: () => <CardSkeleton title="Truth gap" description="What platforms claim vs payments you received" /> }),
+  "list.profit": () => ({ component: (ctx) => <ProfitWidget {...ctx} />, skeleton: () => <CardSkeleton title="Profit after ads" /> }),
+  "chart.funnel": () => ({ component: (ctx) => <FunnelWidget {...ctx} compare={ctx.p.compare} />, skeleton: () => <CardSkeleton title="Funnel" variant="chart" /> }),
+  "chart.heatmap": () => ({ component: (ctx) => <HeatmapWidget {...ctx} />, skeleton: () => <CardSkeleton title="Conversions heatmap" variant="chart" /> }),
 };
 
 export const WIDGET_REGISTRY: Record<string, WidgetEntry> = Object.fromEntries(WIDGETS.map((w) => [w.type, { ...w, ...RENDER[w.type](w) }]));

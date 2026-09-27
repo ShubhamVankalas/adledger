@@ -68,7 +68,11 @@ export async function WastedSpendWidget({ p, currency }: { p: DashParams; curren
                   {r.tooEarly ? (
                     <span
                       className="shrink-0 rounded-full bg-[color:var(--warning)]/15 px-1.5 text-[11px] leading-[18px] font-medium text-[color:oklch(0.5_0.12_65)] dark:text-[color:var(--warning)]"
-                      title={`Running ${r.ageDays} day${r.ageDays === 1 ? "" : "s"}; customers usually take ${Math.round(medianDays ?? 0)} days to buy.`}
+                      title={
+                        r.judgeAfterDays
+                          ? `Running ${r.ageDays ?? 0} day${r.ageDays === 1 ? "" : "s"}; 80% of buyers take ${r.judgeAfterDays} day${r.judgeAfterDays === 1 ? "" : "s"} to pay. Judge it from ${r.judgeFrom ?? "later"}.`
+                          : `Running ${r.ageDays ?? 0} day${r.ageDays === 1 ? "" : "s"}; customers usually take ${Math.round(medianDays ?? 0)} days to buy.`
+                      }
                     >
                       Too early
                     </span>

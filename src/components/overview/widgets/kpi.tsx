@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkline } from "@/components/charts/sparkline";
-import { loadKpiPair, type DashParams } from "@/lib/dashboard/data";
+import { loadKpiPair, loadTargets, type DashParams } from "@/lib/dashboard/data";
+import { targetFor, type Targets } from "@/lib/goal-metrics";
 import { formatMetric, metricDelta, METRICS, ratioX, type MetricKey } from "@/lib/metrics";
 import { seriesOf, type KpiSeries } from "@/lib/reports-metrics";
 import { cn } from "@/lib/utils";
@@ -30,8 +31,19 @@ function companion(metric: MetricKey, cur: KpiSeries, currency: string): string 
   }
 }
 
+/**
+ * Ratio targets from Settings → Targets & goals apply to any period, so ROAS and MER tiles show a
+ * target bar when the tile has none of its own. Cumulative goals (revenue, leads) are monthly or
+ * quarterly totals and don't compare with an arbitrary date range, so they stay on Goals & pacing.
+ */
+function workspaceTarget(metric: MetricKey, targets: Targets): number | null {
+  if (metric === "roas") return targetFor(targets, "roas");
+  if (metric === "mer") return targetFor(targets, "mer");
+  return null;
+}
+
 export async function KpiWidget({ metric, p, currency, settings }: { metric: MetricKey; p: DashParams; currency: string; settings?: WidgetSettings }) {
-  const [cur, prev] = await loadKpiPair(p);
+  const [[cur, prev], targets] = await Promise.all([loadKpiPair(p), loadTargets()]);
   const def = METRICS[metric];
   const value = cur.totals[metric];
   const prevValue = prev.totals[metric];
@@ -40,7 +52,7 @@ export async function KpiWidget({ metric, p, currency, settings }: { metric: Met
   const withPrev = { ...delta, label: prevValue === null ? delta.label : `${delta.label}, was ${prevText}` };
   const sub = companion(metric, cur, currency);
   const text = formatMetric(metric, value, currency, { compact: true });
-  const target = settings?.target;
+  const target = settings?.target ?? workspaceTarget(metric, targets);
   const progress = target && value !== null ? (def.polarity === "down" ? target / Math.max(value, 1e-9) : value / target) : null;
   const drill = def.href.startsWith("/performance") ? `${def.href}?${new URLSearchParams({ range: p.range, model: p.model, ...(p.range === "custom" ? { from: p.start, to: p.end } : {}) })}` : def.href;
 

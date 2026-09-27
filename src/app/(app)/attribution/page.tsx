@@ -6,6 +6,10 @@ import {
   ScaleIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { ModelDisagreementCard } from "@/components/analysis/model-disagreement-card";
+import { SectionTabs } from "@/components/analysis/section-tabs";
+import { ATTRIBUTION_TABS, SectionTabsStatic } from "@/components/analysis/tabs";
 import { KpiCard } from "@/components/kpi-card";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { ReportControls } from "@/components/report-controls";
@@ -58,6 +62,9 @@ export default async function AttributionPage({
         />
       </PageHeader>
       <PageBody>
+        <Suspense fallback={<SectionTabsStatic tabs={ATTRIBUTION_TABS} active="/attribution" label="Attribution views" />}>
+          <SectionTabs tabs={ATTRIBUTION_TABS} label="Attribution views" />
+        </Suspense>
         <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
             label="Campaign spend"
@@ -97,6 +104,10 @@ export default async function AttributionPage({
             hint={`Campaigns credited clearly more under last-touch (${moneyShort(sumLast(closers), c)} vs ${moneyShort(sumFirst(closers), c)} first-touch): they catch people who were already on their way (brand search, retargeting).`}
           />
         </section>
+
+        <Suspense fallback={<div aria-hidden className="h-72 animate-pulse rounded-xl bg-muted/40" />}>
+          <ModelDisagreementCard ws={ws} p={p} />
+        </Suspense>
 
         <Card>
           <CardHeader>
