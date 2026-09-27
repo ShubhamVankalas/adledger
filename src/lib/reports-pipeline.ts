@@ -277,15 +277,17 @@ export type CostPerStageLevel = "campaign" | "ad_group" | "ad";
 export type CostPerStageRow = {
   id: string;
   name: string;
+  /** The campaign of an ad set, or the ad set of an ad (null for campaigns). */
+  parentName: string | null;
   platform: Platform;
   spendMinor: number;
   stages: { stageId: string; reached: number; costMinor: number | null }[];
 };
 
 const LEVEL = {
-  campaign: { col: "campaign_id", table: "campaigns" },
-  ad_group: { col: "ad_group_id", table: "ad_groups" },
-  ad: { col: "ad_id", table: "ads" },
+  campaign: { col: "campaign_id", table: "campaigns", parent: null },
+  ad_group: { col: "ad_group_id", table: "ad_groups", parent: { table: "campaigns", col: "campaign_id" } },
+  ad: { col: "ad_id", table: "ads", parent: { table: "ad_groups", col: "ad_group_id" } },
 } as const;
 
 /**
@@ -303,7 +305,9 @@ export async function costPerStage(
   const lv = LEVEL[p.level ?? "campaign"];
   const col = sql.raw(lv.col);
   const table = sql.raw(lv.table);
-  const r = rows<{ id: string; name: string; platform: Platform; spend: string; stage_id: string; reached: string }>(
+  const parentJoin = lv.parent ? sql`left join ${sql.raw(lv.parent.table)} pc on pc.id = x.${sql.raw(lv.parent.col)}` : sql``;
+  const parentName = lv.parent ? sql`pc.name` : sql`null::text`;
+  const r = rows<{ id: string; name: string; parent: string | null; platform: Platform; spend: string; stage_id: string; reached: string }>(
     await db.execute(sql`
       with ${reachCte(
         ws,
@@ -331,9 +335,10 @@ export async function costPerStage(
       entities as (
         select entity_id from spend union select entity_id from reach where entity_id is not null
       )
-      select e.entity_id id, x.name, x.platform, coalesce(sp.spend, 0) spend, s.id stage_id, coalesce(rc.n, 0) reached
+      select e.entity_id id, x.name, ${parentName} parent, x.platform, coalesce(sp.spend, 0) spend, s.id stage_id, coalesce(rc.n, 0) reached
       from entities e
       join ${table} x on x.id = e.entity_id and x.workspace_id = ${ws.id}
+      ${parentJoin}
       left join spend sp on sp.entity_id = e.entity_id
       cross join st s
       left join reached rc on rc.entity_id = e.entity_id and rc.stage_id = s.id
@@ -344,7 +349,7 @@ export async function costPerStage(
   for (const x of r) {
     let row = out.get(x.id);
     if (!row) {
-      row = { id: x.id, name: x.name, platform: x.platform, spendMinor: n(x.spend), stages: [] };
+      row = { id: x.id, name: x.name, parentName: x.parent, platform: x.platform, spendMinor: n(x.spend), stages: [] };
       out.set(x.id, row);
     }
     const reached = n(x.reached);

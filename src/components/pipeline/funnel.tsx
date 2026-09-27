@@ -150,8 +150,15 @@ export function CostPerStageCard({
                 <TableCell className="sticky left-0 z-10 max-w-72 bg-surface">
                   <span className="flex min-w-0 items-center gap-2">
                     <PlatformBadge platform={r.platform} compact />
-                    <span className="truncate" title={r.name}>
-                      {r.name}
+                    <span className="min-w-0">
+                      <span className="block truncate" title={r.name}>
+                        {r.name}
+                      </span>
+                      {r.parentName ? (
+                        <span className="block truncate text-caption text-muted-foreground" title={r.parentName}>
+                          in {r.parentName}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
                 </TableCell>

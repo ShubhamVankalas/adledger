@@ -138,7 +138,9 @@ export const BoardCard = memo(function BoardCard({
       onMouseDown={draggable ? on.onMouseDown : undefined}
       onTouchStart={draggable ? on.onTouchStart : undefined}
       onClick={(e) => {
-        if ((e.shiftKey || e.metaKey || e.ctrlKey) && onToggleSelect) {
+        // Shift / ⌘ / Ctrl-click on the card body selects; on the name it still opens a new tab.
+        if ((e.target as HTMLElement).closest("a, button")) return;
+        if ((e.shiftKey || e.metaKey || e.ctrlKey) && canMove && onToggleSelect) {
           e.preventDefault();
           onToggleSelect(card.id, e.shiftKey);
         }
