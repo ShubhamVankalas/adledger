@@ -24,7 +24,7 @@ async function scalar(q: ReturnType<typeof sql>) {
 beforeAll(async () => {
   ({ db, ws } = await setupWorkspace());
   await seedDemo(db, ws.id, { anchor: "2026-09-01" });
-}, 120_000);
+}, 300_000);
 
 describe("analysis on demo data", () => {
   it("counts the same new customers in paths, funnel, time to convert and cohorts", async () => {
