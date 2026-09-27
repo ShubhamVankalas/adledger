@@ -150,7 +150,7 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
       ) : null}
 
       {showModel ? (
-        <div className="flex h-8 items-center rounded-lg border bg-muted/40 p-0.5 pointer-coarse:h-10" role="radiogroup" aria-label="Attribution model">
+        <div className="flex h-8 items-center gap-0.5 rounded-lg border bg-muted/50 p-0.5 pointer-coarse:h-10 dark:border-input dark:bg-input/20" role="radiogroup" aria-label="Attribution model">
           {Object.entries(MODELS).map(([k, v]) => (
             <button
               key={k}
@@ -159,8 +159,8 @@ function InlineControls({ start, end, range, model, platform, showPlatform = tru
               aria-checked={model === k}
               onClick={() => update({ model: k })}
               className={cn(
-                "h-full rounded-md px-2.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-                model === k && "bg-background text-foreground shadow-sm dark:bg-input/60",
+                "h-full rounded-md px-2.5 text-[0.8125rem] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+                model === k && "bg-background text-foreground shadow-xs ring-1 ring-foreground/10 dark:bg-input/70 dark:ring-foreground/10",
               )}
             >
               {v}
