@@ -65,8 +65,9 @@ test("pages fit a phone-width screen without clipped content", async ({ page }) 
   await signIn(page);
   await page.goto("/contacts");
   const contact = await page.locator('a[href^="/contacts/"]').first().getAttribute("href");
-  const settings = ["", "/account", "/organization", "/organization/members", "/organization/audit", "/workspace", "/workspace/integrations", "/workspace/tracking", "/workspace/import", "/workspace/ai", "/workspace/api", "/workspace/notifications"];
-  for (const path of ["/", "/performance", "/contacts", contact!, "/insights", "/onboarding", ...settings.map((s) => `/settings${s}`)]) {
+  const settings = ["", "/account", "/organization", "/organization/members", "/organization/audit", "/workspace", "/workspace/integrations", "/workspace/tracking", "/workspace/import", "/workspace/ai", "/workspace/api", "/workspace/notifications", "/workspace/goals", "/workspace/profit", "/workspace/pipeline", "/workspace/alerts", "/workspace/sharing", "/workspace/duplicates"];
+  const reports = ["/live", "/attribution", "/attribution/paths", "/attribution/time-to-convert", "/customers", "/customers/cohorts", "/customers/payback", "/profit", "/profit/time-to-money", "/truth", "/receipts", "/reports", "/pipeline", "/tasks"];
+  for (const path of ["/", "/performance", "/contacts", contact!, "/insights", "/onboarding", ...reports, ...settings.map((s) => `/settings${s}`)]) {
     await page.goto(path);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     // Elements poking past the right edge that are not inside their own horizontal scroller are cut off.

@@ -141,7 +141,8 @@ export function normalizeTag(tag: string): string {
 export function parseContactQuery(sp: Params): ContactQuery {
   const get = getter(sp);
   const view = get("view") ?? "all";
-  const lc = get("lc");
+  // `lifecycle` is the pre-CRM parameter name (old links and bookmarks).
+  const lc = get("lc") ?? get("lifecycle");
   const sort = get("sort");
   const cols = list(get("cols")).filter((c): c is ContactColumn => (CONTACT_COLUMNS as readonly string[]).includes(c));
   const owner = get("owner");

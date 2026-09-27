@@ -39,8 +39,9 @@ async function login(page: Page) {
 
 test("overview shows KPIs, chart and the winner/waster story", async ({ page }) => {
   await login(page);
-  await expect(page.getByText("You’re exploring sample data.")).toBeVisible();
-  for (const label of ["Ad spend", "Revenue", "ROAS", "Leads", "Customers"]) {
+  // The demo workspace shows a "Sample data" pill in the header and the E-commerce board.
+  await expect(page.getByText("Sample data", { exact: true }).first()).toBeVisible();
+  for (const label of ["Ad spend", "Revenue", "ROAS", "MER", "Customers"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
@@ -74,24 +75,29 @@ test("dashboard numbers equal the REST API", async ({ page, request }) => {
   await page.goto("/settings/workspace/api");
   await page.getByLabel("Key name").fill("e2e");
   await page.getByRole("button", { name: "Create" }).click();
-  const keyText = page.locator("code", { hasText: /^al_/ }).first();
+  // The new key is shown once in a copy field (its full value is the title; the list only shows prefixes).
+  const keyText = page.locator('code[title^="al_"]').first();
   await expect(keyText).toBeVisible();
-  const key = (await keyText.innerText()).trim();
+  const key = ((await keyText.getAttribute("title")) ?? "").trim();
   await shot(page, "settings-api");
 
   await page.goto("/performance?range=90d&model=linear");
-  const total = await page.locator("tfoot td").nth(1).innerText();
-  const url = new URL(page.url());
-  const from = await page.evaluate(() => document.querySelector("a[href*='level=campaign']")?.getAttribute("href") ?? "");
+  // Level tabs keep the period (the Campaigns tab is the default level, so it has no level param).
+  const from = (await page.getByRole("navigation", { name: "Report level" }).getByRole("link", { name: "Ad sets" }).getAttribute("href")) ?? "";
   expect(from).toContain("range=90d");
-  // Resolve the same period through the API (latest data day - 89 .. latest data day).
+
+  // The same custom period in the table and through the API. The totals cell also shows the
+  // change vs the previous period under the value, so read its first line only.
+  await page.goto("/performance?from=2000-01-01&to=2100-01-01&model=linear");
+  const total = (await page.locator("tfoot td").nth(1).innerText()).split("\n")[0];
+  const url = new URL(page.url());
   const overview = await request.get(`/api/v1/reports/overview?start=2000-01-01&end=2100-01-01&model=linear`, { headers: { Authorization: `Bearer ${key}` } });
   expect(overview.ok()).toBeTruthy();
   const body = await overview.json();
   expect(body.data.spendMinor).toBeGreaterThan(0);
   const shown = Number(total.replace(/[^0-9.]/g, ""));
   const api = body.data.spendMinor / 100;
-  // The 90-day view covers all demo spend; tables show whole currency units.
+  // Tables show whole currency units.
   expect(shown).toBe(Math.round(api));
   expect(url.searchParams.get("model")).toBe("linear");
 });
@@ -101,16 +107,23 @@ test("contacts list and journey", async ({ page }) => {
   await page.goto("/contacts?lifecycle=customer");
   await expect(page.locator("tbody tr").first()).toBeVisible();
   await shot(page, "contacts");
+  // A plain click opens the preview sheet; the record page is the link's target.
   await page.locator("tbody tr a").first().click();
-  await expect(page.getByText("Journey", { exact: true })).toBeVisible();
-  await expect(page.getByText("Who gets the credit?")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.goto((await page.locator("tbody tr a").first().getAttribute("href"))!);
+  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
+  await page.getByRole("tab", { name: "Attribution" }).click();
+  await expect(page.getByText(/splits this contact’s revenue|Every model agrees|No revenue to split yet/).first()).toBeVisible();
+  await page.getByRole("tab", { name: "Receipt" }).click();
+  await expect(page.getByText("Cost to acquire")).toBeVisible();
   await shot(page, "journey");
 });
 
 test("insights: generate a report without an LLM", async ({ page }) => {
   await login(page);
   await page.goto("/insights");
-  await page.getByRole("button", { name: "Generate now" }).click();
+  await page.getByRole("button", { name: "Generate report", exact: true }).click();
   await expect(page.getByText("Latest", { exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("heading", { name: "Summary" }).first()).toBeVisible();
   await shot(page, "insights");

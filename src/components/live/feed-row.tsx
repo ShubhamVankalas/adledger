@@ -254,7 +254,7 @@ export const FeedRow = memo(function FeedRow({
           </div>
         )}
       </div>
-      <time dateTime={item.at} title={absolute} suppressHydrationWarning className="mt-0.5 shrink-0 text-caption leading-5 text-fg-faint tabular-nums">
+      <time dateTime={item.at} title={absolute} suppressHydrationWarning className="mt-0.5 shrink-0 text-caption leading-5 text-muted-foreground tabular-nums">
         {relativeTime(item.at, now)}
       </time>
     </li>

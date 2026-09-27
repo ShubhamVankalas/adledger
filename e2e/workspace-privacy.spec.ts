@@ -53,8 +53,8 @@ test("contacts CSV follows the current filter", async ({ page }) => {
 test("contact page: export data, then delete the contact", async ({ page }) => {
   await signIn(page);
   await page.goto("/contacts?lifecycle=customer");
-  await page.locator("tbody tr a").first().click();
-  await expect(page.getByText("Journey", { exact: true })).toBeVisible();
+  await page.goto((await page.locator("tbody tr a").first().getAttribute("href"))!);
+  await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible();
   const contactUrl = page.url();
   const id = new URL(contactUrl).pathname.split("/").pop()!;
 
