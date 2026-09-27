@@ -7,7 +7,9 @@ import {
   CableIcon,
   CodeIcon,
   FileClockIcon,
+  LockKeyholeIcon,
   MousePointerClickIcon,
+  ShieldCheckIcon,
   SlidersHorizontalIcon,
   UploadIcon,
   UserIcon,
@@ -39,7 +41,13 @@ export function SettingsNav({
   const pathname = usePathname();
   const strip = useRef<HTMLDivElement>(null);
   const groups: { title: string; subtitle?: string; items: Item[] }[] = [
-    { title: "Account", items: [{ href: "/settings/account", label: "Profile & security", short: "Profile", icon: UserIcon }] },
+    {
+      title: "Account",
+      items: [
+        { href: "/settings/account", label: "Profile", icon: UserIcon },
+        { href: "/settings/account/security", label: "Security", icon: LockKeyholeIcon },
+      ],
+    },
     {
       title: "Workspace",
       subtitle: workspaceName,
@@ -59,12 +67,13 @@ export function SettingsNav({
       items: [
         { href: "/settings/organization", label: "Organization & workspaces", short: "Organization", icon: Building2Icon },
         { href: "/settings/organization/members", label: "Members & roles", short: "Members", icon: UsersIcon, show: canMembers },
+        { href: "/settings/organization/security", label: "Security policy", short: "Policy", icon: ShieldCheckIcon, show: canAudit },
         { href: "/settings/organization/audit", label: "Audit log", icon: FileClockIcon, show: canAudit },
       ],
     },
   ];
   const visible = groups.map((g) => ({ ...g, items: g.items.filter((i) => i.show !== false) }));
-  const active = (href: string) => (href === "/settings/workspace" || href === "/settings/organization" ? pathname === href : pathname.startsWith(href));
+  const active = (href: string) => (["/settings/workspace", "/settings/organization", "/settings/account"].includes(href) ? pathname === href : pathname.startsWith(href));
 
   // Keep the current page visible in the horizontal strip (phones and tablets); edges fade so a cut-off pill reads as "scroll for more".
   useEffect(() => {

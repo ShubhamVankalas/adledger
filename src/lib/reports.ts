@@ -3,6 +3,7 @@ import { z } from "zod";
 import { rows, type DB } from "./db";
 import type { AttributionModel, Platform } from "./db/schema";
 import { AD_PLATFORMS } from "./connectors/types";
+import { hashEmail } from "./crypto";
 import type { Workspace } from "./settings";
 
 // All numbers are computed in SQL here. The UI, REST API, MCP server and AI facts
@@ -344,12 +345,15 @@ export type ContactRow = {
 export async function listContacts(
   db: DB,
   ws: Workspace,
-  q: { search?: string; lifecycle?: "lead" | "customer"; limit?: number; offset?: number },
+  q: { search?: string; lifecycle?: "lead" | "customer"; limit?: number; offset?: number; piiSearch?: boolean },
 ): Promise<{ rows: ContactRow[]; total: number }> {
   const search = q.search?.trim().toLowerCase();
+  // Callers who only see masked emails (piiSearch: false) match names and exact emails, so search
+  // can't be used to read addresses letter by letter.
+  const emailMatch = q.piiSearch === false ? sql`c.email_hash = ${hashEmail(search ?? "")}` : sql`lower(c.email) like ${"%" + search + "%"}`;
   const where = sql`c.workspace_id = ${ws.id}
     ${q.lifecycle ? sql`and c.lifecycle = ${q.lifecycle}` : sql``}
-    ${search ? sql`and (lower(c.email) like ${"%" + search + "%"} or lower(c.name) like ${"%" + search + "%"})` : sql``}`;
+    ${search ? sql`and (${emailMatch} or lower(c.name) like ${"%" + search + "%"})` : sql``}`;
   const [{ total }] = rows<{ total: string }>(await db.execute(sql`select count(*) total from contacts c where ${where}`));
   const result = rows<Record<string, string | null>>(
     await db.execute(sql`

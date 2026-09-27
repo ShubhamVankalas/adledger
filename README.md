@@ -81,6 +81,7 @@ pnpm install && pnpm dev
 | **Identity stitching** | Anonymous visitor → lead → customer, across devices, by email. |
 | **Attribution** | First-touch, last-touch and linear — switch instantly. Exact revenue splits (integer cents, largest-remainder). LTV: renewals credit the journey that acquired the customer. Unattributed revenue is shown, never hidden. |
 | **Dashboard** | A customizable Overview board (pin KPIs, drag widgets, presets for e-commerce, lead gen and agencies, a personal view or a team default), KPIs with period-over-period change and sparklines, a metric explorer, spend vs revenue chart, drill-down tables with CSV export, contact journeys, dark mode. Installable on your phone (PWA) with a bottom tab bar. **⌘K / Ctrl K** finds any page, setting, contact, campaign or ad; `G` then a letter jumps between pages and `?` lists every shortcut. |
+| **PDF reports** | Branded, print-ready PDFs with your logo: executive summary, weekly performance, attribution model comparison, LTV and cohorts, wasted spend and budget moves. Download one, or email it to your team every week or month. Every PDF is fingerprinted and anyone can check it on `/verify`. Ctrl+P on any page prints cleanly too. See [docs/REPORTS.md](docs/REPORTS.md). |
 | **AI insights (BYO model)** | Weekly note on what changed, wasted spend and where to move budget. Works with **Ollama / LM Studio (local, free)**, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek, or no AI at all. Every number is computed in SQL; invented numbers are flagged. |
 | **MCP server** | Read-only tools for Claude, Cursor or any agent: overview, performance, wasted spend, period comparison, contact journeys (emails masked). |
 | **Teams & agencies** | Organizations with many workspaces (one per brand or client), invitations, roles (Owner, Admin, Analyst, Viewer, Client) and an audit log. Clients see only their own workspace. |
@@ -171,7 +172,10 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 - IPs are truncated before storage. The pixel honors `adledger.consent(false)`, Global Privacy Control and optional Do-Not-Track, and can wait for consent before storing or sending anything (`data-consent="required"`, for EU and UK visitors). Its cookie lasts 13 months.
 - Conversions sent back to Meta and Google carry consent signals (Google `adUserData`/`adPersonalization`, Meta Limited Data Use for GPC visitors); people who said no are never uploaded.
 - Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
-- API keys and sessions are stored hashed. The MCP server is read-only.
+- API keys and sessions are stored hashed. API keys carry scopes (read-only reports by default). The MCP server is read-only.
+- Free two-factor sign-in (authenticator app + recovery codes), which owners can require for everyone; session list with sign-out everywhere and idle timeouts.
+- Viewers and clients see masked contact emails; revealing one is logged. The audit log is hash-chained so edits show up when you verify it, and security events (new API key, role change, bulk export, new-device sign-in) alert your team.
+- Honest trust page: [docs/SECURITY.md](docs/SECURITY.md). No certification badges; what AdLedger does and doesn't do, named precisely.
 - Your data is yours: export contacts as CSV, download the whole workspace as JSON (Settings → Workspace), and set a retention period for raw website events.
 - Erasure and access requests (GDPR/CCPA): **Delete contact** / **Export data** on a contact, or `DELETE /api/v1/contacts/{id}` and `GET /api/v1/contacts/{id}/export` with an API key. Erasure removes the email everywhere and keeps the revenue anonymously, so totals don't change.
 - Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.

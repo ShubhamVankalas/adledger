@@ -40,6 +40,12 @@ export const EVENTS: EventDef[] = [
   { event: "sync_failed", label: "Sync failed", description: "An ad platform or payment sync returned an error.", defaults: {} },
   { event: "new_customer", label: "New customer", description: "Someone paid for the first time, with the ad that brought them.", defaults: {} },
   { event: "big_payment", label: "Large payment", description: "A single payment at or above a threshold.", defaults: { threshold: 1000 } },
+  {
+    event: "security_alert",
+    label: "Security alert",
+    description: "A new API key, a role change, two-factor sign-in turned off, a bulk export, a contact erasure or a sign-in from a new device.",
+    defaults: {},
+  },
 ];
 
 export function appUrl(path: string) {

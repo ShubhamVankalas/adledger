@@ -15,7 +15,7 @@ import { TOUCH_TARGETS } from "./touch";
  * Resize an image to a MEDIA_SIZE square in the browser.
  * `cover` crops to the centre (profile pictures); `contain` fits it with transparent padding (logos).
  */
-async function toSquare(file: File, fit: "cover" | "contain"): Promise<Blob> {
+async function toSquare(file: File, fit: "cover" | "contain"): Promise<{ blob: Blob; png: Blob | null }> {
   const bitmap = await createImageBitmap(file);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = MEDIA_SIZE;
@@ -35,11 +35,12 @@ async function toSquare(file: File, fit: "cover" | "contain"): Promise<Blob> {
   bitmap.close();
   const encode = (type: string, quality?: number) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
   const webp = await encode("image/webp", 0.9);
+  // PDF reports embed only PNG/JPEG, so logos (contain) always get a PNG copy as well.
+  const png = fit === "contain" || webp?.type !== "image/webp" ? await encode("image/png") : null;
   // Browsers without a WebP encoder silently return PNG (or null): use PNG then.
-  if (webp?.type === "image/webp") return webp;
-  const png = await encode("image/png");
+  if (webp?.type === "image/webp") return { blob: webp, png };
   if (!png) throw new Error("encode failed");
-  return png;
+  return { blob: png, png: null };
 }
 
 export function ImageUpload({
@@ -80,8 +81,9 @@ export function ImageUpload({
     if (file.size > MAX_SOURCE_BYTES) return void toast.error("That image is too large. Use one under 2 MB.");
     start(async () => {
       let blob: Blob;
+      let png: Blob | null;
       try {
-        blob = await toSquare(file, fit);
+        ({ blob, png } = await toSquare(file, fit));
       } catch {
         toast.error("Couldn’t read that image. Try another file.");
         return;
@@ -89,6 +91,7 @@ export function ImageUpload({
       setLocal(URL.createObjectURL(blob));
       const form = new FormData();
       form.set("file", new File([blob], blob.type === "image/webp" ? "image.webp" : "image.png", { type: blob.type }));
+      if (png) form.set("png", new File([png], "image.png", { type: "image/png" }));
       const r = await upload(form);
       if (r.ok) toast.success(r.message ?? "Saved");
       else {

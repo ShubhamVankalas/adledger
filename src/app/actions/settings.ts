@@ -8,6 +8,7 @@ import { fail, guard, ok, run, str, type ActionResult } from "@/lib/actions";
 import { generateReport, getLlmConfig, languageModel, LLM_PROVIDERS } from "@/lib/ai/report";
 import { recomputeAttribution } from "@/lib/attribution";
 import { audit, createApiKey } from "@/lib/auth";
+import { parseScopes } from "@/lib/security/scopes";
 import { getIntegration } from "@/lib/connectors/registry";
 import { ensureStripeWebhook } from "@/lib/connectors/stripe";
 import { checkOutboundUrl } from "@/lib/net";
@@ -233,9 +234,15 @@ export async function testAiAction(): Promise<ActionResult> {
 export async function createApiKeyAction(form: FormData): Promise<ActionResult> {
   return run(async () => {
     const user = await guard("apikeys.manage");
-    const name = str(form, "name") || "MCP";
-    const { key } = await createApiKey(user.workspace.id, name);
-    await audit(user, "api_key.created", name);
+    const name = (str(form, "name") || "API key").slice(0, 80);
+    const scopes = parseScopes(form.getAll("scope"));
+    // Handing out raw contact emails needs the same right in the dashboard.
+    if (scopes.includes("contacts:pii") && !user.can("export.contacts")) return fail("Only owners and admins can create keys that read contact emails.");
+    const days = Number(str(form, "expiresDays") || "0");
+    if (![0, 30, 90, 365].includes(days)) return fail("Pick when the key expires from the list.");
+    const expiresAt = days ? new Date(Date.now() + days * 86_400_000) : null;
+    const { key } = await createApiKey(user.workspace.id, name, scopes, expiresAt);
+    await audit(user, "api_key.created", name, { scopes, expiresDays: days || null });
     revalidatePath("/settings", "layout");
     return ok("Key created. Copy it now — it won't be shown again.", { key });
   });

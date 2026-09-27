@@ -3,7 +3,7 @@ import { creditsFor, MODELS } from "./attribution";
 import { rows, schema, type DB } from "./db";
 import { log } from "./log";
 import { currencyExponent } from "./money";
-import { listContacts } from "./reports";
+import { listContacts, maskEmail } from "./reports";
 import { getConnection, saveConnection, type Workspace } from "./settings";
 
 // Privacy & data ownership: contact CSV export, right-to-erasure, subject-access export,
@@ -80,19 +80,24 @@ export function minorToDecimal(minor: number, exponent: number): string {
 
 const CSV_PAGE = 1000;
 
-/** Every contact matching the filter (same filter as the Contacts page), as CSV lines. */
-export async function* contactsCsv(db: DB, ws: Workspace, filter: ContactFilter): AsyncGenerator<string> {
+/**
+ * Every contact matching the filter (same filter as the Contacts page), as CSV lines.
+ * `maskEmails` writes "p•••@gmail.com" instead of the address (callers without contact PII
+ * access); `counter.rows` is updated as rows are written (for the audit entry and bulk alerts).
+ */
+export async function* contactsCsv(db: DB, ws: Workspace, filter: ContactFilter, opts: { maskEmails?: boolean; counter?: { rows: number } } = {}): AsyncGenerator<string> {
   const exp = currencyExponent(ws.reportingCurrency);
   yield `${CONTACT_CSV_COLUMNS.join(",")}\r\n`;
   for (let offset = 0; ; offset += CSV_PAGE) {
-    const { rows: page } = await listContacts(db, ws, { ...filter, limit: CSV_PAGE, offset });
+    const { rows: page } = await listContacts(db, ws, { ...filter, limit: CSV_PAGE, offset, piiSearch: !opts.maskEmails });
     if (page.length === 0) return;
+    if (opts.counter) opts.counter.rows += page.length;
     yield page
       .map(
         (c) =>
           [
             c.id,
-            c.email,
+            opts.maskEmails ? maskEmail(c.email) : c.email,
             c.name,
             c.lifecycle,
             c.firstSeenAt,
@@ -380,6 +385,8 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "alert_events" },
   { table: "share_links", omit: ["token_hash"] },
   { table: "ask_messages" },
+  { table: "report_schedules" },
+  { table: "export_log" },
   { table: "audit_log" },
 ];
 

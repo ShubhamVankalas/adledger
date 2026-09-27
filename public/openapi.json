@@ -4,7 +4,7 @@
     "title": "AdLedger API",
     "version": "0.1.0",
     "summary": "Self-hosted ad attribution: which ad actually made you money.",
-    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. A dashboard session cookie also works for same-origin calls. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
+    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -36,6 +36,10 @@
     {
       "name": "Search",
       "description": "Find contacts, campaigns, ad sets and ads by name (powers the dashboard's ⌘K palette)."
+    },
+    {
+      "name": "Live",
+      "description": "Real-time activity for the dashboard's Live view: counters, a feed of visits, leads and payments, and the sidebar pulse."
     },
     {
       "name": "Privacy",
@@ -130,7 +134,7 @@
         ],
         "operationId": "getReport",
         "summary": "Run a report",
-        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform.",
+        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform. API keys need `reports:read`.",
         "parameters": [
           {
             "name": "report",
@@ -237,6 +241,104 @@
         }
       }
     },
+    "/api/v1/reports/{report}/pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getReportPdf",
+        "summary": "Download a PDF report",
+        "description": "Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape) or `wasted-spend`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.",
+        "parameters": [
+          {
+            "name": "report",
+            "in": "path",
+            "required": true,
+            "description": "Which report.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "executive-summary",
+                "weekly-performance",
+                "attribution-models",
+                "ltv-cohorts",
+                "wasted-spend"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "First day, YYYY-MM-DD (workspace timezone). Omit start and end for the report's default range ending on the latest day with data.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "description": "Last day, inclusive, YYYY-MM-DD. At most two years after start.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "linear"
+            }
+          },
+          {
+            "name": "compare",
+            "in": "query",
+            "required": false,
+            "description": "Compare with the previous period of equal length (executive summary and weekly performance).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "previous",
+                "none"
+              ],
+              "default": "previous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The PDF (`Cache-Control: private, no-store`). `X-Export-Id` and `X-Report-Fingerprint` identify this export.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/contacts": {
       "get": {
         "tags": [
@@ -244,7 +346,7 @@
         ],
         "operationId": "listContacts",
         "summary": "List contacts",
-        "description": "Leads and customers, newest first. Returns raw emails: treat responses as personal data.",
+        "description": "Leads and customers, newest first. API keys need `contacts:read`. Emails are masked (`p•••@gmail.com`, `emailsMasked: true`) unless the key has `contacts:pii` or the member's role may see contact PII (owner, admin, analyst). Without that, `search` matches names and complete email addresses only.",
         "parameters": [
           {
             "name": "search",
@@ -335,7 +437,7 @@
         ],
         "operationId": "getContactJourney",
         "summary": "Contact journey",
-        "description": "Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives.",
+        "description": "Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives. API keys need `contacts:read`; the email is masked unless the caller may see contact PII.",
         "parameters": [
           {
             "name": "id",
@@ -457,6 +559,110 @@
         }
       }
     },
+    "/api/v1/live": {
+      "get": {
+        "tags": [
+          "Live"
+        ],
+        "operationId": "streamLive",
+        "summary": "Live activity stream (Server-Sent Events)",
+        "description": "A `text/event-stream` for the dashboard's Live view. Dashboard session only (any role that can view reports); API keys get 403. Events: `feed` (`{ items: LiveFeedItem[], reset?: true }`, with the resume cursor as the event `id`), `snapshot` (the live counters: visitors in the last 5 minutes, today so far vs the same time yesterday in the workspace timezone, today and yesterday by hour, top pages and sources in the last 30 minutes), `end` (`{ reason: \"signed_out\" | \"busy\" }`) and a `: ping` comment every 15 seconds. Reconnects resume from the `Last-Event-ID` header (sent automatically by `EventSource`) or `?after=<cursor>`; a cursor older than 10 minutes starts a fresh feed. Streams are recycled every 15 minutes and closed when the session ends. Payloads carry counts, amounts and masked labels (initials or `p•••@gmail.com`), never an email address, phone number or full name; paths have no query string. Rate limit: 60 connections per minute per user.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "description": "Resume cursor (the `id` of the last `feed` event, an ISO timestamp with microseconds). Ignored when malformed.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events: `feed`, `snapshot`, `end` and `: ping` heartbeats."
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/live/pulse": {
+      "get": {
+        "tags": [
+          "Live"
+        ],
+        "operationId": "getLivePulse",
+        "summary": "Today's revenue and visitors now",
+        "description": "Net revenue so far today (payments minus refunds in the reporting currency, local day in the workspace timezone) and distinct visitors on the site in the last 5 minutes. Cheap enough to poll (the dashboard sidebar polls every 30 seconds). Rate limit: 240 requests per minute per workspace.",
+        "responses": {
+          "200": {
+            "description": "The pulse.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "revenueMinor",
+                    "visitorsNow",
+                    "currency",
+                    "asOf"
+                  ],
+                  "properties": {
+                    "revenueMinor": {
+                      "type": "integer",
+                      "description": "Integer minor units (cents, paise…) in `currency`."
+                    },
+                    "visitorsNow": {
+                      "type": "integer",
+                      "description": "Distinct visitors with any pixel event in the last 5 minutes."
+                    },
+                    "currency": {
+                      "type": "string",
+                      "description": "The workspace's reporting currency (ISO 4217)."
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/contacts/{id}": {
       "delete": {
         "tags": [
@@ -464,7 +670,7 @@
         ],
         "operationId": "eraseContact",
         "summary": "Erase a contact",
-        "description": "Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key, or a dashboard session with `workspace.data` (owners and admins).",
+        "description": "Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key with `ingest:write`, or a dashboard session with `workspace.data` (owners and admins).",
         "parameters": [
           {
             "name": "id",
@@ -538,7 +744,7 @@
         ],
         "operationId": "exportContact",
         "summary": "Export a contact",
-        "description": "Subject-access request: everything stored about one contact, as a JSON download. API key, or a dashboard session with `reports.export`.",
+        "description": "Subject-access request: everything stored about one contact, raw email included, as a JSON download. API key with `contacts:pii`, or a dashboard session with `export.contacts` (owners and admins).",
         "parameters": [
           {
             "name": "id",
@@ -578,6 +784,96 @@
         }
       }
     },
+    "/api/v1/exports/audit": {
+      "get": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "exportAuditLog",
+        "summary": "Export the audit log",
+        "description": "The organization's audit log as a streamed CSV download, newest first, with each entry's `seq`, `prev_hash` and `hash` so the tamper-evident chain can be checked outside AdLedger. Accepts the same filters as the audit log page. Dashboard session only, with `audit.view` and `export.csv` (owners and admins); API keys get 403. The export itself is logged.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Kind of activity.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "signin",
+                "security",
+                "members",
+                "data",
+                "settings",
+                "integrations"
+              ]
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "description": "A member's user id, or `system` for entries without a member (API keys, jobs).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "How far back to go.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d",
+                "90d",
+                "all"
+              ],
+              "default": "90d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV (attachment).",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/exports/contacts": {
       "get": {
         "tags": [
@@ -585,7 +881,7 @@
         ],
         "operationId": "exportContactsCsv",
         "summary": "Export contacts as CSV",
-        "description": "The Contacts list (optionally filtered) as a streamed CSV download. API key, or a dashboard session with `reports.export`.",
+        "description": "The Contacts list (optionally filtered) as a streamed CSV download. API key with `contacts:read`, or a dashboard session with `export.csv`. Emails are raw only for keys with `contacts:pii` and members with `export.contacts` (owners, admins); everyone else gets them masked. Exports of more than 1,000 rows raise a security alert.",
         "parameters": [
           {
             "name": "q",
@@ -678,7 +974,7 @@
         ],
         "operationId": "syncProvider",
         "summary": "Sync a connector now",
-        "description": "Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`.",
+        "description": "Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`. API keys need `ingest:write`.",
         "parameters": [
           {
             "name": "provider",
@@ -732,7 +1028,7 @@
         ],
         "operationId": "pushSpend",
         "summary": "Push ad spend",
-        "description": "Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request.",
+        "description": "Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request. API keys need `ingest:write`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -795,7 +1091,7 @@
         ],
         "operationId": "pushConversions",
         "summary": "Push payments, refunds and leads",
-        "description": "Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request.",
+        "description": "Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request. API keys need `ingest:write`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1808,7 +2104,7 @@
         ],
         "operationId": "mcpGet",
         "summary": "MCP event stream (not supported)",
-        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1824,7 +2120,7 @@
         ],
         "operationId": "mcp",
         "summary": "MCP endpoint (Streamable HTTP)",
-        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.",
+        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own. API keys need the `mcp` scope.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1863,7 +2159,7 @@
         ],
         "operationId": "mcpDelete",
         "summary": "End an MCP session (not supported)",
-        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1988,7 +2284,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "al_...",
-        "description": "API key from Settings → API & MCP."
+        "description": "API key from Settings → API & MCP. Limited to its scopes (see the introduction)."
       },
       "sessionCookie": {
         "type": "apiKey",

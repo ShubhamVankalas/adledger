@@ -97,14 +97,17 @@ describe("REST API permissions", () => {
     });
   const ctxNone = { params: Promise.resolve({}) } as never;
 
-  it("dashboard sessions need the right role to write, API keys hold the workspace's API", async () => {
+  it("dashboard sessions need the right role to write, API keys need the right scope", async () => {
     const viewer = `${SESSION_COOKIE}=${await sessionToken(users.viewer!.id)}`;
     expect((await spend(spendReq({ cookie: viewer, origin: "http://app.test" }), ctxNone)).status).toBe(403);
     const analyst = `${SESSION_COOKIE}=${await sessionToken(users.analyst!.id)}`;
     expect((await spend(spendReq({ cookie: analyst, origin: "http://app.test" }), ctxNone)).status).toBe(403);
     const admin = `${SESSION_COOKIE}=${await sessionToken(users.admin!.id)}`;
     expect((await spend(spendReq({ cookie: admin, origin: "http://app.test" }), ctxNone)).status).toBe(200);
-    const { key } = await createApiKey(ws.id, "sec");
+    // New keys are read-only; writing needs the ingest:write scope.
+    const { key: readOnly } = await createApiKey(ws.id, "sec-read");
+    expect((await spend(spendReq({ authorization: `Bearer ${readOnly}` }), ctxNone)).status).toBe(403);
+    const { key } = await createApiKey(ws.id, "sec", ["ingest:write"]);
     expect((await spend(spendReq({ authorization: `Bearer ${key}` }), ctxNone)).status).toBe(200);
   });
 
@@ -128,7 +131,7 @@ describe("REST API permissions", () => {
   });
 
   it("rate limits the sync endpoint per workspace", async () => {
-    const { key } = await createApiKey(ws.id, "sync");
+    const { key } = await createApiKey(ws.id, "sync", ["ingest:write"]);
     const call = () =>
       sync(new Request("http://app.test/api/v1/sync/nope", { method: "POST", headers: { authorization: `Bearer ${key}` } }), {
         params: Promise.resolve({ provider: "nope" }),

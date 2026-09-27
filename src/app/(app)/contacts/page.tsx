@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { channelLabel, moneyWhole, num } from "@/lib/format";
-import { listContacts, type ContactRow } from "@/lib/reports";
+import { listContacts, maskEmail, type ContactRow } from "@/lib/reports";
 import { cn } from "@/lib/utils";
+import { Email, RevealProvider, RevealToggle } from "./reveal";
 
 export const metadata = { title: "Contacts" };
 const PAGE = 50;
@@ -24,17 +25,23 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
   const user = await requireUser();
   const ws = user.workspace;
   const canSetup = user.can("workspace.settings");
+  // Emails are masked on screen for everyone; members with contacts.pii can reveal them (audited)
+  // and search by any part of an address. Others match names and exact emails only.
+  const pii = user.can("contacts.pii");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
   const lifecycle = sp.lifecycle === "lead" || sp.lifecycle === "customer" ? sp.lifecycle : undefined;
   const page = Math.max(1, Math.floor(Number(sp.page)) || 1);
   const db = await getDb();
-  const { rows, total } = await listContacts(db, ws, {
+  const result = await listContacts(db, ws, {
     search: q,
     lifecycle,
     limit: PAGE,
     offset: (page - 1) * PAGE,
+    piiSearch: pii,
   });
+  const total = result.total;
+  const rows = result.rows.map((c) => ({ ...c, email: maskEmail(c.email) }));
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const link = (patch: Record<string, string | undefined>) => {
     const next = new URLSearchParams(
@@ -60,10 +67,17 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
   const revenue = (c: ContactRow) => (c.revenueMinor ? moneyWhole(c.revenueMinor, ws.reportingCurrency) : "—");
 
   return (
-    <>
+    <RevealProvider ids={rows.filter((c) => c.email).map((c) => c.id)} canReveal={pii}>
       <PageHeader title="Contacts" description="Every lead and customer, with the journey that brought them in">
-        {user.can("reports.export") && total > 0 ? (
-          <Button variant="outline" size="sm" className="h-10 sm:h-7" render={<a href={exportHref} download />}>
+        {rows.some((c) => c.email) ? <RevealToggle /> : null}
+        {user.can("export.csv") && total > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 sm:h-7"
+            title={user.can("export.contacts") ? undefined : "Emails are masked in your export"}
+            render={<a href={exportHref} download />}
+          >
             <DownloadIcon /> Export <span className="max-sm:sr-only">CSV</span>
           </Button>
         ) : null}
@@ -78,7 +92,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                 type="search"
                 name="q"
                 defaultValue={q}
-                placeholder="Search by email or name…"
+                placeholder={pii ? "Search by email or name…" : "Search by name or full email…"}
                 aria-label="Search contacts"
                 enterKeyHint="search"
                 autoComplete="off"
@@ -146,7 +160,11 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                     <EmptyTitle className="break-words">
                       No {noun}s match “{q}”
                     </EmptyTitle>
-                    <EmptyDescription>Search looks at names and email addresses. Check the spelling or try part of the email.</EmptyDescription>
+                    <EmptyDescription>
+                      {pii
+                        ? "Search looks at names and email addresses. Check the spelling or try part of the email."
+                        : "Search looks at names, and at email addresses typed in full. Check the spelling."}
+                    </EmptyDescription>
                   </>
                 ) : total > 0 ? (
                   <>
@@ -204,14 +222,10 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                       <Avatar c={c} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-3">
-                          <span className="truncate font-medium">{c.name || c.email || "Anonymous"}</span>
+                          <span className="truncate font-medium">{c.name || (c.email ? <Email id={c.id} masked={c.email} /> : "Anonymous")}</span>
                           {c.revenueMinor ? <span className="tabular shrink-0 text-sm font-medium">{revenue(c)}</span> : null}
                         </div>
-                        {c.name && c.email ? (
-                          <div className="truncate text-xs text-muted-foreground" translate="no">
-                            {c.email}
-                          </div>
-                        ) : null}
+                        {c.name && c.email ? <Email id={c.id} masked={c.email} className="block truncate text-xs text-muted-foreground" /> : null}
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           <LifecycleBadge lifecycle={c.lifecycle} />
                           <span className="min-w-0 truncate">{ft.primary ?? "No tracked touchpoint"}</span>
@@ -249,12 +263,8 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                           >
                             <Avatar c={c} />
                             <span className="min-w-0">
-                              <span className="block truncate font-medium">{c.name || c.email || "Anonymous"}</span>
-                              {c.name && c.email ? (
-                                <span className="block truncate text-xs text-muted-foreground" translate="no">
-                                  {c.email}
-                                </span>
-                              ) : null}
+                              <span className="block truncate font-medium">{c.name || (c.email ? <Email id={c.id} masked={c.email} /> : "Anonymous")}</span>
+                              {c.name && c.email ? <Email id={c.id} masked={c.email} className="block truncate text-xs text-muted-foreground" /> : null}
                             </span>
                           </Link>
                         </TableCell>
@@ -316,7 +326,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
           </nav>
         ) : null}
       </PageBody>
-    </>
+    </RevealProvider>
   );
 }
 

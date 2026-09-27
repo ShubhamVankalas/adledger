@@ -44,5 +44,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: APP_VERSION=${{ github.ref_name }}
+          # SBOM and SLSA provenance attestations are attached to the image in the registry
+          # (docker buildx imagetools inspect ghcr.io/<owner>/adledger:<tag> --format '{{ json .SBOM }}').
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max

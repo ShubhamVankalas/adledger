@@ -2,7 +2,8 @@
 //
 // Images are stored in the database (users.avatar, organizations.logo) so installs need no
 // volume or object store. The browser crops and resizes to a 256px square before upload;
-// the server re-checks everything here and never trusts the declared type.
+// the server re-checks everything here and never trusts the declared type. Logos also get a
+// PNG copy (organizations.logo_png) for PDF reports.
 
 export const MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type MediaType = (typeof MEDIA_TYPES)[number];
@@ -37,6 +38,23 @@ export async function validateImageUpload(file: FormDataEntryValue | null): Prom
   const type = sniffImageType(bytes);
   if (!type || type !== file.type) return { ok: false, message: "That file isn't a valid PNG, JPG or WebP image." };
   return { ok: true, bytes, type };
+}
+
+/**
+ * The PNG copy of an organization logo sent next to the main image (PDF reports read only PNG or
+ * JPEG, and the browser usually uploads WebP). Optional: returns null when absent or not a real
+ * PNG, and the caller falls back to the main image when that is PNG/JPEG.
+ */
+export async function validatePngCopy(file: FormDataEntryValue | null): Promise<Uint8Array | null> {
+  if (!file || typeof file === "string" || file.size === 0 || file.size > MAX_STORED_BYTES) return null;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return sniffImageType(bytes) === "image/png" ? bytes : null;
+}
+
+/** PNG/JPEG bytes react-pdf can embed for a logo: the PNG copy, else the original if it's PNG/JPEG. */
+export function pdfLogoBytes(png: Uint8Array | null, original: Uint8Array | null, originalType: string | null): Uint8Array | null {
+  if (png) return png;
+  return original && (originalType === "image/png" || originalType === "image/jpeg") ? original : null;
 }
 
 /** Cache-busting URL of a stored image, or null when there is none. */

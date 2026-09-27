@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // Lets phones/tablets on the same Wi-Fi open the dev server (pnpm dev) by LAN IP.
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*", "172.*.*.*"],
-  serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer"],
+  serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer", "@react-pdf/renderer"],
+  // Read at runtime: the password policy list and the PDF report fonts. Ship them in the standalone output.
+  outputFileTracingIncludes: { "/*": ["./src/lib/security/common-passwords.txt", "./src/lib/pdf/fonts/**/*"] },
   // CSV uploads in Settings → Import data.
   experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {

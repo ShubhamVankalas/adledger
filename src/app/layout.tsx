@@ -3,6 +3,7 @@ import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+import "./print.css";
 
 export const metadata: Metadata = {
   title: { default: "AdLedger", template: "%s · AdLedger" },

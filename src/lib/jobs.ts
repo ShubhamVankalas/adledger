@@ -40,17 +40,26 @@ export function requestAttribution(workspaceId: string) {
 
 type Scheduled = { name: string; everyMs: number; run: () => Promise<unknown> };
 
-const HOUR_MS = 3_600_000;
-
 /**
- * Jobs every install runs, appended to the list boot passes in. Modules are imported lazily so
- * jobs.ts stays free of import cycles (alerts → notify → reports).
+ * Jobs that always run alongside the ones boot() passes in. Their modules load lazily so the
+ * PDF renderer stays out of every request path that imports this file (and jobs.ts stays free of
+ * import cycles: alerts → notify → reports).
  */
 export const BUILTIN_JOBS: Scheduled[] = [
   {
+    // Reports → Schedule: render due PDF reports and email them (one at a time).
+    name: "report-schedules",
+    everyMs: 3_600_000,
+    run: async () => {
+      const { runDueReportSchedules } = await import("./report-kinds/schedules");
+      const ran = await runDueReportSchedules(await getDb());
+      if (ran) log.info(`scheduled reports: ${ran} delivered or skipped`);
+    },
+  },
+  {
     // Insights → Alerts: threshold rules and anomaly detection over the last complete days.
     name: "alerts",
-    everyMs: HOUR_MS,
+    everyMs: 3_600_000,
     run: async () => (await import("./alerts")).runAlertsAll(),
   },
 ];
@@ -64,11 +73,11 @@ export function requestAlertCheck(workspaceId: string) {
   });
 }
 
-/** Start interval jobs (plus BUILTIN_JOBS); each tick takes a cluster-wide advisory lock. */
+/** Start interval jobs; each tick takes a cluster-wide advisory lock. */
 export function startScheduler(jobs: Scheduled[]) {
   if (g.__adledgerScheduler) return;
-  const all = [...jobs, ...BUILTIN_JOBS.filter((b) => !jobs.some((j) => j.name === b.name))];
-  g.__adledgerScheduler = all.map((job) => {
+  jobs = [...jobs, ...BUILTIN_JOBS.filter((b) => !jobs.some((j) => j.name === b.name))];
+  g.__adledgerScheduler = jobs.map((job) => {
     const tick = async () => {
       try {
         const db = await getDb();
@@ -90,5 +99,5 @@ export function startScheduler(jobs: Scheduled[]) {
     handle.unref?.();
     return handle;
   });
-  log.info(`scheduler started: ${all.map((j) => j.name).join(", ")}`);
+  log.info(`scheduler started: ${jobs.map((j) => j.name).join(", ")}`);
 }

@@ -34,13 +34,13 @@ export function AcceptInviteForm({ token, mode, email }: { token: string; mode: 
             label="Choose a password"
             htmlFor="inv-pw"
             error={e.password}
-            hint="At least 8 characters. You’ll sign in with the email above."
+            hint="At least 15 characters; a few unrelated words work well. You’ll sign in with the email above."
           >
             <PasswordInput
               id="inv-pw"
               name="password"
               autoComplete="new-password"
-              minLength={8}
+              minLength={15}
               required
               aria-invalid={e.password ? true : undefined}
               aria-describedby={describedBy("inv-pw", e.password, true)}

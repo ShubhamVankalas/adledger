@@ -136,6 +136,10 @@ and times), `alert_events` (history: triggered|resolved, title, detail, value, p
 `share_links` (SHA-256 of the token, label, page, locked filters jsonb, expires_at, revoked_at, view_count,
 last_viewed_at, created_by), `ask_messages` (per-user Ask history: role, content, the SQL result tables it
 cites, unverified numbers, model name).
+**Reports** — `report_schedules` (report kind, params {model, compare}, weekly/monthly cadence, weekday,
+local hour, recipients {all | user ids}, skip_empty, last run status), `export_log` (one row per PDF:
+user / API key / schedule id, kind, params, unique fingerprint, data hash, bytes, pages, recipients,
+status — ids only, no personal data). `organizations.logo_png` holds the PNG copy of the logo for PDFs.
 
 ## 5. Key flows
 
@@ -189,6 +193,23 @@ are inclusive and use the workspace timezone for day boundaries. `reports-advanc
 `model-comparison` (first-touch vs last-touch vs linear revenue/ROAS per campaign, with each
 campaign flagged as a journey starter or closer) and `ltv` (first-payment-month cohorts with
 monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
+
+**Analysis depth.** `src/lib/reports-analysis.ts` (SQL, workspace timezone, integer minor units) feeds
+the Attribution → Paths and Time to convert tabs and the Customers → Cohorts and Payback tabs, plus
+two Overview widgets: `attributionPaths` (ordered channel/platform sequences inside the attribution
+window before a first payment or first lead, repeats collapsed, with revenue to date, median days and
+touches), `timeToConvert` (first touch → lead → payment lags with median/p80/p90 and buckets, touches
+to convert, cross-device share, per-campaign lags and a recommended window = smallest round window
+covering 90% of first touch → payment lags, only from 20 customers), `modelDisagreement` (dumbbell data
+per campaign from `modelComparison`), `cohortRetention` + `cohortAverages` (monthly acquisition cohorts:
+retention %, cumulative LTV, revenue per month, CAC payback month; months that have not happened are
+`null`, not 0), `paybackByChannel` (credit-weighted LTV at day 0–365 over matured customers only, CAC =
+platform spend ÷ credited customers, interpolated payback day, repeat and refund rates), `funnel`
+(visitors → leads → customers → revenue, with the previous or last-year period) and `conversionsHeatmap`
+(weekday × hour). The UI lives in `src/components/analysis/**` (hand-built HTML/SVG charts except the
+LTV curve, which uses Recharts); tab rows carry the period and filters between tabs. Tests check the SQL on
+a hand-computed ledger (incl. Asia/Kolkata bounds and workspace isolation) and cross-check every function
+against direct SQL on the demo data.
 
 **AI insights.** `ai/facts.ts` builds a JSON facts pack (current vs previous period, top and
 wasted campaigns, biggest movers, channel mix) with pre-formatted figures (whole-unit money, signed
@@ -341,6 +362,21 @@ between loading, empty, error and data.
   workspace default also needs `workspace.settings`) and `audit()`; saves carry the row version and a
   stale save is rejected instead of overwriting a teammate's change.
 
+**PDF reports.** `@react-pdf/renderer` renders on the server (pure JS, no Chromium, listed in
+`serverExternalPackages`); charts are drawn with react-pdf `<Svg>` primitives by the in-house kit in
+`src/lib/pdf/charts/` (nice-tick scales, line, bars, combo, donut, funnel, heatmap, waterfall, bullet,
+slope, sparkline). Report kinds live in the `src/lib/report-kinds/` registry: each declares its meta,
+a `load(db, ws, params)` that calls only `reports*.ts`, and a react-pdf body. `generateReportPdf`
+loads the data, fingerprints it (SHA-256 over kind, params, data, export id, exporter and time),
+renders the shared frame (masthead with the org logo from `organizations.logo_png`, cover,
+methodology appendix, "Prepared for …" watermark and "n / total" on every page) and writes one
+`export_log` row (ids only). `GET /api/v1/reports/{kind}/pdf` (session `reports.pdf` or API key)
+runs behind an in-process limiter (2 renders at once, 2 queued, then 429). `/verify` looks a
+fingerprint up and shows only kind, workspace, period and issue date. `report_schedules` are run by
+the hourly `report-schedules` job (`BUILTIN_JOBS` in `jobs.ts`) and emailed with the PDF attached.
+Fonts ship in `src/lib/pdf/fonts/` (OFL). `src/app/print.css` makes Ctrl+P print light, without
+navigation. Details: [REPORTS.md](REPORTS.md).
+
 **Notifications.** `src/lib/notify` delivers events (weekly report, KPI digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
 events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
@@ -402,6 +438,27 @@ case-insensitive substring on `lower(name)` with a small `LIMIT` per kind, exact
 (`localStorage`, per workspace, bare emails masked). `?question` hands off to Insights → Ask through
 `sessionStorage` (`adledger:ask-draft`), not the URL.
 
+**Live.** `/live` shows visitors in the last 5 minutes, today so far vs the same time yesterday (local day
+in the workspace timezone; spend, reported per day by the platforms, compares against yesterday's total ×
+the share of the day passed), today vs yesterday by hour, a feed of ad clicks, visits (session starts),
+leads, payments and refunds, and the top pages and sources of the last 30 minutes. Every number is SQL in
+`src/lib/reports-live.ts`. Transport is Server-Sent Events from the same Node process:
+`GET /api/v1/live` (dashboard session, any role with `reports.view`) subscribes to a per-workspace hub in
+`src/lib/live.ts` that polls the database every 2 s while anyone is watching (indexed, `created_at`-cursor
+queries with a 10 s look-back for late commits, de-duplicated by key; counters refresh every 10 s, sooner
+after new activity), so it works unchanged with several app instances and needs no pub/sub service.
+`nudgeLive(workspaceId)` asks for an immediate poll from ingest paths. Streams send a heartbeat every 15 s,
+resume from `Last-Event-ID` / `?after=<cursor>`, re-check the session every minute, are recycled every
+15 minutes, and cap at 50 per workspace; the browser closes its stream 20 s after the tab is hidden and
+resumes on return. Payloads never carry an email, phone or full name: people are initials (`P. S.`) or a
+masked email (`p•••@gmail.com`, company domains fully masked), paths lose their query string, and free
+text is scrubbed of emails and long digit runs. `GET /api/v1/live/pulse` (session or API key) returns
+today's revenue and visitors now for the sidebar pulse, polled every 30 s by one shared client poller.
+Streamer mode (hide every amount) and sale toasts are per-browser preferences in `localStorage`. In a
+sample-data workspace, `src/lib/live-demo.ts` writes a gentle trickle of simulated visits, leads and sales
+(copied from the demo's own campaigns, `@example.com` people) while Live is open, so the page moves and
+still reads only SQL; it never runs for a real workspace.
+
 ## 6. Configuration
 
 All optional; see `.env.example`. Connector credentials and the AI model are configured in the
@@ -429,6 +486,51 @@ not provided). Headless installs can set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (+ `DEMO
   routes; CORS open only on the pixel endpoint.
 - Share links (`/share/[token]`): hashed 256-bit tokens, aggregates only, filters locked server-side,
   expiring and revocable, `noindex`, rate-limited, every view audited with a truncated IP.
+
+### 7.1 Trust core (`src/lib/security/`)
+
+The honest, user-facing version is [docs/SECURITY.md](SECURITY.md). Implementation map:
+
+- **Permissions.** `contacts.pii` (owner/admin/analyst) gates unmasked emails; `export.csv`,
+  `export.contacts` (owner/admin) and `reports.pdf` split exports; `security.manage` (owner) gates
+  the org policy. `policyCan()` in `security/policy.ts` narrows the role matrix by the org's
+  `organizations.security` jsonb (zod-parsed with defaults: `require2fa`, `sessionIdleMinutes`,
+  `sessionMaxDays`, `clientsCanDownloadPdf`). `SessionUser.can` uses it.
+- **Masking.** Pages always render `maskEmail()` output; `revealContactEmailsAction` returns raw
+  emails to `contacts.pii` holders and audits `contact.pii_revealed` (ids and count only). API
+  responses use `security/pii.ts` (`canSeePii(principal)`): contacts list, journey, search and the
+  contacts CSV. Without PII access, contact search matches names and whole emails only.
+- **API key scopes.** `api_keys.scopes text[]` (`reports:read` default, `mcp`, `contacts:read`,
+  `contacts:pii`, `ingest:write`), `expires_at`, `last_used_ip_trunc`. `withAuth({ scope })` and
+  `authorize(req, permission, { scope })` enforce them; `Caller.can()` maps role permissions to
+  scopes for follow-up decisions. The migration gives pre-existing keys every scope but
+  `contacts:pii`.
+- **2FA.** `security/totp.ts` (RFC 4226/6238 on `node:crypto`, base32, ±1 step, replay guard via
+  `users.totp_last_step`), `recovery.ts` (10 scrypt-hashed single-use codes), `two-factor.ts`
+  (enrol/confirm/disable; secret AES-GCM encrypted in `users.totp_secret_enc`), `mfa.ts` (signed
+  10-minute `al_mfa` challenge cookie between password and code), `qr.ts` (`uqr` → SVG path).
+  `login()` returns `{ mfa: true }` and `/login/verify` completes it. With `require2fa`, members
+  without 2FA get `needs2fa`: `requireUser` redirects to `/two-factor/setup`, `guard()` refuses,
+  and API calls with that session are unauthenticated. `ADLEDGER_BREAK_GLASS=<owner email>` resets
+  an owner's 2FA at boot (`break-glass.ts`, called from `boot.ts`).
+- **Sessions.** `sessions.ip_trunc`, `user_agent`, `last_seen_at` (stamped at most every 5 min),
+  `auth_method`. `sessionExpired()` applies the org's idle timeout and max lifetime on every
+  request. A sign-in from an unseen `deviceKey` audits `auth.new_device` (security alert) and emails
+  the member (`new-device.ts`).
+- **Passwords.** `password-policy.ts` (NIST SP 800-63B-4) with `common-passwords.txt`, traced into
+  the standalone build by `outputFileTracingIncludes` in `next.config.ts`.
+- **Audit log v2.** `audit()` → `appendAudit()` (`audit-chain.ts`): per-org `seq` + `prev_hash` +
+  `hash` = sha256(prev + canonical JSON), serialized with `pg_advisory_xact_lock`; rows written
+  before the chain existed are sealed on the next append or verify. `verifyAuditChain()` reports
+  the first broken `seq`. Filters and CSV (`/api/v1/exports/audit`, `audit.view` + `export.csv`)
+  share `audit-query.ts`.
+- **Alerts.** Actions in `ALERTING_ACTIONS` (auth.ts) raise the `security_alert` notify event via
+  `alerts.ts` (names and counts only; contact exports alert above 1,000 rows).
+- **Posture.** `posture.ts` builds the checklist on Settings → Organization → Security policy
+  (key storage, HTTPS, 2FA coverage, idle sessions, audit verify, PII keys, backups).
+- **Disclosure.** `/.well-known/security.txt` (RFC 9116, `security-txt.ts`; `SECURITY_CONTACT`
+  adds the operator's contact). CI: dependency review + `pnpm audit` on PRs, CodeQL, Trivy on the
+  image; Dependabot; SBOM + provenance on release images.
 
 ## 8. Testing
 

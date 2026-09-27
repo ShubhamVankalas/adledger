@@ -1,0 +1,209 @@
+/*
+ * Print stylesheet (Ctrl+P / ⌘P on any dashboard page). Imported once from src/app/layout.tsx,
+ * after globals.css. Prints light, without navigation or controls, keeps charts in colour and
+ * avoids splitting cards, KPI tiles and table rows across pages.
+ * Branded, fingerprinted reports come from Reports → Download PDF; this is for quick printouts.
+ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+
+  /* Always print in the light Quiet Ledger palette, whatever the screen theme: the base tokens
+     from globals.css :root (the shadcn names map onto these). Keep in sync with globals.css. */
+  :root,
+  html.dark {
+    color-scheme: light;
+    --bg: oklch(1 0 0);
+    --bg-subtle: oklch(0.972 0.004 165);
+    --surface: oklch(1 0 0);
+    --fill: oklch(0.955 0.004 165);
+    --fill-hover: oklch(0.935 0.005 165);
+    --fill-active: oklch(0.915 0.006 165);
+    --border: oklch(0.922 0.004 165);
+    --border-strong: oklch(0.86 0.006 165);
+    --fg-faint: oklch(0.62 0.01 165);
+    --fg-muted: oklch(0.5 0.012 165);
+    --fg: oklch(0.2 0.012 165);
+    --ink: oklch(0.2 0.012 165);
+    --ink-fg: oklch(0.985 0.003 165);
+    --brand: oklch(0.55 0.13 162);
+    --brand-hover: oklch(0.5 0.13 162);
+    --brand-soft: oklch(0.55 0.13 162 / 0.09);
+    --brand-fg: oklch(0.42 0.1 162);
+    --ring: oklch(0.55 0.13 162 / 0.45);
+    --positive: oklch(0.49 0.13 155);
+    --positive-soft: oklch(0.52 0.13 155 / 0.1);
+    --negative: oklch(0.55 0.19 27);
+    --negative-soft: oklch(0.55 0.19 27 / 0.09);
+    --warning: oklch(0.7 0.14 70);
+    --warning-soft: oklch(0.7 0.14 70 / 0.14);
+    --warning-fg: oklch(0.5 0.12 65);
+    --info: oklch(0.55 0.12 250);
+    --chart-revenue: oklch(0.62 0.14 160);
+    --chart-spend: oklch(0.6 0.03 250);
+    --chart-leads: oklch(0.72 0.14 70);
+    --chart-customers: oklch(0.58 0.14 265);
+    --chart-5: oklch(0.65 0.16 20);
+    --chart-grid: oklch(0.922 0.004 165);
+    --elev-hairline: none;
+    --elev-sm: none;
+    --elev-md: none;
+    --elev-lg: none;
+    --elev-card: none;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: var(--fg);
+    font-size: 11pt;
+  }
+
+  /* Charts, deltas and status dots keep their colours. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Chrome: navigation, filters, buttons and floating layers. */
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-rail"],
+  [data-slot="sidebar-trigger"],
+  [data-slot="page-header"] > :not(:has(h1)),
+  nav[aria-label],
+  [role="note"],
+  [data-sonner-toaster],
+  [data-print="hide"],
+  a[href="#main"],
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="toggle-group"],
+  [data-slot="switch"],
+  [data-slot="dropdown-menu-trigger"],
+  [role="radiogroup"],
+  select,
+  input,
+  textarea,
+  :has(> [data-slot="input"]) > svg {
+    display: none !important;
+  }
+
+  /* Content uses the full page width. */
+  [data-slot="sidebar-wrapper"],
+  [data-slot="sidebar-inset"],
+  main {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  [data-slot="page-header"] {
+    position: static !important;
+    backdrop-filter: none !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 8pt !important;
+    margin-bottom: 12pt;
+  }
+  [data-slot="page-header"] h1 {
+    font-size: 16pt;
+  }
+  [data-slot="page-header"] p {
+    display: block !important;
+  }
+
+  /* Don't split a card, a KPI tile, a chart or a table row across pages. */
+  [data-slot="card"],
+  figure,
+  svg,
+  tr,
+  li,
+  [data-print="keep"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  [data-print="break-before"] {
+    break-before: page;
+  }
+
+  /* Cards and Overview widgets print as hairline boxes on white, at their natural height (the
+     fixed on-screen heights would leave gaps or clip content on paper). */
+  [data-slot="card"],
+  [data-widget-id] {
+    background: #ffffff !important;
+    border: 1px solid var(--border);
+  }
+  /* Chart widgets keep their height: Recharts sizes itself from it. */
+  [data-widget-id]:not(:has(.recharts-responsive-container)) {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  [data-widget-id] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Recharts sizes its SVG in pixels for the screen. Let the wrapper follow the card instead, so
+     the SVG (which has a viewBox) scales to the paper width rather than being clipped. */
+  .recharts-responsive-container > div,
+  .recharts-wrapper {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+  }
+  .recharts-tooltip-wrapper,
+  .recharts-tooltip-cursor {
+    display: none !important;
+  }
+
+  /* Collapsible sections print expanded, without their chevrons. */
+  details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  summary {
+    list-style: none;
+  }
+  summary svg,
+  summary::-webkit-details-marker {
+    display: none !important;
+  }
+
+  /* Scroll containers show everything. */
+  [data-slot="table-container"],
+  [data-radix-scroll-area-viewport],
+  .overflow-auto,
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

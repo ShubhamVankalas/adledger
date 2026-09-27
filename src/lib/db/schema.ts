@@ -1,4 +1,5 @@
 import type { Platform } from "../connectors/types";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -56,8 +57,19 @@ export const organizations = pgTable("organizations", {
   logo: bytea("logo"),
   logoType: text("logo_type"),
   logoUpdatedAt: tstz("logo_updated_at"),
+  /** Organization-wide security policy (2FA requirement, session limits…), see lib/security/policy.ts. */
+  security: jsonb("security").$type<OrgSecurity>().notNull().default({}),
+  /** PNG copy of the logo for PDF reports (react-pdf reads only PNG/JPEG), written at upload. */
+  logoPng: bytea("logo_png"),
   createdAt: createdAt(),
 });
+/** Stored shape of organizations.security; every field is optional and parsed with defaults. */
+export type OrgSecurity = {
+  require2fa?: boolean;
+  sessionIdleMinutes?: number;
+  sessionMaxDays?: number;
+  clientsCanDownloadPdf?: boolean;
+};
 
 export const workspaces = pgTable("workspaces", {
   id: id(),
@@ -88,6 +100,13 @@ export const users = pgTable(
     avatar: bytea("avatar"),
     avatarType: text("avatar_type"),
     avatarUpdatedAt: tstz("avatar_updated_at"),
+    /** TOTP secret (AES-GCM, app secret). Set without totp_enabled_at = enrolment not confirmed yet. */
+    totpSecretEnc: text("totp_secret_enc"),
+    totpEnabledAt: tstz("totp_enabled_at"),
+    /** Last accepted 30-second step: a code is never accepted twice. */
+    totpLastStep: bigint("totp_last_step", { mode: "number" }),
+    /** scrypt hashes of the unused recovery codes (each works once). */
+    recoveryCodes: text("recovery_codes").array().notNull().default(sql`'{}'::text[]`),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_uq").on(t.email)],
@@ -142,9 +161,20 @@ export const auditLog = pgTable(
     action: text("action").notNull(),
     target: text("target"),
     meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+    ipTrunc: text("ip_trunc"),
+    userAgent: text("user_agent"),
+    /**
+     * Tamper-evident chain per organization: hash = sha256(prev_hash + canonical entry), see
+     * lib/security/audit-chain.ts. `refs` keeps the actor and workspace ids as written, so the
+     * hash still verifies after user_id / workspace_id are set to null by a deletion.
+     */
+    refs: jsonb("refs").$type<{ u: string | null; w: string | null }>(),
+    seq: bigint("seq", { mode: "number" }),
+    prevHash: text("prev_hash"),
+    hash: text("hash"),
     createdAt: createdAt(),
   },
-  (t) => [index().on(t.organizationId, t.createdAt)],
+  (t) => [index().on(t.organizationId, t.createdAt), uniqueIndex("audit_log_org_seq_uq").on(t.organizationId, t.seq)],
 );
 
 export const sessions = pgTable(
@@ -157,10 +187,17 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
     expiresAt: tstz("expires_at").notNull(),
+    ipTrunc: text("ip_trunc"),
+    userAgent: text("user_agent"),
+    lastSeenAt: tstz("last_seen_at"),
+    /** "password" or "password+totp" / "password+recovery". */
+    authMethod: text("auth_method"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("sessions_token_uq").on(t.tokenHash), index().on(t.userId)],
 );
+
+export type ApiScope = "reports:read" | "contacts:read" | "contacts:pii" | "ingest:write" | "mcp";
 
 export const apiKeys = pgTable(
   "api_keys",
@@ -170,7 +207,11 @@ export const apiKeys = pgTable(
     name: text("name").notNull(),
     prefix: text("prefix").notNull(),
     keyHash: text("key_hash").notNull(),
+    /** What the key may do, see lib/security/scopes.ts. New keys default to read-only reports. */
+    scopes: text("scopes").array().$type<ApiScope[]>().notNull().default(sql`'{reports:read}'::text[]`),
+    expiresAt: tstz("expires_at"),
     lastUsedAt: tstz("last_used_at"),
+    lastUsedIpTrunc: text("last_used_ip_trunc"),
     revokedAt: tstz("revoked_at"),
     createdAt: createdAt(),
   },
@@ -262,7 +303,7 @@ export const notificationRules = pgTable(
   },
   (t) => [uniqueIndex("notification_rules_uq").on(t.workspaceId, t.channel, t.event)],
 );
-export type NotificationEvent = "weekly_report" | "daily_digest" | "wasted_spend" | "sync_failed" | "new_customer" | "big_payment";
+export type NotificationEvent = "weekly_report" | "daily_digest" | "wasted_spend" | "sync_failed" | "new_customer" | "big_payment" | "security_alert";
 
 export const campaigns = pgTable(
   "campaigns",
@@ -666,7 +707,7 @@ export type AlertScope = "workspace" | "platform" | "campaign";
 /**
  * Threshold rules ("CAC above $80 over the last 2 days on Meta") and the built-in anomaly rule
  * (kind = "anomaly": z-score on daily revenue, spend and leads). Evaluated hourly by the
- * notifications job; a rule notifies once per breach and never more often than `cooldown_hours`.
+ * `alerts` job; a rule notifies once per breach and never more often than `cooldown_hours`.
  * Money thresholds are integer minor units in `threshold_minor`; ratios, counts and the anomaly
  * z-score use `threshold_value`.
  */
@@ -789,5 +830,69 @@ export const askMessages = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.workspaceId, t.userId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------- reports & exports
+
+/**
+ * Scheduled PDF reports emailed to workspace members (Reports → Schedule). The runner is the
+ * hourly `report-schedules` job in lib/jobs.ts; `hour` and `weekday` are in the workspace
+ * timezone.
+ */
+export const reportSchedules = pgTable(
+  "report_schedules",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    name: text("name").notNull(),
+    reportKind: text("report_kind").notNull(),
+    params: jsonb("params").$type<{ model: AttributionModel; compare: "previous" | "none" }>().notNull(),
+    cadence: text("cadence").$type<"weekly" | "monthly">().notNull(),
+    /** 1 = Monday … 7 = Sunday (weekly schedules). */
+    weekday: integer("weekday").notNull().default(1),
+    hour: integer("hour").notNull().default(8),
+    /** `all`: every member who can open the workspace; otherwise these user ids. */
+    recipients: jsonb("recipients").$type<{ all: boolean; userIds: string[] }>().notNull(),
+    /** Don't send when the period had no ad spend and no revenue. */
+    skipEmpty: boolean("skip_empty").notNull().default(true),
+    enabled: boolean("enabled").notNull().default(true),
+    lastRunAt: tstz("last_run_at"),
+    lastStatus: text("last_status").$type<"sent" | "skipped" | "error">(),
+    lastError: text("last_error"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId)],
+);
+
+/**
+ * One row per PDF produced (downloads, API calls, scheduled runs). IDs only, no personal data:
+ * who (user / API key / schedule), what (kind + params), when, and the fingerprint printed in
+ * the PDF footer so /verify can confirm a document came from this instance.
+ */
+export const exportLog = pgTable(
+  "export_log",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    scheduleId: uuid("schedule_id").references(() => reportSchedules.id, { onDelete: "set null" }),
+    via: text("via").$type<"session" | "api_key" | "schedule">().notNull(),
+    format: text("format").$type<"pdf">().notNull().default("pdf"),
+    reportKind: text("report_kind").notNull(),
+    params: jsonb("params").$type<Record<string, string>>().notNull().default({}),
+    /** SHA-256 over kind, params, report data, export id, exporter and issue time (unique per export). */
+    fingerprint: text("fingerprint").notNull(),
+    /** SHA-256 over kind, params and report data only (same numbers ⇒ same hash). */
+    dataHash: text("data_hash").notNull(),
+    bytes: integer("bytes").notNull().default(0),
+    pages: integer("pages"),
+    recipients: integer("recipients"),
+    status: text("status").$type<"ok" | "error">().notNull().default("ok"),
+    error: text("error"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("export_log_fingerprint_uq").on(t.fingerprint), index().on(t.workspaceId, t.createdAt)],
 );
 

@@ -1,15 +1,27 @@
-import { and, asc, count, eq, getTableColumns, gt, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, count, eq, getTableColumns, gt, isNull, lte, or, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { hashPassword, randomToken, sha256, verifyPassword } from "./crypto";
 import { getDb, schema, type DB } from "./db";
-import type { Role } from "./db/schema";
+import type { ApiScope, Role } from "./db/schema";
+import { ipFromHeaders } from "./http";
+import { log } from "./log";
 import { mediaUrl } from "./media";
-import { canAssignRole, roleCan, type Permission } from "./permissions";
+import { canAssignRole, type Permission } from "./permissions";
+import { appendAudit } from "./security/audit-chain";
+import { deviceKey, shortUserAgent, truncateIp } from "./security/device";
+import { createChallenge, MFA_COOKIE, openSecret, readChallenge } from "./security/mfa";
+import { parsePolicy, policyCan, sessionExpired, type SecurityPolicy } from "./security/policy";
+import { consumeRecoveryCode, looksLikeRecoveryCode } from "./security/recovery";
+import { DEFAULT_SCOPES } from "./security/scopes";
+import { verifyTotp } from "./security/totp";
 import type { Workspace } from "./settings";
 
 export const SESSION_COOKIE = "al_session";
-const SESSION_DAYS = 30;
+/** Upper bound for the cookie; the organization's policy (default 30 days) is enforced per request. */
+const SESSION_DAYS = 90;
+/** last_seen_at is refreshed at most this often (idle timeouts are coarse by design). */
+const TOUCH_EVERY_MS = 5 * 60_000;
 
 type Tx = Parameters<Parameters<DB["transaction"]>[0]>[0];
 type Q = DB | Tx;
@@ -20,10 +32,10 @@ function without<T extends object, K extends keyof T>(o: T, ...keys: K[]): Omit<
   for (const k of keys) delete copy[k];
   return copy;
 }
-const organizationColumns = without(getTableColumns(schema.organizations), "logo");
-const userColumns = without(getTableColumns(schema.users), "avatar", "passwordHash");
+const organizationColumns = without(getTableColumns(schema.organizations), "logo", "logoPng");
+const userColumns = without(getTableColumns(schema.users), "avatar", "passwordHash", "totpSecretEnc", "recoveryCodes", "totpLastStep");
 
-export type Organization = Omit<typeof schema.organizations.$inferSelect, "logo"> & { logoUrl: string | null };
+export type Organization = Omit<typeof schema.organizations.$inferSelect, "logo" | "logoPng"> & { logoUrl: string | null };
 export type SessionUser = {
   id: string;
   email: string;
@@ -40,6 +52,12 @@ export type SessionUser = {
   /** Every organization the user belongs to (for the organization switcher). */
   organizations: { id: string; name: string; logoUrl: string | null }[];
   can: (permission: Permission) => boolean;
+  /** Two-factor sign-in is on for this account. */
+  has2fa: boolean;
+  /** The organization requires 2FA and this account hasn't set it up: only enrolment is allowed. */
+  needs2fa: boolean;
+  /** The current organization's security policy (parsed with defaults). */
+  security: SecurityPolicy;
 };
 
 export async function hasUsers(db?: DB): Promise<boolean> {
@@ -69,11 +87,24 @@ export async function accessibleWorkspaces(db: Q, organizationId: string, worksp
   return workspaceIds ? all.filter((w) => workspaceIds.includes(w.id)) : all;
 }
 
+/** Truncated IP and user agent of the current request (nulls outside a request, e.g. in jobs). */
+export async function requestContext(): Promise<{ ip: string; ipTrunc: string | null; userAgent: string | null }> {
+  try {
+    const h = await headers();
+    const ip = ipFromHeaders(h);
+    return { ip, ipTrunc: ip === "0.0.0.0" ? null : truncateIp(ip), userAgent: shortUserAgent(h.get("user-agent")) };
+  } catch {
+    return { ip: "0.0.0.0", ipTrunc: null, userAgent: null };
+  }
+}
+
+export type AuthMethod = "password" | "password+totp" | "password+recovery" | "invite" | "setup";
+
 /**
  * Issue a fresh session token (never reuse one the browser already had: prevents session
  * fixation). Any session the browser was carrying is revoked first.
  */
-export async function startSession(userId: string, workspaceId: string) {
+export async function startSession(userId: string, workspaceId: string, authMethod: AuthMethod = "password") {
   const db = await getDb();
   const jar = await cookies();
   const previous = jar.get(SESSION_COOKIE)?.value;
@@ -82,8 +113,11 @@ export async function startSession(userId: string, workspaceId: string) {
   await db.delete(schema.sessions).where(and(eq(schema.sessions.userId, userId), lte(schema.sessions.expiresAt, new Date())));
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-  await db.insert(schema.sessions).values({ userId, workspaceId, tokenHash: sha256(token), expiresAt });
-  await db.update(schema.users).set({ lastLoginAt: new Date() }).where(eq(schema.users.id, userId));
+  const { ipTrunc, userAgent } = await requestContext();
+  const now = new Date();
+  await db.insert(schema.sessions).values({ userId, workspaceId, tokenHash: sha256(token), expiresAt, ipTrunc, userAgent, lastSeenAt: now, authMethod });
+  await db.update(schema.users).set({ lastLoginAt: now }).where(eq(schema.users.id, userId));
+  jar.delete(MFA_COOKIE);
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -114,6 +148,16 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.workspaces.organizationId))
     .where(and(eq(schema.sessions.tokenHash, sha256(token)), gt(schema.sessions.expiresAt, new Date())));
   if (!row) return null;
+  const security = parsePolicy(row.organization.security);
+  // Idle timeout and maximum lifetime come from the organization's policy.
+  if (sessionExpired(row.session, security)) {
+    await db.delete(schema.sessions).where(eq(schema.sessions.id, row.session.id));
+    return null;
+  }
+  if (Date.now() - (row.session.lastSeenAt ?? row.session.createdAt).getTime() > TOUCH_EVERY_MS) {
+    // Best effort: a failed stamp must not fail the request.
+    db.update(schema.sessions).set({ lastSeenAt: new Date() }).where(eq(schema.sessions.id, row.session.id)).catch(() => undefined);
+  }
   const [membership] = await db
     .select()
     .from(schema.memberships)
@@ -128,6 +172,7 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     .innerJoin(schema.organizations, eq(schema.organizations.id, schema.memberships.organizationId))
     .where(eq(schema.memberships.userId, row.user.id));
   const role = membership.role;
+  const has2fa = Boolean(row.user.totpEnabledAt);
   return {
     id: row.user.id,
     email: row.user.email,
@@ -139,7 +184,10 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     workspace: row.workspace,
     workspaces: workspaces.map((w) => ({ id: w.id, name: w.name, isDemo: w.isDemo })),
     organizations: organizations.map((o) => ({ id: o.id, name: o.name, logoUrl: mediaUrl("org", o.id, o.logoUpdatedAt) })),
-    can: (p) => roleCan(role, p),
+    can: (p) => policyCan(role, p, security),
+    has2fa,
+    needs2fa: security.require2fa && !has2fa,
+    security,
   };
 }
 
@@ -147,10 +195,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return userFromSessionToken((await cookies()).get(SESSION_COOKIE)?.value);
 }
 
-/** For pages: signed-in user, or redirect to /setup (fresh install) or /login. */
+/**
+ * For pages: signed-in user, or redirect to /setup (fresh install) or /login. Members of an
+ * organization that requires 2FA go to enrolment until they have set it up.
+ */
 export async function requireUser(permission?: Permission): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect((await hasUsers()) ? "/login" : "/setup");
+  if (user.needs2fa) redirect("/two-factor/setup");
   if (permission && !user.can(permission)) redirect("/?denied=1");
   return user;
 }
@@ -212,20 +264,99 @@ export function resetPasswordThrottle() {
   failures.clear();
 }
 
-export async function login(email: string, password: string, ip: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export type LoginResult = { ok: true; mfa?: boolean } | { ok: false; error: string };
+
+/**
+ * Check email + password. With 2FA on, no session is created yet: the browser gets a short-lived
+ * challenge cookie and the caller sends it to /login/verify for the code.
+ */
+export async function login(email: string, password: string, ip: string): Promise<LoginResult> {
   if (passwordAttemptsLocked(email, ip)) return { ok: false, error: "Too many attempts. Try again in a few minutes." };
   const db = await getDb();
   const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email.trim().toLowerCase()));
   const ok = user ? await verifyPassword(password, user.passwordHash) : await verifyPassword(password, DUMMY_HASH).then(() => false);
   if (!ok || !user) {
     recordPasswordFailure(email, ip);
+    if (user) await auditForUser(user.id, "auth.login_failed", { reason: "password" });
     return { ok: false, error: "Email or password is incorrect." };
   }
   clearPasswordFailures(email, ip);
   const workspaceId = await defaultWorkspaceFor(user.id);
   if (!workspaceId) return { ok: false, error: "Your account isn't part of any workspace yet. Ask an admin to invite you again." };
-  await startSession(user.id, workspaceId);
+  if (user.totpEnabledAt && user.totpSecretEnc) {
+    const jar = await cookies();
+    jar.set(MFA_COOKIE, await createChallenge(user.id), { httpOnly: true, sameSite: "lax", secure: await isHttps(), path: "/", maxAge: 600 });
+    return { ok: true, mfa: true };
+  }
+  await completeSignIn(user.id, workspaceId, "password");
   return { ok: true };
+}
+
+/** Start the session and record the sign-in (audit entry, new-device alert and email). */
+export async function completeSignIn(userId: string, workspaceId: string, method: AuthMethod) {
+  await startSession(userId, workspaceId, method);
+  const { userAgent } = await requestContext();
+  const device = deviceKey(userAgent);
+  const db = await getDb();
+  const [ws] = await db.select({ organizationId: schema.workspaces.organizationId }).from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+  if (!ws) return;
+  // A device is "new" when this account has signed in before, but never with this browser + OS.
+  const previous = await db
+    .select({ device: sql<string | null>`${schema.auditLog.meta}->>'device'` })
+    .from(schema.auditLog)
+    .where(and(eq(schema.auditLog.userId, userId), eq(schema.auditLog.action, "auth.login")))
+    .orderBy(sql`${schema.auditLog.createdAt} desc`)
+    .limit(500);
+  const actor = { id: userId, organizationId: ws.organizationId, workspaceId };
+  await audit(actor, "auth.login", null, { method, device });
+  if (previous.length > 0 && !previous.some((p) => p.device === device)) {
+    await audit(actor, "auth.new_device", null, { device });
+    const notice = import("./security/new-device").then((m) => m.emailNewDevice(userId, workspaceId, device));
+    if (process.env.ADLEDGER_SYNC_JOBS === "1") await notice.catch(() => undefined);
+    else notice.catch(() => undefined);
+  }
+}
+
+/** The user a pending 2FA challenge (cookie) belongs to, or null. */
+export async function pendingChallengeUser(): Promise<{ id: string; email: string; name: string | null } | null> {
+  const userId = await readChallenge((await cookies()).get(MFA_COOKIE)?.value);
+  if (!userId) return null;
+  const db = await getDb();
+  const [u] = await db
+    .select({ id: schema.users.id, email: schema.users.email, name: schema.users.name, enabled: schema.users.totpEnabledAt })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId));
+  return u?.enabled ? { id: u.id, email: u.email, name: u.name } : null;
+}
+
+/**
+ * Check a TOTP code (or a recovery code) for a user. A TOTP step is accepted once: the update of
+ * totp_last_step is conditional, so two requests racing with the same code can't both win.
+ */
+export async function verifySecondFactor(userId: string, input: string): Promise<{ ok: true; method: "totp" | "recovery"; remaining?: number } | { ok: false }> {
+  const db = await getDb();
+  const [u] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+  if (!u?.totpSecretEnc) return { ok: false };
+  if (looksLikeRecoveryCode(input)) {
+    if (!u.totpEnabledAt) return { ok: false };
+    const remaining = await consumeRecoveryCode(input, u.recoveryCodes);
+    if (!remaining) return { ok: false };
+    // Conditional on the stored list being unchanged: one code can't be spent twice concurrently.
+    const [updated] = await db
+      .update(schema.users)
+      .set({ recoveryCodes: remaining })
+      .where(and(eq(schema.users.id, userId), sql`cardinality(${schema.users.recoveryCodes}) = ${u.recoveryCodes.length}`))
+      .returning({ id: schema.users.id });
+    return updated ? { ok: true, method: "recovery", remaining: remaining.length } : { ok: false };
+  }
+  const step = verifyTotp(await openSecret(u.totpSecretEnc), input, { lastStep: u.totpLastStep });
+  if (step === null) return { ok: false };
+  const [updated] = await db
+    .update(schema.users)
+    .set({ totpLastStep: step })
+    .where(and(eq(schema.users.id, userId), or(isNull(schema.users.totpLastStep), sql`${schema.users.totpLastStep} < ${step}`)))
+    .returning({ id: schema.users.id });
+  return updated ? { ok: true, method: "totp" } : { ok: false };
 }
 
 export async function createUser(db: Q, email: string, password: string, name?: string | null) {
@@ -276,32 +407,62 @@ export async function createOrganizationWithOwner(
 
 // ---- audit log
 
+export type AuditActor = Pick<SessionUser, "id" | "organization" | "workspace"> | { id: string | null; organizationId: string; workspaceId?: string | null };
+
+/**
+ * Append an entry to the organization's tamper-evident audit log, with the request's truncated IP
+ * and user agent. Security-relevant actions also raise a `security_alert` notification.
+ * Never pass emails, phone numbers or tokens in `target` or `meta`.
+ */
 export async function audit(
-  user: Pick<SessionUser, "id" | "organization" | "workspace"> | { id: string | null; organizationId: string; workspaceId?: string | null },
+  user: AuditActor,
   action: string,
   target?: string | null,
   meta: Record<string, unknown> = {},
+  /** Request context captured earlier (e.g. before a streamed download finishes). */
+  context?: { ipTrunc: string | null; userAgent: string | null },
 ) {
   const db = await getDb();
   const organizationId = "organization" in user ? user.organization.id : user.organizationId;
   const workspaceId = "workspace" in user ? user.workspace.id : (user.workspaceId ?? null);
-  await db.insert(schema.auditLog).values({ organizationId, workspaceId, userId: user.id, action, target: target ?? null, meta });
+  const { ipTrunc, userAgent } = context ?? (await requestContext());
+  const entry = { organizationId, workspaceId, userId: user.id, action, target: target ?? null, meta, ipTrunc, userAgent };
+  await appendAudit(db, entry);
+  if (ALERTING_ACTIONS.has(action)) {
+    // Loaded on demand: the notification stack is large and most audit entries don't alert.
+    const alert = import("./security/alerts").then((m) => m.raiseSecurityAlert(entry, db));
+    if (process.env.ADLEDGER_SYNC_JOBS === "1") await alert.catch(() => undefined);
+    else alert.catch((err) => log.warn("security alert failed", err));
+  }
 }
+
+/** Audit an account-level event (e.g. a failed sign-in) in every organization the user belongs to. */
+export async function auditForUser(userId: string, action: string, meta: Record<string, unknown> = {}) {
+  const db = await getDb();
+  const orgs = await db.select({ id: schema.memberships.organizationId }).from(schema.memberships).where(eq(schema.memberships.userId, userId));
+  for (const o of orgs) await audit({ id: userId, organizationId: o.id, workspaceId: null }, action, null, meta);
+}
+
+/** Actions that raise a security alert (see lib/security/alerts.ts). */
+const ALERTING_ACTIONS = new Set(["api_key.created", "member.updated", "account.2fa_disabled", "security.2fa_reset", "contacts.exported", "workspace.exported", "contact.erased", "auth.new_device"]);
 
 // ---- API keys (for MCP clients, scripts and the REST API)
 
-export async function createApiKey(workspaceId: string, name: string) {
+export async function createApiKey(workspaceId: string, name: string, scopes: ApiScope[] = DEFAULT_SCOPES, expiresAt: Date | null = null) {
   const db = await getDb();
   const key = `al_${randomToken(24)}`;
   const [row] = await db
     .insert(schema.apiKeys)
-    .values({ workspaceId, name: name.trim() || "API key", prefix: key.slice(0, 10), keyHash: sha256(key) })
+    .values({ workspaceId, name: name.trim() || "API key", prefix: key.slice(0, 10), keyHash: sha256(key), scopes, expiresAt })
     .returning();
   return { key, row };
 }
 
-export async function workspaceFromApiKey(key: string): Promise<Workspace | null> {
-  if (!key.startsWith("al_")) return null;
+export type ApiKeyInfo = { id: string; name: string; scopes: ApiScope[] };
+
+/** The workspace and scopes of a live (not revoked, not expired) API key, or null. */
+export async function apiKeyFromBearer(key: string, ip?: string): Promise<{ workspace: Workspace; key: ApiKeyInfo } | null> {
+  if (!key.startsWith("al_") || key.length > 200) return null;
   const db = await getDb();
   const [row] = await db
     .select({ key: schema.apiKeys, workspace: schema.workspaces })
@@ -309,24 +470,36 @@ export async function workspaceFromApiKey(key: string): Promise<Workspace | null
     .innerJoin(schema.workspaces, eq(schema.workspaces.id, schema.apiKeys.workspaceId))
     .where(and(eq(schema.apiKeys.keyHash, sha256(key)), isNull(schema.apiKeys.revokedAt)));
   if (!row) return null;
+  if (row.key.expiresAt && row.key.expiresAt.getTime() <= Date.now()) return null;
   // Best-effort usage stamp; not worth failing a request over.
-  db.update(schema.apiKeys).set({ lastUsedAt: new Date() }).where(eq(schema.apiKeys.id, row.key.id)).catch(() => undefined);
-  return row.workspace;
+  db.update(schema.apiKeys)
+    .set({ lastUsedAt: new Date(), lastUsedIpTrunc: ip ? truncateIp(ip) : null })
+    .where(eq(schema.apiKeys.id, row.key.id))
+    .catch(() => undefined);
+  return { workspace: row.workspace, key: { id: row.key.id, name: row.key.name, scopes: row.key.scopes } };
+}
+
+/** @deprecated use apiKeyFromBearer (it also returns the key's scopes). */
+export async function workspaceFromApiKey(key: string): Promise<Workspace | null> {
+  return (await apiKeyFromBearer(key))?.workspace ?? null;
 }
 
 /**
- * Who is calling a REST/MCP endpoint. API keys are workspace-scoped and carry the full API
- * surface of that one workspace; a dashboard session carries its member's role (checked per route).
+ * Who is calling a REST/MCP endpoint. API keys are workspace-scoped and limited to their scopes;
+ * a dashboard session carries its member's role (checked per route).
  */
-export type Principal = { kind: "api_key"; workspace: Workspace } | { kind: "session"; workspace: Workspace; user: SessionUser };
+export type Principal = { kind: "api_key"; workspace: Workspace; key: ApiKeyInfo } | { kind: "session"; workspace: Workspace; user: SessionUser };
 
-/** REST/MCP auth: `Authorization: Bearer al_...` or the dashboard session cookie. */
-export async function authenticatePrincipal(req: Request): Promise<Principal | null> {
+/**
+ * REST/MCP auth: `Authorization: Bearer al_...` or the dashboard session cookie. A session that
+ * still has to enrol in 2FA (organization policy) only counts when `allowPending2fa` is set.
+ */
+export async function authenticatePrincipal(req: Request, opts: { allowPending2fa?: boolean } = {}): Promise<Principal | null> {
   const auth = req.headers.get("authorization") ?? "";
   const bearer = /^Bearer\s+(.+)$/i.exec(auth)?.[1]?.trim();
   if (bearer) {
-    const workspace = await workspaceFromApiKey(bearer);
-    return workspace ? { kind: "api_key", workspace } : null;
+    const found = await apiKeyFromBearer(bearer, ipFromHeaders(req.headers));
+    return found ? { kind: "api_key", workspace: found.workspace, key: found.key } : null;
   }
   const cookie = req.headers.get("cookie") ?? "";
   const token = cookie
@@ -341,7 +514,8 @@ export async function authenticatePrincipal(req: Request): Promise<Principal | n
     return null;
   }
   const user = await userFromSessionToken(raw);
-  return user ? { kind: "session", workspace: user.workspace, user } : null;
+  if (!user || (user.needs2fa && !opts.allowPending2fa)) return null;
+  return { kind: "session", workspace: user.workspace, user };
 }
 
 /** The workspace a REST/MCP request may read, or null when unauthenticated. */
