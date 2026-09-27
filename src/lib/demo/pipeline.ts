@@ -38,7 +38,8 @@ export async function seedDemoPipeline(db: DB, workspaceId: string, anchor: stri
     // How far along the open stages this lead got: half stay new, a few reach a proposal.
     const u = unit(key, 1);
     const furthest = Math.min(open.length - 1, u < 0.5 ? 0 : u < 0.72 ? 1 : u < 0.88 ? 2 : 3);
-    const lostChance = ageDays > 30 ? 0.6 : ageDays > 14 ? 0.3 : 0.04;
+    // Old leads mostly got a "no" by now; a few are still waiting (and rotting).
+    const lostChance = ageDays > 30 ? 0.85 : ageDays > 14 ? 0.45 : ageDays > 7 ? 0.12 : 0.03;
     const isLost = Boolean(lost) && unit(key, 2) < lostChance;
     // The last open stage was entered 0–18 days ago (some fresh, some rotting), never before the lead.
     const lastOpenAt = Math.max(start, end - unit(key, 3) * Math.min(ageDays, 18) * DAY);
