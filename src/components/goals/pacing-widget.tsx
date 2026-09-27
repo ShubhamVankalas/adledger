@@ -1,5 +1,6 @@
 import { TargetIcon } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { longDate, moneyWhole, num, roas, shortDate } from "@/lib/format";
@@ -18,13 +19,8 @@ const STATUS: Record<PaceStatus, { label: string; tone: "good" | "warn" | "bad" 
 };
 const BUDGET: Record<BudgetStatus, string> = { on_track: "on track", under: "under budget", over: "over budget", early: "too early to tell" };
 
-const TONE_TAG = {
-  good: "bg-success/12 text-success dark:bg-success/15",
-  warn: "bg-warning/15 text-[oklch(0.5_0.12_65)] dark:text-warning",
-  bad: "bg-destructive/10 text-destructive dark:bg-destructive/15",
-  neutral: "bg-muted text-muted-foreground",
-} as const;
-const TONE_FILL = { good: "bg-success", warn: "bg-warning", bad: "bg-destructive", neutral: "bg-muted-foreground/45" } as const;
+const TONE_BADGE = { good: "positive", warn: "warning", bad: "destructive", neutral: "secondary" } as const;
+const TONE_FILL = { good: "bg-positive", warn: "bg-warning", bad: "bg-negative", neutral: "bg-fg-faint" } as const;
 
 export function formatGoalValue(item: Pick<GoalPacing, "kind">, v: number | null | undefined, currency: string): string {
   if (v === null || v === undefined) return "—";
@@ -36,9 +32,9 @@ export function formatGoalValue(item: Pick<GoalPacing, "kind">, v: number | null
 export function StatusTag({ status, achieved, className }: { status: PaceStatus; achieved?: boolean; className?: string }) {
   const s = STATUS[status];
   return (
-    <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap", TONE_TAG[s.tone], className)}>
+    <Badge variant={TONE_BADGE[achieved ? "good" : s.tone]} className={className}>
       {achieved ? "Reached" : s.label}
-    </span>
+    </Badge>
   );
 }
 
@@ -111,7 +107,7 @@ function GoalRow({ item, currency }: { item: GoalPacing; currency: string }) {
       <Track value={barValue} marker={item.cumulative && !item.achieved ? item.daysElapsed / item.daysTotal : null} tone={tone} label={barLabel} />
       <p className="tabular text-xs text-muted-foreground">{detail}</p>
       {item.budget ? (
-        <p className={cn("tabular text-xs", item.budget.status === "over" ? "text-destructive" : "text-muted-foreground")}>
+        <p className={cn("tabular text-xs", item.budget.status === "over" ? "text-negative" : "text-muted-foreground")}>
           Ad budget: {moneyWhole(item.budget.spentMinor, currency)} of {moneyWhole(item.budget.budgetMinor, currency)} spent
           {item.budget.projectedMinor !== null && item.budget.status !== "early" ? ` · on course for ${moneyWhole(item.budget.projectedMinor, currency)}` : ""} ·{" "}
           {BUDGET[item.budget.status]}

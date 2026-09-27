@@ -5,6 +5,7 @@ import { useId, useState } from "react";
 import { deleteGoalAction, saveGoalAction } from "@/app/actions/goals";
 import { ActionButton, useFormAction } from "@/components/action-button";
 import { NativeSelect } from "@/components/native-select";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -107,7 +108,7 @@ function GoalDialog({
                   key={p.value}
                   className={cn(
                     "relative cursor-pointer rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-[background-color,color,box-shadow] has-focus-visible:ring-3 has-focus-visible:ring-ring/50 max-md:py-2",
-                    period === p.value && "bg-background text-foreground shadow-xs",
+                    period === p.value && "bg-surface text-foreground shadow-sm",
                   )}
                 >
                   <input type="radio" name="period" value={p.value} checked={period === p.value} onChange={() => setPeriod(p.value)} className="sr-only" />
@@ -205,7 +206,7 @@ export function GoalsEditor({ goals, currency, canEdit }: { goals: GoalRowData[]
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-[13px] font-medium">
                       <span className="truncate">{def.label}</span>
-                      <span className="shrink-0 rounded-full bg-muted px-2 text-xs leading-5 font-normal text-muted-foreground">{g.period === "quarter" ? "Quarterly" : "Monthly"}</span>
+                      <Badge variant="secondary">{g.period === "quarter" ? "Quarterly" : "Monthly"}</Badge>
                     </p>
                     <p className="tabular mt-0.5 truncate text-sm">
                       <span className="text-muted-foreground">{def.cumulative ? "Target " : def.better === "down" ? "At most " : "At least "}</span>
@@ -213,7 +214,7 @@ export function GoalsEditor({ goals, currency, canEdit }: { goals: GoalRowData[]
                       {g.budgetLabel ? <span className="text-muted-foreground"> · budget {g.budgetLabel}</span> : null}
                     </p>
                     {g.stale ? (
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+                      <p className="mt-1 flex items-center gap-1.5 text-xs text-negative">
                         <AlertTriangleIcon aria-hidden className="size-3.5 shrink-0" /> Set in another currency. Edit it to use {currency}.
                       </p>
                     ) : null}
