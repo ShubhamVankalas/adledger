@@ -230,7 +230,7 @@ export function adDayMetrics(ad: DemoAd, date: string, currency: string): AdDayM
  */
 const OVERCLAIM: Partial<Record<Platform, [number, number]>> = {
   meta: [1.45, 2.05],
-  google: [1.15, 1.45],
+  google: [1.5, 2.0],
   tiktok: [1.7, 2.5],
   microsoft: [1.05, 1.3],
   linkedin: [1.3, 1.7],
