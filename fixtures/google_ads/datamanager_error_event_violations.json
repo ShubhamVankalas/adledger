@@ -1,0 +1,29 @@
+{
+  "error": {
+    "code": 400,
+    "message": "There was a problem with the request.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "INVALID_ARGUMENT",
+        "domain": "datamanager.googleapis.com",
+        "metadata": { "requestId": "t-a8896317-069f-4198-afed-182a3872a660" }
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RequestInfo",
+        "requestId": "t-a8896317-069f-4198-afed-182a3872a660"
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "events[1].user_data.user_identifiers",
+            "description": "Email is not hex encoded.",
+            "reason": "INVALID_HEX_ENCODING"
+          }
+        ]
+      }
+    ]
+  }
+}

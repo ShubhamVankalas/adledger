@@ -1,21 +1,25 @@
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import type { ConnectionLike } from "../connectors/types";
 import { rows, schema, type DB } from "../db";
-import type { UploadStatus } from "../db/schema";
+import type { ConsentState, UploadConsentBasis, UploadSkipReason, UploadStatus } from "../db/schema";
 import { log } from "../log";
 import { forcedMockMode, getConnection } from "../settings";
-import { buildGoogleConversion, googleUploadConfig, sendGoogleConversions, type GoogleUploadConfig } from "./google";
-import { buildMetaEvent, META_MAX_EVENT_AGE_MS, metaUploadConfig, sendMetaEvents, type MetaUploadConfig } from "./meta";
-import type { Built, ConversionContext, FetchLike, SendOutcome, UploadConversionType, UploadPlatform } from "./types";
+import { CONSENT_SKIPS, uploadConsent } from "./consent";
+import { buildGoogleConversion, googleUploadConfig, mockDataManagerFetch, sendGoogleConversions, type GoogleUploadConfig } from "./google";
+import { buildMetaEvent, META_MAX_EVENT_AGE_MS, metaUploadConfig, mockMetaFetch, sendMetaEvents, type MetaUploadConfig } from "./meta";
+import type { Built, ConversionContext, FetchLike, SendOutcome, Skip, UploadConversionType, UploadPlatform } from "./types";
 
-// Server-side conversion uploads (Meta Conversions API, Google Ads click conversions).
+// Server-side conversion uploads (Meta Conversions API, Google Data Manager API).
 //
 // 1. enqueue: every lead / payment inside the platform's look-back window gets one
 //    `conversion_uploads` row per platform (unique index -> idempotent, safe to re-run).
-// 2. process: due `pending` rows are built into payloads and sent in batches. Each result moves
+// 2. consent: each conversion gets a consent basis (consent.ts). Denied / missing consent is
+//    skipped with a skip_reason; GPC visitors are sent "limited" (Meta LDU, Google without identifiers).
+// 3. process: due `pending` rows are built into payloads and sent in batches. Each result moves
 //    the row through a small state machine (see `nextState`): sent | pending (retry with
-//    backoff) | failed (permanent error or out of attempts) | skipped (nothing to match on).
-// Mock mode (CONNECTOR_MODE=mock or a mock connection) records rows as sent without any network call.
+//    backoff) | failed (permanent error or out of attempts) | skipped (consent or nothing to match on).
+// Mock mode (CONNECTOR_MODE=mock or a mock connection) runs the same requests against an in-process
+// mock of each platform API (real response format) and records rows as sent, without any network call.
 
 export type { ConversionContext, SendOutcome } from "./types";
 
@@ -31,19 +35,27 @@ export function backoffMs(attempts: number): number {
   return Math.min(15 * 60_000 * 4 ** Math.max(0, attempts - 1), 24 * HOUR);
 }
 
-type RowState = { status: UploadStatus; attempts: number; error: string | null; nextAttemptAt: Date; sentAt: Date | null; mock: boolean };
+type RowState = {
+  status: UploadStatus;
+  attempts: number;
+  error: string | null;
+  nextAttemptAt: Date;
+  sentAt: Date | null;
+  mock: boolean;
+  skipReason: UploadSkipReason | null;
+};
 
 /** Pure retry state machine: the row's next state after one send attempt (or a skip). */
-export function nextState(prev: { attempts: number }, outcome: SendOutcome | { skip: string }, now: Date): RowState {
+export function nextState(prev: { attempts: number }, outcome: SendOutcome | Skip, now: Date): RowState {
   if ("skip" in outcome) {
-    return { status: "skipped", attempts: prev.attempts, error: outcome.skip, nextAttemptAt: now, sentAt: null, mock: false };
+    return { status: "skipped", attempts: prev.attempts, error: outcome.skip, nextAttemptAt: now, sentAt: null, mock: false, skipReason: outcome.reason };
   }
   const attempts = prev.attempts + 1;
-  if (outcome.ok) return { status: "sent", attempts, error: null, nextAttemptAt: now, sentAt: now, mock: Boolean(outcome.mock) };
+  if (outcome.ok) return { status: "sent", attempts, error: null, nextAttemptAt: now, sentAt: now, mock: Boolean(outcome.mock), skipReason: null };
   if (outcome.retryable && attempts < MAX_ATTEMPTS) {
-    return { status: "pending", attempts, error: outcome.error, nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)), sentAt: null, mock: false };
+    return { status: "pending", attempts, error: outcome.error, nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)), sentAt: null, mock: false, skipReason: null };
   }
-  return { status: "failed", attempts, error: outcome.error, nextAttemptAt: now, sentAt: null, mock: false };
+  return { status: "failed", attempts, error: outcome.error, nextAttemptAt: now, sentAt: null, mock: false, skipReason: null };
 }
 
 type PlatformSetup =
@@ -123,6 +135,8 @@ type ContextRow = {
   fbp: string | null;
   g_type: "gclid" | "gbraid" | "wbraid" | null;
   g_id: string | null;
+  ads_consent: ConsentState | null;
+  gpc: boolean | null;
 };
 
 const idList = (ids: string[]) => sql.join(ids.map((i) => sql`${i}`), sql`, `);
@@ -154,7 +168,8 @@ export async function loadConversionContexts(
     await db.execute(sql`
       with conv as (${sql.join(parts, sql` union all `)})
       select conv.id, conv.type, conv.occurred_at, conv.amount_minor, conv.currency, conv.contact_id,
-        c.email, c.email_hash, c.phone_hash,
+        c.email, c.email_hash, c.phone_hash, c.ads_consent,
+        exists (select 1 from visitors gv where gv.contact_id = conv.contact_id and gv.gpc) as gpc,
         ev.ip_trunc, ev.user_agent, ev.url,
         fb.fbc, fb.fbp,
         g.click_id_type as g_type, g.click_id as g_id
@@ -194,12 +209,14 @@ export async function loadConversionContexts(
       fbc: r.fbc,
       fbp: r.fbp,
       googleClick: r.g_type && r.g_id ? { type: r.g_type, id: r.g_id } : null,
+      adsConsent: r.ads_consent === "granted" || r.ads_consent === "denied" ? r.ads_consent : null,
+      gpc: Boolean(r.gpc),
     });
   }
   return out;
 }
 
-export type UploadRunResult = { enqueued: number; sent: number; retrying: number; failed: number; skipped: number };
+export type UploadRunResult = { enqueued: number; sent: number; limited: number; retrying: number; failed: number; skipped: number };
 
 type Opts = { now?: Date; fetch?: FetchLike; googleAccessToken?: (c: ConnectionLike) => Promise<string> };
 
@@ -210,7 +227,7 @@ type Opts = { now?: Date; fetch?: FetchLike; googleAccessToken?: (c: ConnectionL
 async function requeueMockUploads(db: DB, workspaceId: string, platform: UploadPlatform, now: Date) {
   await db
     .update(schema.conversionUploads)
-    .set({ status: "pending", mock: false, attempts: 0, error: null, sentAt: null, nextAttemptAt: now })
+    .set({ status: "pending", mock: false, attempts: 0, error: null, sentAt: null, nextAttemptAt: now, consentMode: null, skipReason: null })
     .where(
       and(
         eq(schema.conversionUploads.workspaceId, workspaceId),
@@ -219,6 +236,19 @@ async function requeueMockUploads(db: DB, workspaceId: string, platform: UploadP
         gte(schema.conversionUploads.conversionAt, new Date(now.getTime() - LOOKBACK_MS[platform])),
       ),
     );
+}
+
+/**
+ * Strict consent: some pixel on this workspace runs in `required` or `cookieless` mode (EU/UK
+ * visitors). Then only conversions with an explicit ads consent are uploaded.
+ */
+export async function strictConsent(db: DB, workspaceId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.pixelSites.id })
+    .from(schema.pixelSites)
+    .where(and(eq(schema.pixelSites.workspaceId, workspaceId), ne(schema.pixelSites.consentMode, "optout")))
+    .limit(1);
+  return Boolean(row);
 }
 
 /** Send due pending uploads for one platform. */
@@ -240,34 +270,50 @@ async function processPlatform(db: DB, workspaceId: string, setup: PlatformSetup
     .limit(BATCH_LIMIT);
   if (!due.length) return;
 
-  const contexts = await loadConversionContexts(db, workspaceId, due.map((d) => ({ type: d.conversionType, id: d.conversionId })));
-  const outcomes = new Map<string, SendOutcome | { skip: string }>();
+  const [contexts, strict] = await Promise.all([
+    loadConversionContexts(db, workspaceId, due.map((d) => ({ type: d.conversionType, id: d.conversionId }))),
+    strictConsent(db, workspaceId),
+  ]);
+  const outcomes = new Map<string, SendOutcome | Skip>();
+  const basisOf = new Map<string, UploadConsentBasis>();
   const toSend: { rowId: string; payload: unknown }[] = [];
   for (const row of due) {
     const ctx = contexts.get(`${row.conversionType}:${row.conversionId}`);
-    const built: Built<unknown> = !ctx
-      ? { skip: "Conversion no longer exists" }
-      : setup.platform === "meta"
-        ? buildMetaEvent(ctx, now)
-        : buildGoogleConversion(ctx, setup.cfg);
+    let built: Built<unknown>;
+    if (!ctx) {
+      built = { skip: "Conversion no longer exists", reason: "missing" };
+    } else {
+      const consent = uploadConsent({ adsConsent: ctx.adsConsent, gpc: ctx.gpc, strict });
+      basisOf.set(row.id, consent.basis);
+      if ("skip" in consent) built = { skip: consent.message, reason: consent.skip };
+      else built = setup.platform === "meta" ? buildMetaEvent(ctx, now, consent.basis) : buildGoogleConversion(ctx, setup.cfg, consent.basis);
+    }
     if ("skip" in built) outcomes.set(row.id, built);
     else toSend.push({ rowId: row.id, payload: built.payload });
   }
 
   if (toSend.length) {
+    // Mock mode sends the exact same requests to an in-process mock of the platform API.
+    const fetchImpl = setup.mock ? (setup.platform === "meta" ? mockMetaFetch : mockDataManagerFetch) : opts.fetch;
     let sent: SendOutcome[];
-    if (setup.mock) sent = toSend.map(() => ({ ok: true, mock: true }));
-    else if (setup.platform === "meta") sent = await sendMetaEvents(setup.cfg, toSend.map((s) => s.payload) as Parameters<typeof sendMetaEvents>[1], opts.fetch);
-    else sent = await sendGoogleConversions(setup.conn, setup.cfg, toSend.map((s) => s.payload) as Parameters<typeof sendGoogleConversions>[2], opts.fetch, opts.googleAccessToken);
-    toSend.forEach((s, i) => outcomes.set(s.rowId, sent[i]));
+    if (setup.platform === "meta") {
+      const cfg = setup.mock ? { ...setup.cfg, accessToken: setup.cfg.accessToken || "mock" } : setup.cfg;
+      sent = await sendMetaEvents(cfg, toSend.map((s) => s.payload) as Parameters<typeof sendMetaEvents>[1], fetchImpl);
+    } else {
+      const token = setup.mock ? async () => "mock-access-token" : opts.googleAccessToken;
+      sent = await sendGoogleConversions(setup.conn, setup.cfg, toSend.map((s) => s.payload) as Parameters<typeof sendGoogleConversions>[2], fetchImpl, token);
+    }
+    toSend.forEach((s, i) => outcomes.set(s.rowId, setup.mock && sent[i].ok ? { ok: true, mock: true } : sent[i]));
   }
 
   for (const row of due) {
     const outcome = outcomes.get(row.id)!;
-    const next = nextState(row, outcome, now);
+    const next = { ...nextState(row, outcome, now), consentMode: basisOf.get(row.id) ?? null };
     await db.update(schema.conversionUploads).set(next).where(eq(schema.conversionUploads.id, row.id));
-    if (next.status === "sent") result.sent++;
-    else if (next.status === "pending") result.retrying++;
+    if (next.status === "sent") {
+      result.sent++;
+      if (next.consentMode === "limited") result.limited++;
+    } else if (next.status === "pending") result.retrying++;
     else if (next.status === "failed") result.failed++;
     else result.skipped++;
   }
@@ -275,7 +321,7 @@ async function processPlatform(db: DB, workspaceId: string, setup: PlatformSetup
 
 /** Enqueue and send conversions for every platform with uploads switched on. Never throws. */
 export async function runConversionUploads(db: DB, workspaceId: string, opts: Opts = {}): Promise<UploadRunResult> {
-  const result: UploadRunResult = { enqueued: 0, sent: 0, retrying: 0, failed: 0, skipped: 0 };
+  const result: UploadRunResult = { enqueued: 0, sent: 0, limited: 0, retrying: 0, failed: 0, skipped: 0 };
   let setups: PlatformSetup[];
   try {
     setups = await uploadSetups(db, workspaceId);
@@ -297,14 +343,26 @@ export async function runConversionUploads(db: DB, workspaceId: string, opts: Op
   return result;
 }
 
-export type UploadStats = { sent: number; failed: number; pending: number; skipped: number };
+/**
+ * `limited` is the part of `sent` that went out with reduced data (GPC: Meta LDU, Google without
+ * identifiers); `skippedConsent` the part of `skipped` held back for consent reasons.
+ */
+export type UploadStats = { sent: number; limited: number; failed: number; pending: number; skipped: number; skippedConsent: number };
+
+const CONSENT_SKIP_SQL = sql.join(CONSENT_SKIPS.map((r) => sql`${r}`), sql`, `);
 
 /** Upload counts per platform for conversions created in the last `days` days (UI). */
 export async function uploadStats(db: DB, workspaceId: string, days = 7, now = new Date()): Promise<Record<UploadPlatform, UploadStats>> {
-  const empty = (): UploadStats => ({ sent: 0, failed: 0, pending: 0, skipped: 0 });
+  const empty = (): UploadStats => ({ sent: 0, limited: 0, failed: 0, pending: 0, skipped: 0, skippedConsent: 0 });
   const out: Record<UploadPlatform, UploadStats> = { meta: empty(), google: empty() };
   const counts = await db
-    .select({ platform: schema.conversionUploads.platform, status: schema.conversionUploads.status, n: sql<number>`count(*)::int` })
+    .select({
+      platform: schema.conversionUploads.platform,
+      status: schema.conversionUploads.status,
+      n: sql<number>`count(*)::int`,
+      limited: sql<number>`(count(*) filter (where ${schema.conversionUploads.consentMode} = 'limited'))::int`,
+      consent: sql<number>`(count(*) filter (where ${schema.conversionUploads.skipReason} in (${CONSENT_SKIP_SQL})))::int`,
+    })
     .from(schema.conversionUploads)
     .where(
       and(
@@ -314,6 +372,11 @@ export async function uploadStats(db: DB, workspaceId: string, days = 7, now = n
       ),
     )
     .groupBy(schema.conversionUploads.platform, schema.conversionUploads.status);
-  for (const c of counts) out[c.platform][c.status] = Number(c.n);
+  for (const c of counts) {
+    const s = out[c.platform];
+    s[c.status] = Number(c.n);
+    if (c.status === "sent") s.limited = Number(c.limited);
+    if (c.status === "skipped") s.skippedConsent = Number(c.consent);
+  }
   return out;
 }

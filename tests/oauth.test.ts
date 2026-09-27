@@ -166,7 +166,7 @@ describe("beginOAuth", () => {
     expect(r.url.origin + r.url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(r.url.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/api/v1/oauth/google_ads/callback`);
     expect(r.url.searchParams.get("access_type")).toBe("offline");
-    expect(r.url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/adwords");
+    expect(r.url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager");
     expect(r.url.searchParams.get("code_challenge_method")).toBe("S256");
     const saved = verifyState(r.cookie, SECRET)!;
     expect(saved.state).toBe(r.state);

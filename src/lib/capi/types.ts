@@ -1,4 +1,4 @@
-import type { UploadConversionType, UploadPlatform } from "../db/schema";
+import type { ConsentState, UploadConversionType, UploadPlatform, UploadSkipReason } from "../db/schema";
 
 export type { UploadConversionType, UploadPlatform };
 
@@ -21,6 +21,8 @@ export type ConversionContext = {
   fbc: string | null;
   fbp: string | null;
   googleClick: GoogleClickId | null;
+  adsConsent: ConsentState | null; // contacts.ads_consent
+  gpc: boolean; // any of the contact's browsers sent Global Privacy Control
 };
 
 /** Outcome of one upload attempt for one conversion. */
@@ -28,6 +30,8 @@ export type SendOutcome =
   | { ok: true; mock?: boolean }
   | { ok: false; retryable: boolean; error: string };
 
-export type Built<T> = { payload: T } | { skip: string };
+/** A payload, or why the conversion can't be uploaded (human message + machine reason). */
+export type Skip = { skip: string; reason: UploadSkipReason };
+export type Built<T> = { payload: T } | Skip;
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;

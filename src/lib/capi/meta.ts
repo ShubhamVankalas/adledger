@@ -2,6 +2,7 @@ import { META_API_VERSION_DEFAULT } from "../connectors/ads";
 import type { ConnectionLike } from "../connectors/types";
 import { hashEmail, sha256 } from "../crypto";
 import { toDecimalString } from "../money";
+import { metaDataProcessing } from "./consent";
 import type { Built, ConversionContext, FetchLike, SendOutcome } from "./types";
 
 // Meta Conversions API: POST https://graph.facebook.com/{version}/{pixel_id}/events
@@ -33,6 +34,10 @@ export type MetaServerEvent = {
     client_user_agent?: string;
   };
   custom_data?: { value: number; currency: string };
+  // Limited Data Use: ["LDU"] (+ country/state 0 = Meta geolocates) for GPC visitors, [] otherwise.
+  data_processing_options: "LDU"[];
+  data_processing_options_country?: 0;
+  data_processing_options_state?: 0;
 };
 
 const on = (v: string | undefined) => v === "on" || v === "true";
@@ -69,9 +74,12 @@ export function metaEventId(c: Pick<ConversionContext, "type" | "id">): string {
   return `${c.type}_${c.id}`;
 }
 
-/** One CAPI server event. Identifiers are SHA-256 hashed per Meta's normalization rules. */
-export function buildMetaEvent(c: ConversionContext, now = new Date()): Built<MetaServerEvent> {
-  if (now.getTime() - c.occurredAt.getTime() > META_MAX_EVENT_AGE_MS) return { skip: "Older than 7 days (Meta limit)" };
+/**
+ * One CAPI server event. Identifiers are SHA-256 hashed per Meta's normalization rules.
+ * `consent` is the upload's consent basis (see consent.ts): "limited" turns on Limited Data Use.
+ */
+export function buildMetaEvent(c: ConversionContext, now = new Date(), consent: "granted" | "implied" | "limited" = "implied"): Built<MetaServerEvent> {
+  if (now.getTime() - c.occurredAt.getTime() > META_MAX_EVENT_AGE_MS) return { skip: "Older than 7 days (Meta limit)", reason: "too_old" };
   // em: lowercase + trim, then SHA-256. ph: digits only incl. country code (stored hash follows the same rule).
   const em = c.email ? hashEmail(c.email) : c.emailHash;
   const user: MetaServerEvent["user_data"] = {};
@@ -82,7 +90,7 @@ export function buildMetaEvent(c: ConversionContext, now = new Date()): Built<Me
   if (c.fbp) user.fbp = c.fbp;
   if (c.ip) user.client_ip_address = c.ip;
   if (c.userAgent) user.client_user_agent = c.userAgent;
-  if (!user.em && !user.ph && !user.fbc && !user.fbp) return { skip: "No email, phone or Meta click/browser ID to match on" };
+  if (!user.em && !user.ph && !user.fbc && !user.fbp) return { skip: "No email, phone or Meta click/browser ID to match on", reason: "no_match_keys" };
   const sourceUrl = c.sourceUrl ? pageUrl(c.sourceUrl) : null;
 
   const event: MetaServerEvent = {
@@ -92,10 +100,11 @@ export function buildMetaEvent(c: ConversionContext, now = new Date()): Built<Me
     // Meta requires client_user_agent and event_source_url for website events; anything else is system_generated.
     action_source: c.userAgent && sourceUrl ? "website" : "system_generated",
     user_data: user,
+    ...metaDataProcessing(consent),
   };
   if (c.userAgent && sourceUrl) event.event_source_url = sourceUrl;
   if (c.type === "purchase") {
-    if (c.amountMinor == null || !c.currency || c.amountMinor <= 0) return { skip: "Purchase has no positive amount" };
+    if (c.amountMinor == null || !c.currency || c.amountMinor <= 0) return { skip: "Purchase has no positive amount", reason: "no_value" };
     // Major units from integer minor units via an exact decimal string (12345 USD -> 123.45).
     event.custom_data = { value: Number(toDecimalString(c.amountMinor, c.currency)), currency: c.currency.toUpperCase() };
   }
@@ -119,6 +128,24 @@ function retryableMetaError(e: MetaError): boolean {
   if (e.code >= 200 && e.code <= 299) return true; // permission errors
   return e.code === 100 && e.error_subcode === 33; // pixel doesn't exist or the token can't access it
 }
+
+/**
+ * Mock Graph API for mock mode: answers exactly like POST /{pixel_id}/events, without a network
+ * call, so mock uploads run the same request/response path as live ones.
+ */
+export const mockMetaFetch: FetchLike = async (_url, init) => {
+  let data: unknown[] = [];
+  try {
+    const body = JSON.parse(String(init?.body ?? "{}")) as { data?: unknown };
+    if (Array.isArray(body.data)) data = body.data;
+  } catch {
+    /* rejected below */
+  }
+  if (!data.length || data.length > 1000) {
+    return Response.json({ error: { message: "Invalid parameter", type: "OAuthException", code: 100, fbtrace_id: "AmockTrace" } }, { status: 400 });
+  }
+  return Response.json({ events_received: data.length, messages: [], fbtrace_id: "AmockTrace" });
+};
 
 /** Classify a CAPI HTTP response into a per-batch outcome. */
 export function classifyMetaResponse(status: number, body: unknown, expected: number): SendOutcome {
