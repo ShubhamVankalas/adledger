@@ -220,8 +220,11 @@ render one `ContactPanel` (`src/components/crm/**`) fed by `contactRecord()`: hi
 ledger, a unified timeline (touchpoints, page views and custom events, forms, payments, refunds, notes,
 tasks), properties with optimistic inline edits and Undo. Writes live in `src/app/actions/crm.ts`
 (`guard()` + workspace ownership checks + `audit()`; note bodies and names never enter the audit log).
-Every email/phone on CRM surfaces goes through `src/lib/contact-display.ts` (`displayEmail`,
-`displayPhone`), the single place role-based masking plugs in. Permissions: `contacts.edit` (owner, admin,
+Every email/phone on CRM surfaces goes through `src/lib/contact-display.ts` (`screenEmail`,
+`displayEmail`, `displayPhone`), the single place masking plugs in. The table, preview, record page and
+tasks always receive masked emails (`screenEmail`); `contacts.pii` holders press "Show email(s)"
+(`components/crm/reveal.tsx`), which calls `revealContactEmailsAction` and audits `contact.pii_revealed`.
+The contact CSV needs `export.csv`; raw emails in it need `export.contacts`, otherwise they are masked. Permissions: `contacts.edit` (owner, admin,
 analyst: tags, owner, status, name, notes, tasks) and `contacts.notes` (everyone but clients: see notes and
 tasks); authors edit their own notes, owners and admins anyone's. Engagement is a simple SQL score:
 recency of last activity (≤40) + pixel events in 30 days (≤30) + touches in 30 days (≤15) + a lead in
@@ -399,8 +402,8 @@ between loading, empty, error and data.
   component and same-size skeleton per type).
 - *Numbers.* `src/lib/reports-metrics.ts`: `kpiSeries` returns every KPI per day plus the period total
   in one query (`group by rollup`), so tiles, sparklines and the Metric explorer share one result and
-  agree with `overview()` (tested on the demo data); plus wasted spend with campaign maturity ("too early"
-  when a campaign is younger than the median days to convert), the platform scorecard and recent
+  agree with `overview()` (tested on the demo data); plus wasted spend with campaign maturity (the
+  Overview's `loadWasted` applies the time-to-money "too early" rule below), the platform scorecard and recent
   leads and payments (emails masked on the server, never sent to the browser raw). The briefing sentence
   is a template (`src/lib/dashboard/briefing.ts`), never the LLM. The Spend vs revenue week/month toggle
   groups the daily SQL rows in the browser (integer addition only).
@@ -474,7 +477,8 @@ and `src/lib/reports-trust.ts`; pages `/receipts`, `/receipts/[paymentId]`, `/tr
   refund rates of the credited customers.
 - *Time to money.* Median / p80 days from a buyer's first click on a campaign to their first payment
   (180-day lookback). A campaign younger than its p80 (its own with ≥ 5 buyers, else the workspace's,
-  else 7 days) is "too early": `isTooEarly()` for alerts and Insights. Pause drafts (spend ≥ 2% of the
+  else 7 days) is "too early": the Overview's Wasted spend widget and the Insights action cards use
+  `timeToMoney()` for this, and `isTooEarly()` checks one campaign. Pause drafts (spend ≥ 2% of the
   period, POAS or ROAS < 0.5, old enough, still running) export as Meta / Google Ads Editor bulk CSVs;
   nothing is ever written to a platform.
 **Goals & pacing.** `src/lib/reports-goals.ts` paces each goal for the current month or quarter in the
@@ -688,9 +692,13 @@ The look is specified in `docs/redesign/BRIEF.md` §2 and lives in one place:
   use `--elev-card`: a hairline, no drop in dark mode), motion `--ease-out`, `--ease-drawer`,
   `--dur-*`, plus `.num`, `.kbd`, `.surface-card`, `.live-dot`, `.pending-line`, `.reveal-delayed`.
   `src/lib/utils.ts` teaches `cn` the custom font sizes so `text-ui` never removes a text colour.
-- **Shell** — `(app)/layout.tsx` renders the sidebar (`components/app-sidebar.tsx`: workspace
-  switcher, search, Overview/Live, Analyze, CRM, setup ring, settings, help, account; `[` or Ctrl/⌘ B
-  toggles the icon rail, remembered in the `sidebar_state` cookie) and the phone tab bar
+- **Shell** — `(app)/layout.tsx` loads the sidebar's data in one `Promise.all` (setup progress,
+  `livePulse()`, `listPinnedViews()`, `overdueTaskCount()`, breached threshold alert rules) and renders
+  the sidebar (`components/app-sidebar.tsx`: workspace switcher, search, Overview/Live with the
+  visitors-now badge, Analyze (Performance, Attribution, Customers, Insights with a triggered-alerts
+  badge, Reports), Money (Profit, Receipts, Truth gap), CRM (Contacts, Pipeline, My tasks with an
+  overdue badge), pinned Views, setup ring, the Live pulse (today's revenue), settings, help, account;
+  `[` or Ctrl/⌘ B toggles the icon rail, remembered in the `sidebar_state` cookie) and the phone tab bar
   (`mobile-nav.tsx`). `components/app-shell.tsx` holds the shell context (demo pill), the 2px
   pending line and the window events `adledger:open-palette` / `adledger:open-shortcuts` that the
   search and help buttons dispatch.
