@@ -44,7 +44,7 @@ export function Stat({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="truncate text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+      <dt className="label-caps truncate">
         {label}
       </dt>
       <dd
@@ -75,16 +75,16 @@ export function ReportEmpty({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-1.5 px-6 py-12 text-center",
         className,
       )}
     >
-      <span className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+      <span className="mb-1.5 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-foreground/5">
         <Icon className="size-4.5" aria-hidden />
       </span>
-      <p className="text-sm font-medium">{title}</p>
+      <p className="text-sm font-semibold">{title}</p>
       {children ? (
-        <div className="max-w-sm text-sm text-muted-foreground">{children}</div>
+        <div className="max-w-sm text-[0.8125rem] leading-5 text-pretty text-muted-foreground">{children}</div>
       ) : null}
     </div>
   );

@@ -24,7 +24,7 @@ function Legend() {
     {
       key: "attributed",
       short: "Ads revenue",
-      swatch: <span className="h-0.5 w-3.5 rounded-full bg-chart-1" />,
+      swatch: <span className="h-[3px] w-3.5 rounded-full bg-chart-1" />,
     },
     {
       key: "revenue",
@@ -34,11 +34,11 @@ function Legend() {
     {
       key: "spend",
       short: "Spend",
-      swatch: <span className="size-2.5 rounded-[2px] bg-chart-2 opacity-85" />,
+      swatch: <span className="size-2.5 rounded-[3px] bg-chart-2/55" />,
     },
   ] as const;
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-xs text-muted-foreground">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
       {items.map((i) => (
         <li key={i.key} className="flex items-center gap-1.5">
           {i.swatch}
@@ -89,31 +89,32 @@ export function SpendRevenueChart({
         <ComposedChart data={rows} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
           <defs>
             <linearGradient id="fillAttributed" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-attributed)" stopOpacity={0.35} />
-              <stop offset="95%" stopColor="var(--color-attributed)" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--color-attributed)" stopOpacity={0.28} />
+              <stop offset="100%" stopColor="var(--color-attributed)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} tickFormatter={fmtDate} />
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} minTickGap={32} tickFormatter={fmtDate} />
           <YAxis
             tickLine={false}
             axisLine={false}
-            width={52}
+            width={48}
+            tickMargin={6}
             tickCount={4}
             domain={[0, "auto"]}
             allowDataOverflow
             tickFormatter={(v: number) => compactMoney.format(v)}
           />
           <ChartTooltip
-            cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+            cursor={{ fill: "var(--foreground)", opacity: 0.05 }}
             content={
               <ChartTooltipContent
-                className="min-w-44"
+                className="min-w-48"
                 labelFormatter={(v) => fmtDate(String(v))}
                 formatter={(value, name) => (
                   <div className="flex w-full items-center justify-between gap-4">
                     <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <span className="size-2 rounded-[2px]" style={{ background: `var(--color-${String(name)})` }} />
+                      <span className="size-2 rounded-full" style={{ background: `var(--color-${String(name)})` }} />
                       {config[name as keyof typeof config]?.label}
                     </span>
                     <span className="tabular font-medium text-foreground">{moneyFmt.format(Number(value))}</span>
@@ -122,9 +123,26 @@ export function SpendRevenueChart({
               />
             }
           />
-          <Bar dataKey="spend" fill="var(--color-spend)" radius={[3, 3, 0, 0]} maxBarSize={14} fillOpacity={0.85} />
-          <Area dataKey="attributed" type="monotone" stroke="var(--color-attributed)" strokeWidth={2} fill="url(#fillAttributed)" />
-          <Area dataKey="revenue" type="monotone" stroke="var(--color-revenue)" strokeWidth={1.5} strokeDasharray="4 3" fill="none" />
+          <Bar dataKey="spend" fill="var(--color-spend)" radius={[3, 3, 0, 0]} maxBarSize={12} fillOpacity={0.55} animationDuration={500} />
+          <Area
+            dataKey="attributed"
+            type="monotone"
+            stroke="var(--color-attributed)"
+            strokeWidth={2.25}
+            fill="url(#fillAttributed)"
+            animationDuration={700}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
+          />
+          <Area
+            dataKey="revenue"
+            type="monotone"
+            stroke="var(--color-revenue)"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+            fill="none"
+            animationDuration={700}
+            activeDot={{ r: 3.5, strokeWidth: 2, stroke: "var(--card)" }}
+          />
         </ComposedChart>
       </ChartContainer>
     </div>

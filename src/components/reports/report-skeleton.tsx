@@ -25,7 +25,14 @@ export function ReportSkeleton({
         {kpis ? (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
-              <Skeleton key={i} className="h-[7.5rem] rounded-xl" />
+              <div key={i} className="h-[7.5rem] rounded-xl bg-card p-3.5 ring-1 ring-foreground/10 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="size-7 rounded-lg" />
+                </div>
+                <Skeleton className="mt-3 h-6 w-24 max-w-full" />
+                <Skeleton className="mt-2.5 h-3 w-28 max-w-full" />
+              </div>
             ))}
           </div>
         ) : (
@@ -34,8 +41,14 @@ export function ReportSkeleton({
             <Skeleton className="h-10 w-full rounded-lg md:h-9 md:w-72" />
           </div>
         )}
-        <div className="overflow-hidden rounded-xl border">
-          <Skeleton className="h-10 rounded-none" />
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+          <div className="flex h-10 items-center gap-4 bg-muted/50 px-3">
+            <Skeleton className="h-3 w-24" />
+            <span className="flex-1" />
+            <Skeleton className="h-3 w-14" />
+            <Skeleton className="hidden h-3 w-14 sm:block" />
+            <Skeleton className="h-3 w-10" />
+          </div>
           {Array.from({ length: rows }, (_, i) => (
             <div key={i} className="flex items-center gap-4 border-t px-3 py-3">
               <Skeleton className="h-4 flex-1" />
