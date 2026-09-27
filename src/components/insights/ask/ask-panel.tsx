@@ -10,7 +10,6 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import type { AskTable } from "@/lib/db/schema";
 import { useHotkeys } from "@/lib/hotkeys";
-import { cn } from "@/lib/utils";
 import { AnswerTable } from "./answer-table";
 
 export type AskMessageView = {
@@ -104,7 +103,7 @@ export function AskPanel({
     });
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col">
+    <div className="flex w-full max-w-4xl flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2 pb-4">
         <p className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
           <DatabaseIcon aria-hidden className="size-3.5 shrink-0" />
@@ -153,7 +152,7 @@ export function AskPanel({
                 key={s}
                 type="button"
                 onClick={() => send(s)}
-                className="rounded-lg border bg-surface px-3.5 py-2.5 text-ui text-pretty transition-[border-color,background-color] duration-100 outline-none hover:border-border-strong hover:bg-fill/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="rounded-lg border bg-surface px-3.5 py-2.5 text-left text-ui text-pretty transition-[border-color,background-color] duration-100 outline-none hover:border-border-strong hover:bg-fill/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 {s}
               </button>
@@ -233,7 +232,7 @@ export function AskPanel({
             {pending ? <Loader2Icon aria-hidden className="animate-spin" /> : <ArrowUpIcon aria-hidden />}
           </Button>
         </div>
-        <p className={cn("mt-1.5 hidden px-1 text-caption text-muted-foreground md:block")}>
+        <p className="mt-1.5 hidden px-1 text-caption text-muted-foreground md:block">
           <kbd className="kbd">Enter</kbd> to send, <kbd className="kbd">Shift</kbd> <kbd className="kbd">Enter</kbd> for a new line
         </p>
       </form>

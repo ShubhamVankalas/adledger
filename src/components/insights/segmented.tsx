@@ -41,7 +41,7 @@ export function Segmented<T extends string>({
             key={o.value}
             htmlFor={inputId}
             title={o.title}
-            className="relative flex min-w-0 flex-1 cursor-pointer items-center justify-center rounded-[5px] px-2.5 text-ui whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground has-checked:bg-surface has-checked:font-medium has-checked:text-foreground has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-ring"
+            className="relative flex flex-auto cursor-pointer items-center justify-center rounded-[5px] px-2.5 text-ui whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground has-checked:bg-surface has-checked:font-medium has-checked:text-foreground has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-ring"
           >
             <input
               id={inputId}
@@ -52,7 +52,7 @@ export function Segmented<T extends string>({
               {...(value !== undefined ? { checked: value === o.value } : { defaultChecked: defaultValue === o.value })}
               onChange={() => onChange?.(o.value)}
             />
-            <span className="truncate">{o.label}</span>
+            <span>{o.label}</span>
           </label>
         );
       })}

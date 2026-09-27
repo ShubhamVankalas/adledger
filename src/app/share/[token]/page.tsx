@@ -27,8 +27,10 @@ const load = cache(async (token: string, sp: Record<string, string | string[] | 
 export async function generateMetadata({ params }: PageProps<"/share/[token]">): Promise<Metadata> {
   const { token } = await params;
   const data = await load(token, {});
+  // Decide the 404 before anything streams, so unknown links get a real 404 status.
+  if (!data) notFound();
   return {
-    title: data ? `${data.link.label} · ${data.workspace.name}` : "Link not found",
+    title: `${data.link.label} · ${data.workspace.name}`,
     robots: { index: false, follow: false, nocache: true },
     referrer: "no-referrer",
   };
@@ -68,7 +70,7 @@ export default async function SharedReportPage({ params, searchParams }: PagePro
   const periodText = dateRange(data.period.start, data.period.end, { year: true });
   const prevText = dateRange(data.previousPeriod.start, data.previousPeriod.end, { year: true });
   const label = (key: MetricKey) =>
-    locked && key === "revenue" ? `Revenue from ${platformLabel(locked)}` : locked && (key === "leads" || key === "customers") ? `${METRICS[key].label} from ${platformLabel(locked)}` : METRICS[key].label;
+    key === "cac" ? "CAC" : locked && key === "revenue" ? `Revenue from ${platformLabel(locked)}` : locked && (key === "leads" || key === "customers") ? `${METRICS[key].label} from ${platformLabel(locked)}` : METRICS[key].label;
 
   return (
     <Shell>

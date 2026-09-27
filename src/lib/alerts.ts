@@ -176,7 +176,8 @@ export function parseAlertRuleInput(
     scopeId = raw.scopeId!;
   }
   const channels = [...new Set((raw.channels ?? []).filter((c) => availableChannels.includes(c)))];
-  const name = (raw.name ?? "").trim().slice(0, 80) || `${def.label} ${comparator === "gt" ? "above" : "below"} ${t}`;
+  const typed = def.unit === "money" ? formatMetric(metric, thresholdMinor, currency) : formatMetric(metric, Number(thresholdValue), currency);
+  const name = (raw.name ?? "").trim().slice(0, 80) || `${def.label} ${comparator === "gt" ? "above" : "below"} ${typed}`;
   return { name, metric, comparator, thresholdMinor, thresholdValue, windowDays, scope, scopeId, channels, cooldownHours, enabled: raw.enabled !== false };
 }
 

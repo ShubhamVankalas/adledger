@@ -233,7 +233,7 @@ export async function runAskTool(db: DB, ws: Workspace, name: AskToolName, args:
       const rows = await wastedSpend(db, ws, { ...p, level });
       return {
         ...base,
-        title: `${LEVEL_LABEL[level]} with ROAS under 0.5x`,
+        title: `${LEVEL_LABEL[level]} with ROAS under 0.5×`,
         columns: PERF_COLUMNS,
         rows: rows.slice(0, 15).map(perfRow),
         source: href("/performance", p, level === "campaign" ? {} : { level }),
@@ -437,7 +437,10 @@ export function describeTable(plan: Plan, t: AskTable): string {
       return `**${first.name}** (${platformLabel(String(first.platform))}) has the ${lowest ? "lowest" : "highest"} ${what}: ${cell(first, by === "cpl" ? "spend" : key)}, for ${t.caption}.`;
     }
     case "find_wasted_spend":
-      return `${t.rows.length === 1 ? "One campaign" : `${t.rows.length} rows`} spent meaningfully with ROAS under 0.5x. The largest is **${first.name}** at ${cell(first, "spend")} spent (${t.caption}).`;
+    {
+      const noun = { campaign: ["campaign", "campaigns"], ad_group: ["ad set", "ad sets"], ad: ["ad", "ads"] }[plan.args.level ?? "campaign"];
+      return `${t.rows.length === 1 ? `One ${noun[0]}` : `${t.rows.length} ${noun[1]}`} spent a meaningful amount at a ROAS under 0.5×. The largest is **${first.name}**, with ${cell(first, "spend")} spent and ${cell(first, "revenue")} in revenue (${t.caption}).`;
+    }
     case "get_platform_breakdown":
       return `**${platformLabel(String(first.platform))}** had the most spend: ${cell(first, "spend")} at ${cell(first, "roas")} ROAS (${t.caption}).`;
     case "compare_periods": {

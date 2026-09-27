@@ -11,7 +11,7 @@ const sourceLabel = (href: string) => (href.startsWith("/performance") ? "Open i
 export function AnswerTable({ table }: { table: AskTable }) {
   const single = table.rows.length === 1 && table.columns.length > 3 && table.columns.every((c) => isNumericKind(c.kind));
   return (
-    <figure className="overflow-hidden rounded-xl bg-card shadow-(--elev-card)">
+    <figure className="@container overflow-hidden rounded-xl bg-card shadow-(--elev-card)">
       <figcaption className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 px-4 pt-3 pb-2.5">
         <span className="min-w-0">
           <span className="block text-ui font-medium">{table.title}</span>
@@ -64,7 +64,7 @@ export function AnswerTable({ table }: { table: AskTable }) {
                       )}
                       title={c.kind === "text" ? String(r[c.key] ?? "") : undefined}
                     >
-                      {c.kind === "platform" ? <PlatformBadge platform={String(r[c.key] ?? "")} /> : formatCell(c.kind, r[c.key], table.currency)}
+                      {c.kind === "platform" ? <PlatformBadge platform={String(r[c.key] ?? "")} compact="auto" /> : formatCell(c.kind, r[c.key], table.currency)}
                     </td>
                   ))}
                 </tr>

@@ -1,6 +1,7 @@
 import type { DB } from "./db";
-import { moneyShort, pct, platformLabel, signedPct } from "./format";
+import { moneyShort, moneyWhole, pct, platformLabel, signedPct } from "./format";
 import { ratioX } from "./metrics";
+import { toMajor } from "./money";
 import { resolvePeriodParams } from "./period";
 import { overview, performance, pickWastedSpend, previousPeriod, type PerfRow, type ReportParams } from "./reports";
 import type { Workspace } from "./settings";
@@ -60,7 +61,8 @@ export async function actionCards(db: DB, ws: Workspace, period?: ReportParams):
   ]);
   const cards: ActionCard[] = [];
   const cur$ = ws.reportingCurrency;
-  const m = (v: number) => moneyShort(v, cur$);
+  // Exact figures up to 10,000; compact above ($12.4K), like the dashboard tables and tiles.
+  const m = (v: number) => (Math.abs(toMajor(v, cur$)) < 10_000 ? moneyWhole(v, cur$) : moneyShort(v, cur$));
   const totalSpend = rows.reduce((s, r) => s + r.spendMinor, 0);
   const meaningful = (r: PerfRow) => totalSpend > 0 && r.spendMinor >= totalSpend * MIN_SPEND_SHARE;
   const campaignChip = (r: PerfRow): Chip => ({ text: r.name, href: campaignHref(p, r.id), kind: "name" });
@@ -80,7 +82,7 @@ export async function actionCards(db: DB, ws: Workspace, period?: ReportParams):
       id: `shift:${worst.id}:${best.id}`,
       kind: "shift",
       tone: "opportunity",
-      title: ["Shift about ", { text: `${m(weekly)}/week`, href: campaignHref(p, worst.id) }, " from ", campaignChip(worst), " (", roasChip(worst, "bad"), ") to ", campaignChip(best), " (", roasChip(best, "good"), ")"],
+      title: ["Shift about ", { text: `${m(weekly)}/week`, href: campaignHref(p, worst.id) }, " from ", campaignChip(worst), " at ", roasChip(worst, "bad"), " to ", campaignChip(best), " at ", roasChip(best, "good")],
       evidence: [
         campaignChip(worst),
         " spent ",
@@ -153,13 +155,21 @@ export async function actionCards(db: DB, ws: Workspace, period?: ReportParams):
   }
 
   // 4. Customers got more expensive.
+  const spendChange = before.spendMinor ? (cur.spendMinor - before.spendMinor) / before.spendMinor : null;
   if (cur.cacMinor !== null && before.cacMinor !== null && before.cacMinor > 0 && cur.cacMinor >= before.cacMinor * 1.2 && cards.length < 5) {
     cards.push({
       id: "cac",
       kind: "cac",
       tone: "warning",
       title: ["Customer cost rose ", { text: signedPct((cur.cacMinor - before.cacMinor) / before.cacMinor, 0), href: overviewHref(p), tone: "bad" }, " to ", { text: m(cur.cacMinor), href: overviewHref(p) }],
-      evidence: ["It was ", { text: m(before.cacMinor), href: overviewHref(prev) }, " in the previous period. Ad spend moved ", { text: signedPct(before.spendMinor ? (cur.spendMinor - before.spendMinor) / before.spendMinor : null, 0), href: overviewHref(p) }, "."],
+      evidence: [
+        "It was ",
+        { text: m(before.cacMinor), href: overviewHref(prev) },
+        " in the previous period, ",
+        ...(spendChange !== null && Math.abs(spendChange) >= 0.02
+          ? ["while ad spend moved ", { text: signedPct(spendChange, 0), href: overviewHref(p) }, "."]
+          : ["on about the same ad spend. Fewer sales are coming from the same budget."]),
+      ],
       action: { label: "See the trend", href: overviewHref(p) },
       campaignIds: [],
     });
