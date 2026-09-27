@@ -913,15 +913,19 @@ async function funnelCounts(db: DB, ws: Workspace, p: ReportParams): Promise<Fun
 }
 
 /**
- * Visitors → leads → customers → revenue for the period, with the previous period of the same
- * length for comparison ghost bars. Counts are "happened in this period" (a customer who became
- * a lead last month still counts here), so step rates are period rates, not a cohort funnel.
+ * Visitors → leads → customers → revenue for the period, with a comparison period (the previous
+ * period of the same length unless `previous` names another, e.g. last year) for ghost markers.
+ * Counts are "happened in this period" (a customer who became a lead last month still counts
+ * here), so step rates are period rates, not a cohort funnel.
  */
-export async function funnel(db: DB, ws: Workspace, p: ReportParams, opts: { compare?: boolean } = {}): Promise<FunnelReport> {
-  const [cur, previous] = await Promise.all([
-    funnelCounts(db, ws, p),
-    opts.compare === false ? Promise.resolve(null) : funnelCounts(db, ws, previousPeriod(p)),
-  ]);
+export async function funnel(
+  db: DB,
+  ws: Workspace,
+  p: ReportParams,
+  opts: { compare?: boolean; previous?: Period | null } = {},
+): Promise<FunnelReport> {
+  const prev = opts.compare === false || opts.previous === null ? null : opts.previous ? { ...p, ...opts.previous } : previousPeriod(p);
+  const [cur, previous] = await Promise.all([funnelCounts(db, ws, p), prev ? funnelCounts(db, ws, prev) : Promise.resolve(null)]);
   return { ...cur, currency: ws.reportingCurrency, model: p.model, previous };
 }
 
