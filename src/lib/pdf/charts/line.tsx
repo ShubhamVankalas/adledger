@@ -1,4 +1,4 @@
-import { G, Path, Svg } from "@react-pdf/renderer";
+import { Circle, G, Path, Svg } from "@react-pdf/renderer";
 import { areaPath, axisWidth, linePath, XLabels, YGrid } from "./primitives";
 import { finite, linear, niceTicks, pointX } from "./scale";
 
@@ -48,10 +48,13 @@ export function LineChart({
       {series.map((s, si) => {
         const pts = s.values.map((v, i) => (v === null || !Number.isFinite(v) ? null : { x: x(i), y: y(finite(v)) }));
         const contiguous = pts.filter((p): p is { x: number; y: number } => p !== null);
+        // A dot on the latest point: marks where each line ends and keeps one-point series visible.
+        const last = contiguous[contiguous.length - 1];
         return (
           <G key={si}>
             {s.area && contiguous.length > 1 ? <Path d={areaPath(contiguous, y(Math.max(ticks.min, 0)))} fill={s.color} fillOpacity={0.1} /> : null}
             <Path d={linePath(pts)} stroke={s.color} strokeWidth={s.strokeWidth ?? 1.25} fill="none" strokeLinejoin="round" strokeLinecap="round" strokeDasharray={s.dashed ? "2.5 2" : undefined} strokeOpacity={s.dashed ? 0.75 : 1} />
+            {last && !s.dashed ? <Circle cx={last.x} cy={last.y} r={1.9} fill={s.color} /> : null}
           </G>
         );
       })}

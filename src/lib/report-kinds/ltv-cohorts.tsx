@@ -29,6 +29,9 @@ export function paybackMonth(cumulativeLtvMinor: number[], cacMinor: number | nu
 
 const MAX_COLS = 12;
 const MAX_ROWS = 12;
+const HEAT_LABEL_W = 52;
+const HEAT_CELL_W = 64;
+const HEAT_EXTRA_W = 56;
 
 const channelName = (r: LtvChannelRow) => (r.platform ? labelPlatform(r.platform) : labelChannel(r.channel ?? r.key));
 
@@ -43,6 +46,10 @@ function Body({ data }: { data: ReportData<LtvCohortsData> }) {
   const curveLen = Math.min(MAX_COLS, Math.max(1, ...recent.map((c) => c.cumulativeLtvMinor.length)));
   const channels = r.channels.filter((c) => c.customers > 0 || c.spendMinor > 0);
   const withRatio = channels.filter((c) => c.ltvCac !== null).slice(0, 8);
+  // A few months of history make a narrow heatmap: the payback table then sits beside it on page 1.
+  const HEAT_MAX_W = W * 0.44;
+  const sideBySide = cohorts.length > 0 && HEAT_LABEL_W + cols * HEAT_CELL_W + HEAT_EXTRA_W <= HEAT_MAX_W;
+  const heatW = sideBySide ? HEAT_MAX_W : W;
 
   const chanCols: Column<LtvChannelRow>[] = [
     { header: "Acquired through", flex: 1.6, cell: (x) => channelName(x) },
@@ -71,6 +78,34 @@ function Body({ data }: { data: ReportData<LtvCohortsData> }) {
     },
   ];
 
+  const heatmap = (
+    <Section title="Cumulative revenue per customer" aside={sideBySide ? `By month since first payment · ${r.currency}` : `By month since first payment · ${cohorts.length} cohorts · ${r.currency}`}>
+      {cohorts.length ? (
+        <Heatmap
+          width={heatW}
+          rowLabels={cohorts.map((c) => monthShort(c.cohort))}
+          colLabels={Array.from({ length: cols }, (_, j) => (j === 0 ? "Month 1" : `${j + 1}`))}
+          values={cohorts.map((c) => Array.from({ length: cols }, (_, j) => (j < c.cumulativeLtvMinor.length ? c.cumulativeLtvMinor[j] : null)))}
+          format={(v) => m.short(v)}
+          rowLabelWidth={HEAT_LABEL_W}
+          cellHeight={cohorts.length > 8 ? 14 : 16}
+          extra={{ label: "Customers", values: cohorts.map((c) => credit(c.customers)), width: HEAT_EXTRA_W }}
+        />
+      ) : (
+        <Text style={{ fontSize: TYPE.ui, color: C.fgMuted }}>No customer made a first payment in this period.</Text>
+      )}
+    </Section>
+  );
+  const payback = (
+    <Section title="Payback" aside={cac !== null ? `Against the period's blended cost per customer, ${m.whole(cac)}` : "No ad-attributed customers to compare against"}>
+      <Table columns={paybackCols} rows={[...r.cohorts].reverse()} limit={25} moreNoun="cohorts" dense />
+      <Text style={{ fontSize: TYPE.micro + 0.5, color: C.fgMuted, marginTop: 6, lineHeight: 1.45 }}>
+        A cohort is everyone whose first payment fell in that month. Revenue is payments minus refunds up to the end of the period, in {r.currency}. Payback is the first month in which cumulative revenue per customer covers the
+        blended cost per customer.
+      </Text>
+    </Section>
+  );
+
   return (
     <View>
       <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 0.6, borderColor: C.border, borderRadius: 6 }}>
@@ -81,22 +116,14 @@ function Body({ data }: { data: ReportData<LtvCohortsData> }) {
         <Stat label="LTV:CAC" value={r.ltvMinor !== null && cac ? ratioX(r.ltvMinor / cac) : "—"} />
       </View>
 
-      <Section title="Cumulative revenue per customer by month since first payment" aside={`${cohorts.length} cohorts · ${r.currency}`}>
-        {cohorts.length ? (
-          <Heatmap
-            width={W}
-            rowLabels={cohorts.map((c) => monthShort(c.cohort))}
-            colLabels={Array.from({ length: cols }, (_, j) => (j === 0 ? "Month 1" : `${j + 1}`))}
-            values={cohorts.map((c) => Array.from({ length: cols }, (_, j) => (j < c.cumulativeLtvMinor.length ? c.cumulativeLtvMinor[j] : null)))}
-            format={(v) => m.short(v)}
-            rowLabelWidth={52}
-            cellHeight={cohorts.length > 8 ? 14 : 16}
-            extra={{ label: "Customers", values: cohorts.map((c) => credit(c.customers)), width: 56 }}
-          />
-        ) : (
-          <Text style={{ fontSize: TYPE.ui, color: C.fgMuted }}>No customer made a first payment in this period.</Text>
-        )}
-      </Section>
+      {sideBySide ? (
+        <View style={{ flexDirection: "row", gap: 24 }} wrap={false}>
+          <View style={{ width: HEAT_MAX_W }}>{heatmap}</View>
+          <View style={{ flex: 1 }}>{payback}</View>
+        </View>
+      ) : (
+        heatmap
+      )}
 
       <View style={{ flexDirection: "row", gap: 20 }} wrap={false}>
         <View style={{ flex: 1 }}>
@@ -135,13 +162,7 @@ function Body({ data }: { data: ReportData<LtvCohortsData> }) {
         <Table columns={chanCols} rows={channels} limit={25} moreNoun="channels" dense />
       </Section>
 
-      <Section title="Payback" aside={cac !== null ? `Against the period's blended cost per customer, ${m.whole(cac)}` : "No ad-attributed customers to compare against"}>
-        <Table columns={paybackCols} rows={[...r.cohorts].reverse()} limit={25} moreNoun="cohorts" dense />
-        <Text style={{ fontSize: TYPE.micro + 0.5, color: C.fgMuted, marginTop: 6, lineHeight: 1.45 }}>
-          A cohort is everyone whose first payment fell in that month. Revenue is payments minus refunds up to the end of the period, in {r.currency}. Payback is the first month in which cumulative revenue per customer covers the
-          blended cost per customer.
-        </Text>
-      </Section>
+      {sideBySide ? null : payback}
     </View>
   );
 }

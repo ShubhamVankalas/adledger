@@ -92,7 +92,8 @@
   [role="radiogroup"],
   select,
   input,
-  textarea {
+  textarea,
+  :has(> [data-slot="input"]) > svg {
     display: none !important;
   }
 
@@ -114,7 +115,7 @@
     position: static !important;
     backdrop-filter: none !important;
     background: transparent !important;
-    border-bottom: 1px solid #e3e6e4;
+    border-bottom: 1px solid var(--border);
     padding: 0 0 8pt !important;
     margin-bottom: 12pt;
   }
@@ -148,10 +149,47 @@
     break-before: page;
   }
 
-  /* Cards print as hairline boxes on white. */
-  [data-slot="card"] {
+  /* Cards and Overview widgets print as hairline boxes on white, at their natural height (the
+     fixed on-screen heights would leave gaps or clip content on paper). */
+  [data-slot="card"],
+  [data-widget-id] {
     background: #ffffff !important;
-    border: 1px solid #e3e6e4;
+    border: 1px solid var(--border);
+  }
+  /* Chart widgets keep their height: Recharts sizes itself from it. */
+  [data-widget-id]:not(:has(.recharts-responsive-container)) {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  [data-widget-id] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Recharts sizes its SVG in pixels for the screen. Let the wrapper follow the card instead, so
+     the SVG (which has a viewBox) scales to the paper width rather than being clipped. */
+  .recharts-responsive-container > div,
+  .recharts-wrapper {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+  }
+  .recharts-tooltip-wrapper,
+  .recharts-tooltip-cursor {
+    display: none !important;
+  }
+
+  /* Collapsible sections print expanded, without their chevrons. */
+  details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  summary {
+    list-style: none;
+  }
+  summary svg,
+  summary::-webkit-details-marker {
+    display: none !important;
   }
 
   /* Scroll containers show everything. */
