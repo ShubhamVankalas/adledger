@@ -332,6 +332,18 @@ export async function profitRows(db: DB, ws: Workspace, p: ReportParams, level: 
 
 // ================================================================ ad receipts
 
+/**
+ * How spend is priced into customers. Either way every ad-day's spend is split with allocate(),
+ * so customer costs + unallocated = spend to the minor unit.
+ *   share   (default) each ad's spend in a calendar month is shared by the customers credited to
+ *           that ad that month, by credit. The fully loaded cost: what it took to win them.
+ *   clicks  only the clicks a customer made: credit × the ad's cost per click that day. Clicks
+ *           that never bought stay unallocated, so this is the marginal cost of the customer.
+ */
+export type CostBasis = "share" | "clicks";
+export const COST_BASES: readonly CostBasis[] = ["share", "clicks"];
+export const parseCostBasis = (v: unknown): CostBasis => (v === "clicks" ? "clicks" : "share");
+
 /** One credited paid touch of a customer (their first-payment conversion) on one ad-day. */
 export type CreditTouch = {
   contactId: string;
@@ -348,49 +360,61 @@ export type Allocation = {
   /** touchpointId → cost in minor units. */
   costByTouch: Map<string, number>;
   allocatedMinor: number;
-  /** Spend not linked to any customer (clicks that didn't buy + spend with no clicks). */
+  /** Spend not linked to any customer (clicks that didn't buy, or ad-months with no buyer). */
   unallocatedMinor: number;
   /** Part of unallocatedMinor on ad-days that reported spend but zero clicks and no customers. */
   noClickMinor: number;
 };
 
-const adDayKey = (adId: string, day: string) => `${adId}|${day}`;
+/** The day (clicks) or month (share) a day's spend is pooled in. */
+const poolOf = (basis: CostBasis, day: string) => (basis === "clicks" ? day : day.slice(0, 7));
+const poolKey = (adId: string, pool: string) => `${adId}|${pool}`;
 const byContactThenTouch = (a: CreditTouch, b: CreditTouch) =>
   a.contactId < b.contactId ? -1 : a.contactId > b.contactId ? 1 : a.touchpointId < b.touchpointId ? -1 : a.touchpointId > b.touchpointId ? 1 : 0;
+const monthStart = (day: string) => `${day.slice(0, 7)}-01`;
+function monthEnd(day: string) {
+  const d = new Date(`${monthStart(day)}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return addDays(d.toISOString().slice(0, 10), -1);
+}
+/** First and last day of the pools that [from, to] touches. */
+const poolBounds = (basis: CostBasis, from: string, to: string) => (basis === "clicks" ? [from, to] : [monthStart(from), monthEnd(to)]);
 
 /**
- * Split each ad-day's spend between the customers who clicked it and "unallocated": every click
- * costs spend ÷ clicks, a customer's touch takes `credit` clicks' worth, and the clicks nobody
- * bought from keep the rest. allocate() makes the parts add up to the ad-day's spend exactly.
- * When more credited touches than clicks were recorded, customers share the whole ad-day.
+ * Split each ad-day's spend between customers and "unallocated" (see CostBasis). With `clicks`,
+ * every click costs spend ÷ clicks, a customer's touch takes `credit` clicks' worth and the clicks
+ * nobody bought from keep the rest (when more credited touches than clicks were recorded,
+ * customers share the whole ad-day). With `share`, the day's spend goes to the customers credited
+ * to the ad in that month, by credit. allocate() makes the parts add up to each ad-day exactly.
  */
-export function allocateAdDays(adDays: AdDaySpend[], credits: CreditTouch[]): Allocation {
+export function allocateAdDays(adDays: AdDaySpend[], credits: CreditTouch[], basis: CostBasis = "clicks"): Allocation {
   const byKey = new Map<string, CreditTouch[]>();
   for (const c of credits) {
-    const k = adDayKey(c.adId, c.day);
+    const k = poolKey(c.adId, poolOf(basis, c.day));
     const list = byKey.get(k);
     if (list) list.push(c);
     else byKey.set(k, [c]);
   }
+  for (const list of byKey.values()) list.sort(byContactThenTouch);
   const costByTouch = new Map<string, number>();
   let allocatedMinor = 0;
   let unallocatedMinor = 0;
   let noClickMinor = 0;
   for (const d of adDays) {
-    const cs = (byKey.get(adDayKey(d.adId, d.day)) ?? []).sort(byContactThenTouch);
+    const cs = byKey.get(poolKey(d.adId, poolOf(basis, d.day))) ?? [];
     if (cs.length === 0) {
       unallocatedMinor += d.spendMinor;
       if (d.clicks === 0) noClickMinor += d.spendMinor;
       continue;
     }
     const weights = cs.map((c) => c.credit);
-    const credited = weights.reduce((a, b) => a + b, 0);
-    const parts = allocate(d.spendMinor, [...weights, Math.max(0, d.clicks - credited)]);
+    if (basis === "clicks") weights.push(Math.max(0, d.clicks - weights.reduce((a, b) => a + b, 0)));
+    const parts = allocate(d.spendMinor, weights);
     cs.forEach((c, i) => {
       costByTouch.set(c.touchpointId, (costByTouch.get(c.touchpointId) ?? 0) + parts[i]);
       allocatedMinor += parts[i];
     });
-    unallocatedMinor += parts[cs.length];
+    if (basis === "clicks") unallocatedMinor += parts[cs.length];
   }
   return { costByTouch, allocatedMinor, unallocatedMinor, noClickMinor };
 }
@@ -447,25 +471,32 @@ export type CostLine = {
   campaignId: string | null;
   campaignName: string | null;
   platform: Platform | null;
+  /** Workspace-local day of the click. */
   day: string;
   touchedAt: string;
   credit: number;
   costMinor: number;
-  /** The ad-day the cost comes from (null when no spend was recorded for it). */
-  adDaySpendMinor: number | null;
-  adDayClicks: number | null;
+  basis: CostBasis;
+  /** The pool the cost comes from: the click's day (clicks) or month, YYYY-MM (share). */
+  pool: string;
+  /** The ad's spend and clicks in the pool (null when no spend was recorded). */
+  poolSpendMinor: number | null;
+  poolClicks: number | null;
+  /** Σ customer credit on this ad in the pool: everyone who shares its spend (share basis). */
+  poolCredits: number;
 };
 
 /**
  * Acquisition cost of each contact: their credited paid touches (first-payment conversion, `model`)
- * priced from the ad-days they clicked. Every ad-day involved is allocated with *all* customers who
- * clicked it, so a contact's number matches the workspace ledger to the minor unit.
+ * priced from the ad's spend (see CostBasis). Every pool involved is allocated with *all* customers
+ * in it, so a contact's number matches the workspace ledger to the minor unit.
  */
 export async function contactCosts(
   db: DB,
   ws: Workspace,
   model: AttributionModel,
   contactIds: string[],
+  basis: CostBasis = "share",
 ): Promise<Map<string, { costMinor: number; lines: CostLine[] }>> {
   const out = new Map<string, { costMinor: number; lines: CostLine[] }>();
   if (contactIds.length === 0) return out;
@@ -473,27 +504,38 @@ export async function contactCosts(
   for (const id of contactIds) out.set(id, { costMinor: 0, lines: [] });
   if (own.length === 0) return out;
 
-  const keys = new Set(own.map((c) => adDayKey(c.adId, c.day)));
+  const keyOf = (adId: string, day: string) => poolKey(adId, poolOf(basis, day));
+  const keys = new Set(own.map((c) => keyOf(c.adId, c.day)));
   const adIds = [...new Set(own.map((c) => c.adId))];
   const days = own.map((c) => c.day).sort();
-  const [minDay, maxDay] = [days[0], days.at(-1)!];
-  // Local days can sit a day either side of the UTC timestamp; the exact (ad, day) filter follows.
-  const all = (
-    await customerCreditTouches(
+  const [from, to] = poolBounds(basis, days[0], days.at(-1)!);
+  // Local days can sit a day either side of the UTC timestamp; the exact pool filter follows.
+  const [all, spend] = await Promise.all([
+    customerCreditTouches(
       db,
       ws,
       model,
       sql`and ac.ad_id in (${uuidList(adIds)})
-        and t.occurred_at >= ${addDays(minDay, -1)}::timestamptz and t.occurred_at < ${addDays(maxDay, 2)}::timestamptz`,
-    )
-  ).filter((c) => keys.has(adDayKey(c.adId, c.day)));
-  const spend = (await adDaySpend(db, ws, sql`and ad_id in (${uuidList(adIds)}) and date between ${minDay}::date and ${maxDay}::date`)).filter((d) =>
-    keys.has(adDayKey(d.adId, d.day)),
-  );
-  const alloc = allocateAdDays(spend, all);
-  const spendByKey = new Map(spend.map((d) => [adDayKey(d.adId, d.day), d]));
+        and t.occurred_at >= ${addDays(from, -1)}::timestamptz and t.occurred_at < ${addDays(to, 2)}::timestamptz`,
+    ).then((list) => list.filter((c) => keys.has(keyOf(c.adId, c.day)))),
+    adDaySpend(db, ws, sql`and ad_id in (${uuidList(adIds)}) and date between ${from}::date and ${to}::date`).then((list) =>
+      list.filter((d) => keys.has(keyOf(d.adId, d.day))),
+    ),
+  ]);
+  const alloc = allocateAdDays(spend, all, basis);
+  const pools = new Map<string, { spendMinor: number; clicks: number }>();
+  for (const d of spend) {
+    const k = keyOf(d.adId, d.day);
+    const p = pools.get(k) ?? { spendMinor: 0, clicks: 0 };
+    p.spendMinor += d.spendMinor;
+    p.clicks += d.clicks;
+    pools.set(k, p);
+  }
+  const creditsBy = new Map<string, number>();
+  for (const c of all) creditsBy.set(keyOf(c.adId, c.day), (creditsBy.get(keyOf(c.adId, c.day)) ?? 0) + c.credit);
   for (const c of own.sort((a, b) => a.at.localeCompare(b.at))) {
-    const d = spendByKey.get(adDayKey(c.adId, c.day));
+    const k = keyOf(c.adId, c.day);
+    const pool = pools.get(k);
     const costMinor = alloc.costByTouch.get(c.touchpointId) ?? 0;
     const entry = out.get(c.contactId)!;
     entry.costMinor += costMinor;
@@ -508,8 +550,11 @@ export async function contactCosts(
       touchedAt: c.at,
       credit: c.credit,
       costMinor,
-      adDaySpendMinor: d?.spendMinor ?? null,
-      adDayClicks: d?.clicks ?? null,
+      basis,
+      pool: poolOf(basis, c.day),
+      poolSpendMinor: pool?.spendMinor ?? null,
+      poolClicks: pool?.clicks ?? null,
+      poolCredits: round2(creditsBy.get(k) ?? c.credit),
     });
   }
   return out;
@@ -518,6 +563,7 @@ export async function contactCosts(
 export type AcquisitionLedger = {
   currency: string;
   model: AttributionModel;
+  basis: CostBasis;
   start: string;
   end: string;
   /** Σ ad spend in the period (reporting currency), the same number as the Overview. */
@@ -530,18 +576,32 @@ export type AcquisitionLedger = {
   contacts: { contactId: string; costMinor: number }[];
 };
 
-/** Every ad-day of the period split into customer costs plus an "unallocated" line. */
-export async function acquisitionLedger(db: DB, ws: Workspace, p: Pick<ReportParams, "start" | "end" | "model">): Promise<AcquisitionLedger> {
+/**
+ * Every ad-day of the period split into customer costs plus an "unallocated" line. With the
+ * share basis, customers credited in the period's first or last month share that month's in-range
+ * days, so a contact's cost here equals their receipt when the period covers whole months.
+ */
+export async function acquisitionLedger(
+  db: DB,
+  ws: Workspace,
+  p: Pick<ReportParams, "start" | "end" | "model">,
+  basis: CostBasis = "share",
+): Promise<AcquisitionLedger> {
+  const [from, to] = poolBounds(basis, p.start, p.end);
   const [credits, spend] = await Promise.all([
-    customerCreditTouches(db, ws, p.model, sql`and (t.occurred_at at time zone ${ws.timezone})::date between ${p.start}::date and ${p.end}::date`),
+    customerCreditTouches(db, ws, p.model, sql`and (t.occurred_at at time zone ${ws.timezone})::date between ${from}::date and ${to}::date`),
     adDaySpend(db, ws, sql`and date between ${p.start}::date and ${p.end}::date`),
   ]);
-  const alloc = allocateAdDays(spend, credits);
+  const alloc = allocateAdDays(spend, credits, basis);
   const perContact = new Map<string, number>();
-  for (const c of credits) perContact.set(c.contactId, (perContact.get(c.contactId) ?? 0) + (alloc.costByTouch.get(c.touchpointId) ?? 0));
+  for (const c of credits) {
+    const cost = alloc.costByTouch.get(c.touchpointId);
+    if (cost !== undefined) perContact.set(c.contactId, (perContact.get(c.contactId) ?? 0) + cost);
+  }
   return {
     currency: ws.reportingCurrency,
     model: p.model,
+    basis,
     start: p.start,
     end: p.end,
     spendMinor: spend.reduce((s, d) => s + d.spendMinor, 0),
@@ -649,8 +709,9 @@ async function earnedLines(db: DB, ws: Workspace, model: AttributionModel, filte
 export type ContactReceipt = {
   currency: string;
   model: AttributionModel;
+  basis: CostBasis;
   contact: { id: string; name: string | null; email: string | null; lifecycle: string; firstSeenAt: string };
-  /** What this customer cost: Σ credited click costs. */
+  /** What this customer cost under `basis` (see CostBasis). */
   costMinor: number;
   costLines: CostLine[];
   firstClickAt: string | null;
@@ -672,7 +733,7 @@ export async function contactReceipt(
   ws: Workspace,
   contactId: string,
   model: AttributionModel,
-  opts: { revealEmail?: boolean; unitEconomics?: UnitEconomics } = {},
+  opts: { revealEmail?: boolean; unitEconomics?: UnitEconomics; basis?: CostBasis } = {},
 ): Promise<ContactReceipt | null> {
   const [contact] = rows<Record<string, string | null>>(
     await db.execute(sql`select id, name, email, lifecycle, first_seen_at from contacts where workspace_id = ${ws.id} and id = ${contactId}::uuid`),
@@ -680,7 +741,7 @@ export async function contactReceipt(
   if (!contact) return null;
   const rc = ws.reportingCurrency;
   const [costs, money, earned, ue] = await Promise.all([
-    contactCosts(db, ws, model, [contactId]),
+    contactCosts(db, ws, model, [contactId], opts.basis),
     contactMoney(db, ws, [contactId]),
     earnedLines(db, ws, model, sql`and ac.contact_id = ${contactId}::uuid and ac.currency = ${rc}`),
     opts.unitEconomics ? Promise.resolve(opts.unitEconomics) : getUnitEconomics(db, ws.id),
@@ -718,6 +779,7 @@ export async function contactReceipt(
   return {
     currency: rc,
     model,
+    basis: opts.basis ?? "share",
     contact: {
       id: contact.id!,
       name: contact.name,
@@ -750,7 +812,7 @@ export async function paymentReceipt(
   ws: Workspace,
   paymentId: string,
   model: AttributionModel,
-  opts: { revealEmail?: boolean } = {},
+  opts: { revealEmail?: boolean; basis?: CostBasis } = {},
 ): Promise<PaymentReceipt | null> {
   const [pay] = rows<Record<string, string | null>>(
     await db.execute(sql`select id, contact_id, type, amount_minor, currency, occurred_at, source from revenue_events
@@ -793,7 +855,7 @@ export async function receiptList(
   db: DB,
   ws: Workspace,
   p: Pick<ReportParams, "start" | "end" | "model">,
-  opts: { limit?: number; offset?: number } = {},
+  opts: { limit?: number; offset?: number; basis?: CostBasis } = {},
 ): Promise<{ rows: ReceiptListRow[]; total: number }> {
   const where = sql`r.workspace_id = ${ws.id} and r.type = 'payment' and ${tsRange(sql`r.occurred_at`, ws, p)}`;
   const [{ total }] = rows<{ total: string }>(await db.execute(sql`select count(*) total from revenue_events r where ${where}`));
@@ -818,7 +880,7 @@ export async function receiptList(
       limit ${opts.limit ?? 50} offset ${opts.offset ?? 0}`),
   );
   const contactIds = [...new Set(result.map((r) => r.contact_id).filter((v): v is string => Boolean(v)))];
-  const [costs, money] = await Promise.all([contactCosts(db, ws, p.model, contactIds), contactMoney(db, ws, contactIds)]);
+  const [costs, money] = await Promise.all([contactCosts(db, ws, p.model, contactIds, opts.basis), contactMoney(db, ws, contactIds)]);
   return {
     total: n(total),
     rows: result.map((r) => {
@@ -837,6 +899,20 @@ export async function receiptList(
       };
     }),
   };
+}
+
+/** The payments just before and after one payment (for previous / next on a receipt). */
+export async function adjacentPayments(db: DB, ws: Workspace, paymentId: string): Promise<{ newer: string | null; older: string | null }> {
+  const [r] = rows<{ newer: string | null; older: string | null }>(
+    await db.execute(sql`
+      with me as (select occurred_at, id from revenue_events where workspace_id = ${ws.id} and id = ${paymentId}::uuid)
+      select
+        (select r.id from revenue_events r, me where r.workspace_id = ${ws.id} and r.type = 'payment'
+          and (r.occurred_at, r.id) > (me.occurred_at, me.id) order by r.occurred_at, r.id limit 1) newer,
+        (select r.id from revenue_events r, me where r.workspace_id = ${ws.id} and r.type = 'payment'
+          and (r.occurred_at, r.id) < (me.occurred_at, me.id) order by r.occurred_at desc, r.id desc limit 1) older`),
+  );
+  return { newer: r?.newer ?? null, older: r?.older ?? null };
 }
 
 // ================================================================ time to money

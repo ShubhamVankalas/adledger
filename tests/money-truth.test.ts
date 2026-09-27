@@ -13,6 +13,7 @@ import {
   getUnitEconomics,
   isTooEarly,
   parsePercent,
+  COST_BASES,
   paybackOf,
   pauseDraftCsv,
   pauseDrafts,
@@ -153,8 +154,8 @@ describe("ad receipts: cost allocation", () => {
     expect([...a.costByTouch.values()].sort()).toEqual([500, 501]);
   });
 
-  it("prices each customer from the clicks credited to them", async () => {
-    const linear = await contactCosts(db, ws, "linear", [contactId.alice, contactId.bob, contactId.carol]);
+  it("clicks only: prices each customer from the clicks credited to them", async () => {
+    const linear = await contactCosts(db, ws, "linear", [contactId.alice, contactId.bob, contactId.carol], "clicks");
     expect(linear.get(contactId.alice)!.costMinor).toBe(1_000);
     expect(linear.get(contactId.alice)!.lines.map((l) => [l.adName, l.costMinor, l.credit])).toEqual([
       ["Prospecting ad", 500, 0.5],
@@ -164,18 +165,38 @@ describe("ad receipts: cost allocation", () => {
     expect(linear.get(contactId.carol)!.costMinor).toBe(0);
 
     // Last touch: Alice's Google click carries her whole customer credit.
-    const last = await contactCosts(db, ws, "last_touch", [contactId.alice]);
+    const last = await contactCosts(db, ws, "last_touch", [contactId.alice], "clicks");
     expect(last.get(contactId.alice)!.lines.map((l) => [l.adName, l.costMinor])).toEqual([["Brand ad", 1_000]]);
   });
 
-  it("reconciles every model to total spend: customer costs + unallocated", async () => {
+  it("share of spend: each ad's monthly spend is shared by the customers it brought, by credit", async () => {
+    // Meta July $100 shared by Alice ½ and Bob 1 → $33.33 / $66.67; Google July $50 all Alice's.
+    const share = await contactCosts(db, ws, "linear", [contactId.alice, contactId.bob, contactId.carol]);
+    expect(share.get(contactId.alice)!.lines.map((l) => [l.adName, l.costMinor, l.pool, l.poolSpendMinor, l.poolCredits])).toEqual([
+      ["Prospecting ad", 3_333, "2026-07", 10_000, 1.5],
+      ["Brand ad", 5_000, "2026-07", 5_000, 0.5],
+    ]);
+    expect(share.get(contactId.alice)!.costMinor).toBe(8_333);
+    expect(share.get(contactId.bob)!.costMinor).toBe(6_667);
+    expect(share.get(contactId.carol)!.costMinor).toBe(0);
+    const l = await acquisitionLedger(db, ws, { ...Q3, model: "linear" });
+    expect(l).toMatchObject({ basis: "share", spendMinor: 15_000, allocatedMinor: 15_000, unallocatedMinor: 0, customers: 2 });
+    // First touch: nobody's first click was Google, so its $50 stays unallocated.
+    expect(await acquisitionLedger(db, ws, { ...Q3, model: "first_touch" })).toMatchObject({ allocatedMinor: 10_000, unallocatedMinor: 5_000 });
+  });
+
+  it("reconciles every model and basis to total spend: customer costs + unallocated", async () => {
     for (const model of MODELS) {
-      const l = await acquisitionLedger(db, ws, { ...Q3, model });
-      expect(l.spendMinor, model).toBe(15_000);
-      expect(l.allocatedMinor + l.unallocatedMinor, model).toBe(l.spendMinor);
-      expect(l.contacts.reduce((s, c) => s + c.costMinor, 0), model).toBe(l.allocatedMinor);
+      for (const basis of COST_BASES) {
+        for (const range of [Q3, { start: "2026-07-02", end: "2026-07-31" }]) {
+          const l = await acquisitionLedger(db, ws, { ...range, model }, basis);
+          expect(l.allocatedMinor + l.unallocatedMinor, `${model} ${basis}`).toBe(l.spendMinor);
+          expect(l.contacts.reduce((s, c) => s + c.costMinor, 0), `${model} ${basis}`).toBe(l.allocatedMinor);
+        }
+        expect((await acquisitionLedger(db, ws, { ...Q3, model }, basis)).spendMinor).toBe(15_000);
+      }
     }
-    const first = await acquisitionLedger(db, ws, { ...Q3, model: "first_touch" });
+    const first = await acquisitionLedger(db, ws, { ...Q3, model: "first_touch" }, "clicks");
     // Both first clicks were on Meta: Google's $50 has no buyer.
     expect(first.allocatedMinor).toBe(2_000);
     expect(first.unallocatedMinor).toBe(13_000);
@@ -202,7 +223,8 @@ describe("ad receipts: payments and contacts", () => {
   });
 
   it("shows what a customer cost, earned and when they paid it back", async () => {
-    const r = await contactReceipt(db, ws, contactId.bob, "linear");
+    const r = await contactReceipt(db, ws, contactId.bob, "linear", { basis: "clicks" });
+    expect(r!.basis).toBe("clicks");
     expect(r!.costMinor).toBe(1_000);
     expect(r!.lifetime).toMatchObject({ grossMinor: 12_000, refundsMinor: 0, netMinor: 12_000, payments: 2 });
     expect(r!.payback).toEqual({ status: "paid_back", at: "2026-07-12T12:00:00.000Z", days: 11, remainingMinor: 0 });
@@ -211,8 +233,12 @@ describe("ad receipts: payments and contacts", () => {
     expect((await contactReceipt(db, ws, contactId.bob, "linear", { revealEmail: true }))!.contact.email).toBe("bob@example.com");
     expect(r!.profit).toBeNull();
 
-    const alice = await contactReceipt(db, ws, contactId.alice, "linear");
+    const alice = await contactReceipt(db, ws, contactId.alice, "linear", { basis: "clicks" });
     expect(alice!.payback).toMatchObject({ status: "paid_back", days: 4 });
+    // Fully loaded, Bob's $66.67 needs both payments: paid back on the second, 42 days in.
+    const loaded = await contactReceipt(db, ws, contactId.bob, "linear");
+    expect(loaded!.costMinor).toBe(6_667);
+    expect(loaded!.payback).toEqual({ status: "paid_back", at: "2026-08-12T12:00:00.000Z", days: 42, remainingMinor: 0 });
     const carol = await contactReceipt(db, ws, contactId.carol, "linear");
     expect(carol!.payback.status).toBe("no_ad_cost");
   });
@@ -232,7 +258,7 @@ describe("ad receipts: payments and contacts", () => {
   });
 
   it("lists payments newest first with the top-credited ad and customer cost", async () => {
-    const l = await receiptList(db, ws, { ...Q3, model: "linear" });
+    const l = await receiptList(db, ws, { ...Q3, model: "linear" }, { basis: "clicks" });
     expect(l.total).toBe(4);
     expect(l.rows.map((r) => r.amountMinor)).toEqual([4_000, 6_000, 6_000, 9_000]);
     expect(l.rows[0]).toMatchObject({ contactName: "Carol", topEarner: null, costMinor: 0 });
@@ -240,6 +266,7 @@ describe("ad receipts: payments and contacts", () => {
     expect(l.rows[3].topEarner).toMatchObject({ credit: 0.5, touches: 2 });
     const paged = await receiptList(db, ws, { ...Q3, model: "linear" }, { limit: 1, offset: 1 });
     expect(paged.rows.map((r) => r.paymentId)).toEqual([paymentId.b2]);
+    expect(paged.rows[0]).toMatchObject({ costMinor: 6_667, payback: { status: "paid_back", days: 42 } });
   });
 });
 
@@ -320,8 +347,8 @@ describe("profit ledger", () => {
 
     // A receipt's profit uses the same unit economics.
     const bob = await contactReceipt(db, ws, contactId.bob, "linear");
-    // 120.00 − 48.00 COGS − (3.60 + 0.60) fees − 10.00 shipping = 57.80; minus 10.00 acquisition.
-    expect(bob!.profit).toEqual({ contributionMinor: 5_780, profitMinor: 4_780 });
+    // 120.00 − 48.00 COGS − (3.60 + 0.60) fees − 10.00 shipping = 57.80; minus 66.67 acquisition.
+    expect(bob!.profit).toEqual({ contributionMinor: 5_780, profitMinor: -887 });
   });
 
   it("rejects out-of-range unit economics", async () => {
@@ -403,17 +430,27 @@ describe("on demo data", () => {
       await db.execute(sql`select sum(spend_minor) spend from ad_insights_daily where workspace_id = ${demo.id} and date between ${RANGE.start}::date and ${RANGE.end}::date`),
     );
     for (const model of MODELS) {
-      const l = await acquisitionLedger(db, demo, { ...RANGE, model });
-      expect(l.spendMinor, model).toBe(Number(spend));
-      expect(l.allocatedMinor + l.unallocatedMinor, model).toBe(l.spendMinor);
-      expect(l.contacts.reduce((s, c) => s + c.costMinor, 0), model).toBe(l.allocatedMinor);
-      expect(l.customers, model).toBeGreaterThan(20);
-      expect(l.allocatedMinor, model).toBeGreaterThan(0);
-      // A contact's own receipt prices them exactly as the ledger does.
-      const sample = l.contacts.slice(0, 5);
-      const own = await contactCosts(db, demo, model, sample.map((c) => c.contactId));
-      for (const c of sample) expect(own.get(c.contactId)!.costMinor, `${model} ${c.contactId}`).toBe(c.costMinor);
+      for (const basis of COST_BASES) {
+        const l = await acquisitionLedger(db, demo, { ...RANGE, model }, basis);
+        expect(l.spendMinor, model).toBe(Number(spend));
+        expect(l.allocatedMinor + l.unallocatedMinor, `${model} ${basis}`).toBe(l.spendMinor);
+        expect(l.contacts.reduce((s, c) => s + c.costMinor, 0), `${model} ${basis}`).toBe(l.allocatedMinor);
+        expect(l.customers, model).toBeGreaterThan(20);
+        expect(l.allocatedMinor, model).toBeGreaterThan(0);
+      }
+      // Over whole months, a contact's own receipt prices them exactly as the ledger does.
+      for (const basis of COST_BASES) {
+        const l = await acquisitionLedger(db, demo, { start: "2026-07-01", end: "2026-08-31", model }, basis);
+        const sample = [...l.contacts.slice(0, 4), ...l.contacts.slice(-2)];
+        const own = await contactCosts(db, demo, model, sample.map((c) => c.contactId), basis);
+        // (Only the lines inside the period: a buyer may also have clicked in June or September.)
+        const inRange = (id: string) => own.get(id)!.lines.filter((x) => x.day >= "2026-07-01" && x.day <= "2026-08-31").reduce((s, x) => s + x.costMinor, 0);
+        for (const c of sample) expect(inRange(c.contactId), `${model} ${basis} ${c.contactId}`).toBe(c.costMinor);
+      }
     }
+    // Fully loaded costs look like CAC: most spend lands on customers.
+    const loaded = await acquisitionLedger(db, demo, { ...RANGE, model: "linear" });
+    expect(loaded.allocatedMinor / loaded.spendMinor).toBeGreaterThan(0.3);
   });
 
   it("every payment's credited parts add up to the payment", async () => {
