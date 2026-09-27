@@ -77,4 +77,4 @@ export const midSentence = (text: string) => {
   return word.length > 1 && word.slice(1) === word.slice(1).toLowerCase() ? text[0].toLowerCase() + text.slice(1) : text;
 };
 
-export const isReportKindId =(v: string): v is ReportKindId => Object.prototype.hasOwnProperty.call(REPORT_CATALOG, v);
+export const isReportKindId = (v: string): v is ReportKindId => Object.prototype.hasOwnProperty.call(REPORT_CATALOG, v);

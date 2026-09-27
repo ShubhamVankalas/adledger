@@ -5,7 +5,7 @@ import { seedDemo } from "@/lib/demo/seed";
 import { niceTicks, spread } from "@/lib/pdf/charts";
 import { moneyWhole, safeText } from "@/lib/pdf/format";
 import { pdfTheme } from "@/lib/pdf/theme";
-import { REPORT_KIND_IDS, getReportKind, type ReportRequest } from "@/lib/report-kinds";
+import { REPORT_KIND_IDS, getReportKind, type ReportData, type ReportRequest } from "@/lib/report-kinds";
 import type { AttributionModelsData } from "@/lib/report-kinds/attribution-models";
 import type { ExecutiveSummaryData } from "@/lib/report-kinds/executive-summary";
 import { paybackMonth, type LtvCohortsData } from "@/lib/report-kinds/ltv-cohorts";
@@ -78,7 +78,7 @@ describe("PDF reports on the demo ledger", () => {
   it("weekly performance numbers equal reports.ts", async () => {
     const r = req(7);
     const out = await generateReportPdf(db, ws, "weekly-performance", r, exporter);
-    const data = out.data as WeeklyPerformanceData;
+    const data = out.data as ReportData<WeeklyPerformanceData>;
     const p = { start: r.start, end: r.end, model: r.model };
     expect(data.current).toEqual(await overview(db, ws, p));
     expect(data.campaigns).toEqual(await performance(db, ws, { ...p, level: "campaign" }));
@@ -91,7 +91,7 @@ describe("PDF reports on the demo ledger", () => {
     const a = await generateReportPdf(db, ws, "attribution-models", req(30), exporter);
     expect((a.data as AttributionModelsData).comparison).toEqual(await modelComparison(db, ws, { start: req(30).start, end: END }));
     // Kinds that don't compare periods drop `compare`, so the log and fingerprint describe what was printed.
-    expect((a.data as AttributionModelsData).methodology.compareStart).toBeNull();
+    expect((a.data as ReportData<AttributionModelsData>).methodology.compareStart).toBeNull();
 
     const r = req(180, { model: "first_touch" });
     const l = await generateReportPdf(db, ws, "ltv-cohorts", r, exporter);
@@ -141,7 +141,7 @@ describe("PDF reports on the demo ledger", () => {
     const json = JSON.stringify(found);
     expect(json).not.toContain("Jane");
     expect(json).not.toMatch(/@/);
-    const data = out.data as WeeklyPerformanceData;
+    const data = out.data as ReportData<WeeklyPerformanceData>;
     expect(json).not.toContain(String(data.current.revenueMinor));
     expect(json).not.toContain(String(data.current.spendMinor));
 
