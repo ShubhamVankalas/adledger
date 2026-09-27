@@ -32,9 +32,9 @@ export default async function AlertsSettingsPage() {
       </SettingsHeader>
 
       {view.channels.length === 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed px-4 py-3">
-          <BellIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-          <p className="min-w-0 flex-1 text-ui text-pretty text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed px-4 py-3">
+          <p className="flex min-w-[min(100%,18rem)] flex-1 items-start gap-3 text-ui text-pretty text-muted-foreground">
+            <BellIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
             No notification channel is connected, so alerts only appear in Insights. Connect Slack, email, Discord, Teams, SMS or a webhook to get them where you work.
           </p>
           {user.can("workspace.settings") ? (

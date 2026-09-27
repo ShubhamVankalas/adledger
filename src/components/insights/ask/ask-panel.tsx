@@ -2,10 +2,10 @@
 
 import { AlertTriangleIcon, ArrowUpIcon, DatabaseIcon, Loader2Icon, RotateCcwIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { askAction, clearAskHistoryAction } from "@/app/actions/ask";
+import { ASK_DRAFT_KEY } from "@/components/command-palette-data";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import type { AskTable } from "@/lib/db/schema";
@@ -37,14 +37,11 @@ export function AskPanel({
   initial,
   modelLabel,
   canConfigure,
-  initialQuestion,
 }: {
   initial: AskMessageView[];
   /** "Ollama · llama3.1", or null when no model is connected. */
   modelLabel: string | null;
   canConfigure: boolean;
-  /** From ?q= (the command palette's "Ask AI"): sent once on arrival. */
-  initialQuestion?: string | null;
 }) {
   const [messages, setMessages] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -52,8 +49,6 @@ export function AskPanel({
   const [clearing, startClear] = useTransition();
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
-  const sentInitial = useRef(false);
-  const router = useRouter();
 
   useHotkeys([{ id: "insights.ask.focus", keys: "a", label: "Ask a question", group: "Insights", run: () => input.current?.focus() }]);
 
@@ -81,13 +76,32 @@ export function AskPanel({
     });
   };
 
+  // The command palette's "Ask AI" (typing "?") hands the question over through sessionStorage, never
+  // the URL: it arrives either on mount (navigated here) or as an event (already on this tab).
+  const sendRef = useRef(send);
   useEffect(() => {
-    if (!initialQuestion || sentInitial.current) return;
-    sentInitial.current = true;
-    router.replace("/insights?tab=ask", { scroll: false });
-    send(initialQuestion);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuestion]);
+    sendRef.current = send;
+  });
+  useEffect(() => {
+    const take = () => {
+      try {
+        const q = sessionStorage.getItem(ASK_DRAFT_KEY);
+        if (q) sessionStorage.removeItem(ASK_DRAFT_KEY);
+        return q;
+      } catch {
+        return null;
+      }
+    };
+    const draft = take();
+    if (draft) sendRef.current(draft);
+    const onAsk = (e: Event) => {
+      take();
+      const q = (e as CustomEvent<{ question?: string }>).detail?.question;
+      if (q) sendRef.current(q);
+    };
+    window.addEventListener("adledger:ask", onAsk);
+    return () => window.removeEventListener("adledger:ask", onAsk);
+  }, []);
 
   useEffect(() => {
     if (initial.length) end.current?.scrollIntoView({ block: "end" });

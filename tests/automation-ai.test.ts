@@ -215,9 +215,8 @@ describe("share links", () => {
     const tampered = await loadSharedReport(token, { platform: "google", from: "2025-01-01", to: "2026-12-31", range: "90d", model: "first_touch", level: "ad" }, { db });
     expect(plain).not.toBeNull();
     expect(tampered!.ignoredParams.sort()).toEqual(["from", "level", "model", "platform", "range", "to"]);
-    const { ignoredParams: _a, ...a } = plain!;
-    const { ignoredParams: _b, ...b } = tampered!;
-    expect(b).toEqual(a);
+    const a = { ...plain!, ignoredParams: [] };
+    expect({ ...tampered!, ignoredParams: [] }).toEqual(a);
     // Only Meta's numbers: its spend, the revenue credited to it, its campaigns; no platform table.
     const meta = await overview(db, ws, { start: "2026-08-03", end: "2026-09-01", model: "linear", platform: "meta" });
     expect(a.current).toMatchObject({ spendMinor: meta.spendMinor, revenueMinor: meta.attributedRevenueMinor, leads: meta.paidLeads });

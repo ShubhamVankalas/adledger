@@ -52,7 +52,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
         {tab === "reports" ? (
           <ReportsTab user={user} selectedId={one(sp.report)} />
         ) : tab === "ask" ? (
-          <AskTab user={user} initialQuestion={one(sp.q)?.slice(0, 1000) ?? null} />
+          <AskTab user={user} />
         ) : (
           <AlertsTab user={user} />
         )}
@@ -103,7 +103,7 @@ function CardsSkeleton() {
   );
 }
 
-async function AskTab({ user, initialQuestion }: { user: SessionUser; initialQuestion: string | null }) {
+async function AskTab({ user }: { user: SessionUser }) {
   const db = await getDb();
   const [history, llm] = await Promise.all([askHistory(db, user.workspace.id, user.id), getLlmConfig(user.workspace, db)]);
   const initial: AskMessageView[] = history.map((m) => ({
@@ -120,7 +120,6 @@ async function AskTab({ user, initialQuestion }: { user: SessionUser; initialQue
       initial={initial}
       modelLabel={llm ? `${providerLabel(llm.provider)}, ${llm.model}` : null}
       canConfigure={user.can("workspace.settings")}
-      initialQuestion={initialQuestion}
     />
   );
 }
