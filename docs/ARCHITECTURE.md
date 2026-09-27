@@ -133,6 +133,10 @@ nulls not distinct).
 local hour, recipients {all | user ids}, skip_empty, last run status), `export_log` (one row per PDF:
 user / API key / schedule id, kind, params, unique fingerprint, data hash, bytes, pages, recipients,
 status — ids only, no personal data). `organizations.logo_png` holds the PNG copy of the logo for PDFs.
+**Saved views** — `saved_views` (page, name, params jsonb, pinned, position; `user_id` null = shared with
+the workspace, otherwise personal). `params` only ever holds the page's whitelisted URL keys
+(`lib/view-params.ts`), never PII. Personal views need `reports.view`; shared ones `views.share`
+(owner/admin/analyst). The sidebar shows at most 8 pinned views.
 
 ## 5. Key flows
 
@@ -186,6 +190,20 @@ are inclusive and use the workspace timezone for day boundaries. `reports-advanc
 `model-comparison` (first-touch vs last-touch vs linear revenue/ROAS per campaign, with each
 campaign flagged as a journey starter or closer) and `ltv` (first-payment-month cohorts with
 monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
+`reports-performance.ts` powers Performance v2: every table column in one SQL pass per level (CTR,
+CPM, CPC, CVR, lead → customer, purchases, AOV, NC-ROAS = first-payment revenue ÷ spend, platform
+conversions vs verified conversions = credited leads + new customers, and the platform gap), SQL totals,
+deltas against the filter bar's comparison window, the Scale / Test / Fix / Kill split (median spend ×
+ROAS target or break-even) and the row peek (entity metrics, daily trend, top children, top contacts
+with names or masked emails only). The peek loads on demand through the read-only server action
+`(app)/performance/actions.ts`.
+
+**Performance page state.** Everything is in the URL. Server keys (`range`, `from`/`to`, `compare`,
+`model`, `platform`, `level`, `parent`, `q`) re-render on the server; display keys (`preset`, `cols`,
+`sort`/`dir`, `density`, `mode`, `peek`) change through the History API only
+(`components/performance/use-table-url.ts`), so sorting, columns and the peek never refetch the report.
+Opening a peek pushes a history entry (Back closes it). Column presets and definitions live in
+`components/performance/columns.ts`; stoplights take optional workspace targets (`PerfTargets`).
 
 **Analysis depth.** `src/lib/reports-analysis.ts` (SQL, workspace timezone, integer minor units) feeds
 the Attribution → Paths and Time to convert tabs and the Customers → Cohorts and Payback tabs, plus

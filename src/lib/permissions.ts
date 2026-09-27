@@ -21,6 +21,7 @@ export type Permission =
   | "export.contacts"
   | "contacts.pii"
   | "security.manage"
+  | "views.share"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -48,6 +49,8 @@ const MATRIX: Record<Permission, Role[]> = {
   "contacts.pii": ["owner", "admin", "analyst"],
   // Organization security policy (require 2FA, session limits) and other members' sessions.
   "security.manage": ["owner"],
+  // Create, edit, pin and delete views shared with the whole workspace (personal views only need reports.view).
+  "views.share": ["owner", "admin", "analyst"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],

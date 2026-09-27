@@ -383,6 +383,7 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "dashboards" },
   { table: "report_schedules" },
   { table: "export_log" },
+  { table: "saved_views" },
   { table: "audit_log" },
 ];
 
