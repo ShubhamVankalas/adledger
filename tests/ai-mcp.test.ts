@@ -106,6 +106,7 @@ describe("MCP server", () => {
       ).sort((a, b) => a.t.localeCompare(b.t));
     const before = await snapshot();
     const [contact] = rows<{ id: string }>(await db.execute(sql`select id from contacts where lifecycle = 'customer' limit 1`));
+    const [pay] = rows<{ id: string }>(await db.execute(sql`select id from revenue_events where contact_id is not null order by occurred_at desc limit 1`));
     const calls: [string, Record<string, unknown>][] = [
       ["get_overview", {}],
       ["get_performance", { level: "ad" }],
@@ -119,6 +120,7 @@ describe("MCP server", () => {
       ["list_integrations", {}],
       ["get_timeseries", { platform: "meta" }],
       ["search_campaigns", { query: "retargeting" }],
+      ["get_ad_receipt", { paymentId: pay.id }],
     ];
     // Every registered tool must be exercised here.
     expect(calls.map(([n]) => n).sort()).toEqual([...MCP_TOOL_NAMES].sort());
