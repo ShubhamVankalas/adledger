@@ -46,7 +46,7 @@ export function Segmented<T extends string>({
           )}
         >
           {o.label}
-          {o.count !== undefined ? <span className="text-fg-faint tabular-nums">{o.count}</span> : null}
+          {o.count !== undefined ? <span className="text-muted-foreground tabular-nums">{o.count}</span> : null}
         </button>
       ))}
     </div>

@@ -51,7 +51,7 @@ function Tile({
           {prev === 0 && value === 0 ? "none yet today or yesterday" : `vs ${prevText} yesterday`}
         </span>
       </p>
-      {note ? <p className="mt-auto line-clamp-2 pt-2 text-caption text-fg-faint">{note}</p> : null}
+      {note ? <p className="mt-auto line-clamp-2 pt-2 text-caption text-muted-foreground">{note}</p> : null}
     </div>
   );
 }
@@ -74,7 +74,7 @@ export function MinuteBars({ values, className, barsClassName = "h-12" }: { valu
           />
         ))}
       </div>
-      <figcaption className="mt-1.5 flex justify-between text-micro text-fg-faint">
+      <figcaption className="mt-1.5 flex justify-between text-micro text-muted-foreground">
         <span>{values.length} min ago</span>
         <span>{total === 0 ? "No visits in this window" : "Now"}</span>
       </figcaption>
