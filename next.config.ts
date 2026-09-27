@@ -29,6 +29,14 @@ const nextConfig: NextConfig = {
         headers: SECURITY_HEADERS,
       },
       {
+        // Share links are unguessable URLs: keep them out of search engines and out of Referer headers.
+        source: "/share/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+      {
         // HSTS only when the request reached us over HTTPS (the reverse proxy sets X-Forwarded-Proto),
         // so plain-HTTP installs on localhost or a LAN keep working.
         source: "/:path*",

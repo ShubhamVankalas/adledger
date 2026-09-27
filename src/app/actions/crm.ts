@@ -453,9 +453,11 @@ export async function deleteContactsAction(contactIds: string[]): Promise<Action
 /** CSV of the selected contacts (the same columns as the full export). Notes are never exported. */
 export async function exportContactsAction(contactIds: string[]): Promise<ActionResult> {
   return run(async () => {
-    const user = await guard("reports.export");
+    const user = await guard("export.csv");
     const parsed = ids.safeParse(contactIds);
     if (!parsed.success) return fail(`Pick between 1 and ${MAX_BULK} contacts to export.`);
+    // Raw emails leave AdLedger only with export.contacts (owners, admins); everyone else gets them masked.
+    const rawEmails = user.can("export.contacts");
     const db = await getDb();
     const ws = user.workspace;
     const exp = currencyExponent(ws.reportingCurrency);
@@ -471,7 +473,7 @@ export async function exportContactsAction(contactIds: string[]): Promise<Action
     const lines = result.map((r) =>
       [
         r.id as string,
-        displayEmail(r.email as string | null, user),
+        rawEmails ? ((r.email as string | null) ?? null) : displayEmail(r.email as string | null, null),
         r.name as string | null,
         r.lifecycle as string,
         toIso(r.first_seen_at),
@@ -486,7 +488,7 @@ export async function exportContactsAction(contactIds: string[]): Promise<Action
         .map(csvCell)
         .join(","),
     );
-    await audit(user, "contacts.exported", null, { via: "dashboard", selected: result.length });
+    await audit(user, "contacts.exported", null, { via: "dashboard", selected: result.length, masked: !rawEmails });
     return ok(`Exported ${result.length === 1 ? "1 contact" : `${result.length} contacts`}`, { csv: `${[header, ...lines].join("\r\n")}\r\n` });
   });
 }

@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { BodyTooLargeError, clientIp, json, rateLimit, readBytesLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
+import { nudgeLive } from "@/lib/live";
 import { extractTraits, linkVisitor, recordLead, upsertContact } from "@/lib/tracking/identity";
 
 // Generic lead webhook for form tools (Typeform, Tally, Webflow, Zapier, custom forms).
@@ -67,5 +68,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   });
   if (!result) return json({ error: "could not create contact" }, 422);
   await requestAttribution(hook.workspaceId);
+  nudgeLive(hook.workspaceId);
   return json({ ok: true, ...result }, 201);
 }

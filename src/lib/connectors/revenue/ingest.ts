@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { schema, type DB } from "../../db";
 import { linkVisitor, upsertContact } from "../../tracking/identity";
+import { nudgeLive } from "../../live";
 import { formatMoney } from "../../money";
 import { notifyLater } from "../../notify";
 import { autoWinOnPayment } from "../../pipeline";
@@ -115,6 +116,7 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
     });
     stored++;
   }
+  if (stored > 0) nudgeLive(workspaceId);
   for (const a of alerts) {
     const amount = formatMoney(a.e.amountMinor, a.e.currency.toUpperCase());
     const who = a.name ?? "Someone";

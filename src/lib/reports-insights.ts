@@ -4,6 +4,7 @@ import { ratioX } from "./metrics";
 import { toMajor } from "./money";
 import { resolvePeriodParams } from "./period";
 import { overview, performance, pickWastedSpend, previousPeriod, type PerfRow, type ReportParams } from "./reports";
+import { timeToMoney } from "./reports-profit";
 import type { Workspace } from "./settings";
 
 // Insights → action cards: three to five read-only recommendations, each built only from
@@ -68,7 +69,12 @@ export async function actionCards(db: DB, ws: Workspace, period?: ReportParams):
   const campaignChip = (r: PerfRow): Chip => ({ text: r.name, href: campaignHref(p, r.id), kind: "name" });
   const roasChip = (r: PerfRow, tone?: Chip["tone"]): Chip => ({ text: ratioX(r.roas), href: campaignHref(p, r.id), tone });
 
-  const waste = pickWastedSpend(rows).filter(meaningful);
+  // Campaigns younger than their payback lag (time to money, p80) are "too early to judge": a low
+  // ROAS may only mean their buyers haven't paid yet, so they never become "cut"/"shift" cards.
+  const wasteRows = pickWastedSpend(rows).filter(meaningful);
+  const lag = wasteRows.length ? await timeToMoney(db, ws, { asOf: p.end, campaignIds: wasteRows.map((r) => r.id) }) : null;
+  const early = new Set(lag?.campaigns.filter((c) => c.tooEarly).map((c) => c.campaignId) ?? []);
+  const waste = wasteRows.filter((r) => !early.has(r.id));
   const winners = rows
     .filter((r) => meaningful(r) && r.roas !== null && r.roas >= 1.5 && r.customers > 0)
     .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0));

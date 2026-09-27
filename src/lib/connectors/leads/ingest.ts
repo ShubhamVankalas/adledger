@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { schema, type DB } from "../../db";
 import { matchTouchpoints } from "../../matching";
+import { nudgeLive } from "../../live";
 import { recordLead, upsertContact } from "../../tracking/identity";
 import type { LeadConnector, NativeLeadInput } from "./types";
 
@@ -77,5 +78,6 @@ export async function ingestNativeLeads(db: DB, workspaceId: string, connector: 
     }
   }
   if (touchpointIds.length) await matchTouchpoints(db, workspaceId, touchpointIds);
+  if (result.stored > 0) nudgeLive(workspaceId);
   return result;
 }

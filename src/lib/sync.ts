@@ -8,7 +8,7 @@ import { backfillStripe } from "./connectors/stripe";
 import { schema, type DB } from "./db";
 import type { Provider } from "./db/schema";
 import { DAY, isoDate } from "./demo/world";
-import { requestAttribution } from "./jobs";
+import { requestAlertCheck, requestAttribution } from "./jobs";
 import { log } from "./log";
 import { notifyLater } from "./notify";
 import { matchTouchpoints } from "./matching";
@@ -199,5 +199,7 @@ export async function syncAll(db: DB, workspaceId: string) {
     if (!conn || conn.mode === "mock") continue;
     results.push(await syncProvider(db, workspaceId, p));
   }
+  // Fresh spend can breach a CAC/ROAS rule: check alerts now (debounced) instead of at the next hourly run.
+  if (results.some((r) => r.status === "success")) Promise.resolve(requestAlertCheck(workspaceId)).catch((err) => log.error("alert check after sync failed", err));
   return results;
 }

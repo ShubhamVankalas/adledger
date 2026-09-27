@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { BodyTooLargeError, clientIp, rateLimit, readTextLimited } from "@/lib/http";
 import { requestAttribution } from "@/lib/jobs";
+import { nudgeLive } from "@/lib/live";
 import { collectSchema, isBot, processCollect } from "@/lib/tracking/collect";
 
 // Pixel endpoint. The pixel sends text/plain JSON via sendBeacon (no CORS preflight).
@@ -45,5 +46,6 @@ export async function POST(req: Request) {
   });
   if (!result.ok) return new Response(result.error, { status: result.status, headers });
   if (result.newLeads > 0 || result.contactsLinked > 0) await requestAttribution(result.workspaceId);
+  nudgeLive(result.workspaceId); // open Live tabs pick the hit up now instead of on the next poll
   return new Response(null, { status: 204, headers });
 }

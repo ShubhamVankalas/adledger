@@ -25,6 +25,7 @@ import { storedStages } from "./pipeline";
 import { stageFunnel } from "./reports-pipeline";
 import { contactReceipt, paymentReceipt, type ContactReceipt, type EarnedLine } from "./reports-profit";
 import type { Workspace } from "./settings";
+import { MCP_TOOL_NAMES } from "./mcp-tools";
 
 // Read-only MCP server. Every tool only reads through lib/reports (no writes).
 // v0.2+ write tools must create things paused/draft and require confirmation.
@@ -49,22 +50,7 @@ const header = (ws: Workspace, p: ReportParams) =>
 const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
 const ro = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
-export const MCP_TOOL_NAMES = [
-  "get_overview",
-  "get_performance",
-  "find_wasted_spend",
-  "compare_periods",
-  "list_contacts",
-  "get_contact_journey",
-  "get_latest_insights",
-  "get_sync_status",
-  "get_platform_breakdown",
-  "list_integrations",
-  "get_timeseries",
-  "search_campaigns",
-  "contact_stage_funnel",
-  "get_ad_receipt",
-] as const;
+export { MCP_TOOL_NAMES };
 
 const DAY_MS = 86_400_000;
 const MAX_SERIES_DAYS = 400;

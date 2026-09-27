@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MCP_TOOL_NAMES } from "@/lib/mcp-tools";
 import { timeAgo } from "@/lib/format";
 import { describeScopes, SCOPE_PRESETS, SCOPES, type ApiScope } from "@/lib/security/scopes";
 import { cn } from "@/lib/utils";
@@ -91,7 +92,7 @@ function ScopePicker({ canPii }: { canPii: boolean }) {
   );
 }
 
-const MCP_TOOLS = ["get_overview", "get_performance", "find_wasted_spend", "compare_periods", "list_contacts", "get_contact_journey", "get_latest_insights", "get_sync_status"];
+const MCP_TOOLS = MCP_TOOL_NAMES;
 
 export function ApiSection({ origin, keys, canPii }: { origin: string; keys: Key[]; canPii: boolean }) {
   const [fresh, setFresh] = useState<string | null>(null);
