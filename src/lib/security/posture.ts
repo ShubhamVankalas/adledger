@@ -53,7 +53,7 @@ export async function securityPosture(db: DB, organizationId: string, policy: Se
           id: "key",
           label: "Encryption key is stored next to the data",
           status: "warn",
-          detail: "APP_SECRET isn't set, so the key that encrypts connector credentials and 2FA secrets was generated and saved in the database. Anyone with a database backup can decrypt them. Set APP_SECRET (openssl rand -base64 32) and restart.",
+          detail: "APP_SECRET isn't set, so the key that encrypts connector credentials and 2FA secrets was generated and saved in the database. Anyone holding a database backup can decrypt them. Set APP_SECRET on the server and restart.",
           action: { href: "https://github.com/ShubhamVankalas/adledger/blob/main/docs/SECURITY.md#encryption-key", label: "How to set it" },
         },
   );
@@ -67,7 +67,7 @@ export async function securityPosture(db: DB, organizationId: string, policy: Se
     id: "2fa",
     label: policy.require2fa ? "Two-factor sign-in required" : allOn ? "Everyone uses two-factor sign-in" : "Two-factor sign-in is optional",
     status: policy.require2fa || allOn ? "ok" : "warn",
-    detail: `${coverage.enabled} of ${coverage.total} member${coverage.total === 1 ? "" : "s"} ${coverage.enabled === 1 ? "has" : "have"} it on.${coverage.ownersWithout ? ` ${coverage.ownersWithout} owner${coverage.ownersWithout === 1 ? " doesn't" : "s don't"}.` : ""}`,
+    detail: `Turned on by ${coverage.enabled} of ${coverage.total} member${coverage.total === 1 ? "" : "s"}.${coverage.ownersWithout ? ` Not yet on for ${coverage.ownersWithout} owner${coverage.ownersWithout === 1 ? "" : "s"}.` : ""}`,
   });
   items.push(
     policy.sessionIdleMinutes <= 7 * 24 * 60

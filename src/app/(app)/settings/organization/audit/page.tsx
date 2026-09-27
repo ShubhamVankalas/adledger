@@ -79,7 +79,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/settings/o
 
   return (
     <>
-      <SettingsHeader title="Audit log" description="Who did what, across every workspace in the organization. Each entry is chained to the one before it by a hash, so edits and deletions show up when you verify.">
+      <SettingsHeader title="Audit log" description="Who did what, in every workspace. Entries are hash-chained, so edits show up on Verify.">
         {user.can("export.csv") ? (
           <Button variant="outline" size="sm" render={<a href={`/api/v1/exports/audit${qs.size ? `?${qs}` : ""}`} download />}>
             <DownloadIcon /> Export CSV
@@ -98,25 +98,22 @@ export default async function AuditPage({ searchParams }: PageProps<"/settings/o
           workspaces={user.workspaces.map((w) => ({ value: w.id, label: w.name }))}
           periods={AUDIT_PERIODS.map((p) => ({ value: p.id, label: p.label }))}
         />
-        <dl className="grid shrink-0 grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-muted-foreground @3xl/settings:text-right">
-          <dt className="@3xl/settings:sr-only">Entries</dt>
-          <dd className="tabular-nums">{total.toLocaleString("en-US")} entries</dd>
-          {head?.hash ? (
-            <>
-              <dt className="@3xl/settings:sr-only">Chain head</dt>
-              <dd>
-                Head{" "}
+        <div className="shrink-0 space-y-0.5 text-xs text-muted-foreground @3xl/settings:text-right">
+          <p className="tabular-nums">
+            {total.toLocaleString("en-US")} {total === 1 ? "entry" : "entries"}
+            {head?.hash ? (
+              <>
+                {" · head "}
                 <code className="font-mono text-foreground" translate="no" title={head.hash}>
-                  #{head.seq} {head.hash.slice(0, 12)}
+                  #{head.seq} {head.hash.slice(0, 10)}
                 </code>
-              </dd>
-            </>
-          ) : null}
-          <dt className="@3xl/settings:sr-only">Last verified</dt>
-          <dd className={verified && !verified.ok ? "font-medium text-destructive" : undefined}>
-            {verified ? (verified.ok ? `Verified ${verified.at}` : `Verification failed at #${String(verified.brokenAt ?? "?")}, ${verified.at}`) : "Not verified yet"}
-          </dd>
-        </dl>
+              </>
+            ) : null}
+          </p>
+          <p className={verified && !verified.ok ? "font-medium text-destructive" : undefined}>
+            {verified ? (verified.ok ? `Verified ${verified.at}` : `Verification failed at #${String(verified.brokenAt ?? "?")} on ${verified.at}`) : "Not verified yet"}
+          </p>
+        </div>
       </div>
 
       {shown.length === 0 ? (

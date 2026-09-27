@@ -36,7 +36,7 @@ function ScopePicker({ canPii }: { canPii: boolean }) {
   return (
     <fieldset className="grid gap-2">
       <legend className="mb-1.5 text-sm font-medium">Access</legend>
-      <div className="grid gap-1.5">
+      <div className="grid gap-1.5 @2xl/settings:grid-cols-3">
         {options.map((o) => (
           <label
             key={o.id}

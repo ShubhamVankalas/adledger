@@ -19,7 +19,7 @@ export const DEFAULT_SCOPES: ApiScope[] = ["reports:read"];
 
 export const SCOPE_PRESETS: { id: "read" | "readwrite" | "custom"; label: string; description: string; scopes: ApiScope[] }[] = [
   { id: "read", label: "Read only", description: "Reports and the MCP server.", scopes: ["reports:read", "mcp"] },
-  { id: "readwrite", label: "Read and write", description: "Also push spend and conversions.", scopes: ["reports:read", "mcp", "contacts:read", "ingest:write"] },
+  { id: "readwrite", label: "Read and write", description: "Also contacts (masked) and pushing data in.", scopes: ["reports:read", "mcp", "contacts:read", "ingest:write"] },
 ];
 
 export const isScope = (v: unknown): v is ApiScope => typeof v === "string" && (ALL_SCOPES as string[]).includes(v);

@@ -1,9 +1,22 @@
-import { truncateIp } from "../tracking/collect";
-
 // Request context for sessions and the audit log: a truncated IP (last IPv4 octet / IPv6 host bits
 // dropped) and a short user agent. Enough to recognise "a new device", not enough to track anyone.
 
-export { truncateIp };
+/** 203.0.113.42 → 203.0.113.0; 2001:db8:abcd:12::1 → 2001:db8:abcd::; loopback stays as is. */
+export function truncateIp(ip: string | null | undefined): string | null {
+  const first = ip?.split(",")[0]?.trim().replace(/^\[|\]$/g, "");
+  if (!first) return null;
+  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(first)?.[1];
+  const v4 = mapped ?? first;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(v4)) return v4.replace(/\.\d+$/, ".0");
+  if (!first.includes(":")) return null;
+  if (first === "::1") return "::1";
+  const [head, tail = ""] = first.split("%")[0].split("::");
+  const left = head ? head.split(":") : [];
+  const right = first.includes("::") && tail ? tail.split(":") : [];
+  const groups = first.includes("::") ? [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right] : left;
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/i.test(g))) return null;
+  return `${groups.slice(0, 3).map((g) => g.replace(/^0+(?=.)/, "").toLowerCase()).join(":")}::`;
+}
 
 export const MAX_UA_LENGTH = 300;
 

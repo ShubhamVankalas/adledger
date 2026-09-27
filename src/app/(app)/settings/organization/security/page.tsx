@@ -16,7 +16,7 @@ export const metadata = { title: "Security policy" };
 const ACCESS: { permission: Permission; label: string }[] = [
   { permission: "contacts.pii", label: "See contact emails" },
   { permission: "export.contacts", label: "Export contacts with emails" },
-  { permission: "export.csv", label: "Download CSVs (emails masked)" },
+  { permission: "export.csv", label: "Download CSV exports" },
   { permission: "reports.pdf", label: "Download PDF reports" },
   { permission: "apikeys.manage", label: "Create API keys" },
   { permission: "audit.view", label: "Read the audit log" },

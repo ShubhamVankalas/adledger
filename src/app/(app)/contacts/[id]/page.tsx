@@ -131,12 +131,11 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {j.contact.email ? (
-                    <span className="inline-flex flex-wrap items-center gap-1">
+                    <span className="flex flex-wrap items-center gap-x-1.5">
                       <Email id={j.contact.id} masked={j.contact.email} className="break-all" />
-                      <RevealToggle label="email" compact />
+                      <RevealToggle label="email" compact className="-my-1" />
                     </span>
                   ) : null}
-                  {j.contact.email ? <span aria-hidden> · </span> : null}
                   {customer && firstPayment
                     ? `Customer since ${shortDate.format(new Date(firstPayment.at))}`
                     : firstLead

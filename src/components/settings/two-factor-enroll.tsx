@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, CopyIcon, DownloadIcon, Loader2Icon } from "lucide-react";
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { confirmTwoFactorAction, startTwoFactorAction } from "@/app/actions/security";
 import { useCopy } from "@/components/copy-field";
@@ -116,6 +116,7 @@ export function TwoFactorEnroll({ onFinished, onCancel, finishLabel }: { onFinis
   const codeId = useId();
   const { copied, copy } = useCopy();
 
+  const started = useRef(false);
   const begin = () =>
     start(async () => {
       const r = await startTwoFactorAction();
@@ -126,6 +127,12 @@ export function TwoFactorEnroll({ onFinished, onCancel, finishLabel }: { onFinis
       setEnrollment(r.data as Enrollment);
       setTimeout(() => codeRef.current?.focus(), 50);
     });
+  // Start right away. The ref keeps a re-run effect (Strict Mode) from creating a second secret.
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    begin();
+  }, []);
 
   const confirm = (form: FormData) =>
     start(async () => {
@@ -143,11 +150,16 @@ export function TwoFactorEnroll({ onFinished, onCancel, finishLabel }: { onFinis
 
   if (!enrollment) {
     return (
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={begin} disabled={pending}>
-          {pending ? <Loader2Icon className="animate-spin" /> : null}
-          {pending ? "Preparing…" : "Set up two-factor sign-in"}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2" aria-busy={pending}>
+        {pending ? (
+          <p className="flex min-h-8 items-center gap-2 text-sm text-muted-foreground">
+            <Loader2Icon aria-hidden className="size-4 animate-spin" /> Preparing your setup code…
+          </p>
+        ) : (
+          <Button type="button" onClick={begin}>
+            Try again
+          </Button>
+        )}
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
