@@ -478,6 +478,27 @@ describe("two-factor sign-in", () => {
     expect(await lastAudit("account.2fa_disabled")).toBeTruthy();
   });
 
+  it("owners reset a member's 2FA only when they own every organization the member is in", async () => {
+    const { resetMemberTwoFactorAction } = await import("@/app/actions/security");
+    const local = await addMember("viewer", "reset-local@trust.test");
+    await enroll(local.id, local.email);
+    const [other] = await db.insert(schema.organizations).values({ name: "Elsewhere", slug: `elsewhere-${randomToken(4).toLowerCase()}` }).returning();
+    const shared = await addMember("viewer", "reset-shared@trust.test");
+    await db.insert(schema.memberships).values({ organizationId: other.id, userId: shared.id, role: "admin" });
+    await enroll(shared.id, shared.email);
+
+    await signInAs("admin");
+    expect(await resetMemberTwoFactorAction(local.id)).toMatchObject({ ok: false }); // security.manage is owner-only
+    await signInAs("owner");
+    expect(await resetMemberTwoFactorAction(shared.id)).toMatchObject({ ok: false, message: expect.stringMatching(/another organization/) });
+    const [still] = await db.select().from(schema.users).where(eq(schema.users.id, shared.id));
+    expect(still.totpEnabledAt).not.toBeNull();
+    expect(await resetMemberTwoFactorAction(local.id)).toMatchObject({ ok: true });
+    const [reset] = await db.select().from(schema.users).where(eq(schema.users.id, local.id));
+    expect(reset.totpEnabledAt).toBeNull();
+    expect(await lastAudit("security.2fa_reset")).toMatchObject({ target: local.id });
+  });
+
   it("ADLEDGER_BREAK_GLASS resets an owner's 2FA and nobody else's", async () => {
     const { breakGlassFromEnv } = await import("@/lib/security/break-glass");
     const u = await addMember("admin", "glass-admin@trust.test");

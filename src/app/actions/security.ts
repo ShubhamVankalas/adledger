@@ -110,6 +110,17 @@ export async function resetMemberTwoFactorAction(userId: string): Promise<Action
       .from(schema.memberships)
       .where(and(eq(schema.memberships.organizationId, user.organization.id), eq(schema.memberships.userId, userId)));
     if (!m) return fail("That person isn't a member of this organization.");
+    // 2FA protects the whole account, so only reset it when every organization the person belongs
+    // to is one this owner also owns. Otherwise one organization could weaken sign-in to another.
+    const theirs = await db.select({ organizationId: schema.memberships.organizationId }).from(schema.memberships).where(eq(schema.memberships.userId, userId));
+    const owned = await db
+      .select({ organizationId: schema.memberships.organizationId })
+      .from(schema.memberships)
+      .where(and(eq(schema.memberships.userId, user.id), eq(schema.memberships.role, "owner")));
+    const ownedIds = new Set(owned.map((o) => o.organizationId));
+    if (theirs.some((t) => !ownedIds.has(t.organizationId))) {
+      return fail("This person also belongs to another organization, so only they can change their two-factor sign-in (with a recovery code).");
+    }
     await disableTwoFactor(userId);
     // Their open sessions end too, so the reset takes effect everywhere.
     await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
