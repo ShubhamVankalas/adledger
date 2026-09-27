@@ -96,7 +96,7 @@ function DesktopTable({
             <th
               scope="col"
               aria-sort={ariaSort(sort, "name")}
-              className="sticky left-0 z-10 h-9 min-w-56 border-r border-b bg-bg-subtle pr-3 pl-3 text-left text-caption font-medium whitespace-nowrap text-muted-foreground @5xl:min-w-72"
+              className="sticky left-0 z-10 h-9 min-w-56 border-r border-b bg-bg-subtle pr-3 pl-3 text-left text-caption font-medium whitespace-nowrap text-muted-foreground"
             >
               <button type="button" onClick={() => onSort("name")} className={cn(SORT_BUTTON, sort.key === "name" && "text-foreground")}>
                 {levelLabel}
@@ -172,10 +172,15 @@ function DesktopTable({
               </td>
               {columns.map((c, i) => (
                 <td key={c.key} className={cn("num h-10 border-t bg-bg-subtle px-3 text-right font-medium whitespace-nowrap", i === columns.length - 1 && "pr-4")}>
-                  {c.key === "status" ? null : (
+                  {c.key === "status" ? null : c.format === "gap" ? (
+                    <span className="inline-flex flex-col items-end" title="All platforms together: conversions they reported vs conversions AdLedger verified.">
+                      <CellValue col={c} row={totals} currency={currency} />
+                      <span className="text-micro font-normal text-muted-foreground">{gapDetail(totals)}</span>
+                    </span>
+                  ) : (
                     <>
                       <CellValue col={c} row={totals} currency={currency} />
-                      {compare && c.format !== "gap" ? <DeltaLine change={totalsDelta?.[c.key]} polarity={c.polarity} /> : null}
+                      {compare ? <DeltaLine change={totalsDelta?.[c.key]} polarity={c.polarity} /> : null}
                     </>
                   )}
                 </td>
@@ -227,7 +232,7 @@ const Row = memo(function Row({ row: r, columns, sortKey, compact, compare, curr
     >
       <td
         className={cn(
-          "sticky left-0 z-10 max-w-72 border-r border-b pr-2 pl-3 transition-colors duration-100 @5xl:max-w-96",
+          "sticky left-0 z-10 max-w-64 min-w-56 border-r border-b pr-2 pl-3 transition-colors duration-100 @6xl:max-w-80",
           compact ? "h-9" : "h-11",
           cellBg,
           selected && "shadow-[inset_2px_0_0_var(--brand)]",
@@ -261,7 +266,7 @@ const Row = memo(function Row({ row: r, columns, sortKey, compact, compare, curr
             onClick={() => onPeek(r.id)}
             aria-label={`Preview ${r.name}`}
             aria-haspopup="dialog"
-            className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-faint opacity-0 outline-none transition-[opacity,color,background-color] duration-100 group-hover/row:opacity-100 hover:bg-fill-hover hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-fg-faint opacity-0 outline-none transition-[opacity,color,background-color] duration-100 group-hover/row:opacity-100 pointer-coarse:opacity-100 hover:bg-fill-hover hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
           >
             <PanelRightOpenIcon className="size-3.5" />
           </button>
@@ -307,8 +312,10 @@ function GapCell({ row }: { row: PerfRowV2 }) {
   const sentence = gapSentence(platformLabel(row.platform), row);
   if (row.platformGap === null) {
     return (
-      <span className="text-fg-faint" title={sentence}>
-        —<span className="sr-only">{sentence}</span>
+      <span className="inline-flex flex-col items-end text-fg-faint" title={sentence}>
+        <span aria-hidden>—</span>
+        <span aria-hidden className="text-micro">&nbsp;</span>
+        <span className="sr-only">{sentence}</span>
       </span>
     );
   }

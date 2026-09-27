@@ -77,14 +77,14 @@ export function ViewsMenu({
               variant="outline"
               size="sm"
               aria-label={active ? `Views: ${active.name}${modified ? ", modified" : ""}` : "Views"}
-              className={cn("h-10 max-w-52 px-3 font-normal @3xl:h-7 @3xl:px-2.5", className)}
+              className={cn("h-10 w-10 max-w-52 px-0 font-normal @md:w-auto @md:px-3 @3xl:h-7 @3xl:px-2.5", className)}
             />
           }
         >
           <BookmarkIcon aria-hidden className={cn("text-muted-foreground", active && "fill-current text-foreground")} />
-          <span className="truncate">{active ? active.name : "Views"}</span>
+          <span className="hidden truncate @md:inline">{active ? active.name : "Views"}</span>
           {modified ? <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-warning" title="Changed since it was saved" /> : null}
-          <ChevronDownIcon aria-hidden className="size-3.5 text-fg-faint" />
+          <ChevronDownIcon aria-hidden className="hidden size-3.5 text-fg-faint @md:block" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           {views.length === 0 ? (

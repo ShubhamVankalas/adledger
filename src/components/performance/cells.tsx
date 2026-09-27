@@ -1,4 +1,4 @@
-import { credit, num, pct, signedPct } from "@/lib/format";
+import { credit, pct, signedPct } from "@/lib/format";
 import { ratioX } from "@/lib/metrics";
 import type { PerfRowV2 } from "@/lib/reports-performance";
 import { cn } from "@/lib/utils";
@@ -115,8 +115,8 @@ export function gapDetail(row: Pick<PerfRowV2, "platformConversions" | "verified
 
 /** Sentence for a gap tooltip: "Meta reported 94 conversions; AdLedger verified 41." */
 export function gapSentence(platform: string, row: Pick<PerfRowV2, "platformConversions" | "verifiedConversions" | "platformGap">): string {
-  const claimed = num(row.platformConversions ?? 0, 2);
-  const verified = num(row.verifiedConversions ?? 0, 2);
+  const claimed = credit(row.platformConversions ?? 0);
+  const verified = credit(row.verifiedConversions ?? 0);
   if (row.platformGap === null) {
     return (row.platformConversions ?? 0) > 0
       ? `${platform} reported ${claimed} conversions; AdLedger hasn't verified any yet.`

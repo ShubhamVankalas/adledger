@@ -61,12 +61,12 @@ export const PRESETS = [
   {
     key: "default",
     label: "Default",
-    hint: "Spend through to ROAS",
+    hint: "Spend to ROAS",
     cols: ["spendMinor", "clicks", "leads", "cplMinor", "customers", "cacMinor", "platformGap", "revenueMinor", "roas"],
   },
-  { key: "ecommerce", label: "E-commerce", hint: "Purchases, AOV and NC-ROAS", cols: ["spendMinor", "purchases", "revenueMinor", "roas", "ncRoas", "aovMinor"] },
-  { key: "leadgen", label: "Lead gen", hint: "Leads, CPL and lead quality", cols: ["spendMinor", "leads", "cplMinor", "cvr", "customers", "cacMinor", "leadToCustomer"] },
-  { key: "creative", label: "Creative", hint: "Delivery and click quality", cols: ["spendMinor", "impressions", "cpmMinor", "ctr", "cpcMinor", "cvr", "roas"] },
+  { key: "ecommerce", label: "E-commerce", hint: "AOV and NC-ROAS", cols: ["spendMinor", "purchases", "revenueMinor", "roas", "ncRoas", "aovMinor"] },
+  { key: "leadgen", label: "Lead gen", hint: "CPL and lead quality", cols: ["spendMinor", "leads", "cplMinor", "cvr", "customers", "cacMinor", "leadToCustomer"] },
+  { key: "creative", label: "Creative", hint: "Delivery and clicks", cols: ["spendMinor", "impressions", "cpmMinor", "ctr", "cpcMinor", "cvr", "roas"] },
 ] as const satisfies readonly { key: string; label: string; hint: string; cols: readonly ColumnKey[] }[];
 
 export type PresetKey = (typeof PRESETS)[number]["key"] | "custom";

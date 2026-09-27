@@ -148,6 +148,11 @@ export function PerformanceView({ report, levels, level, parent, currency, perio
     document.querySelector(`[data-row-id="${next.id}"]`)?.scrollIntoView({ block: "nearest" });
   };
   const compareOn = report.compare !== null;
+  // Δ lines only when the comparison period actually has something to compare with.
+  const showDeltas = useMemo(
+    () => compareOn && report.rows.some((r) => r.delta && Object.values(r.delta).some((v) => v !== null && v !== undefined)),
+    [compareOn, report.rows],
+  );
   useHotkeys([
     { id: "perf.next", keys: "j", label: "Next row", group: "Performance", run: () => move(1) },
     { id: "perf.prev", keys: "k", label: "Previous row", group: "Performance", run: () => move(-1) },
@@ -305,7 +310,7 @@ export function PerformanceView({ report, levels, level, parent, currency, perio
             disabled={!rows.length}
             aria-label="Export CSV"
             title="Export CSV"
-            className="h-10 w-10 shrink-0 px-0 font-normal @3xl:h-7 @3xl:w-7 @7xl:w-auto @7xl:px-2.5"
+            className="hidden h-10 w-10 shrink-0 px-0 font-normal @md:inline-flex @3xl:h-7 @3xl:w-7 @7xl:w-auto @7xl:px-2.5"
           >
             <DownloadIcon aria-hidden className="text-muted-foreground" />
             <span className="hidden @7xl:inline">Export</span>
@@ -332,7 +337,7 @@ export function PerformanceView({ report, levels, level, parent, currency, perio
             onSort={(k) => set({ sort: nextSort(state.sort, k) })}
             onSortPreset={(s) => set({ sort: s })}
             density={state.density}
-            compare={compareOn}
+            compare={showDeltas}
             totals={report.totals}
             totalsDelta={report.totalsDelta}
             totalsStale={totalsStale}
