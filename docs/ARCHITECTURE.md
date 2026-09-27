@@ -182,6 +182,23 @@ are inclusive and use the workspace timezone for day boundaries. `reports-advanc
 campaign flagged as a journey starter or closer) and `ltv` (first-payment-month cohorts with
 monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
 
+**Analysis depth.** `src/lib/reports-analysis.ts` (SQL, workspace timezone, integer minor units) feeds
+the Attribution → Paths and Time to convert tabs and the Customers → Cohorts and Payback tabs, plus
+two Overview widgets: `attributionPaths` (ordered channel/platform sequences inside the attribution
+window before a first payment or first lead, repeats collapsed, with revenue to date, median days and
+touches), `timeToConvert` (first touch → lead → payment lags with median/p80/p90 and buckets, touches
+to convert, cross-device share, per-campaign lags and a recommended window = smallest round window
+covering 90% of first touch → payment lags, only from 20 customers), `modelDisagreement` (dumbbell data
+per campaign from `modelComparison`), `cohortRetention` + `cohortAverages` (monthly acquisition cohorts:
+retention %, cumulative LTV, revenue per month, CAC payback month; months that have not happened are
+`null`, not 0), `paybackByChannel` (credit-weighted LTV at day 0–365 over matured customers only, CAC =
+platform spend ÷ credited customers, interpolated payback day, repeat and refund rates), `funnel`
+(visitors → leads → customers → revenue, with the previous or last-year period) and `conversionsHeatmap`
+(weekday × hour). The UI lives in `src/components/analysis/**` (hand-built HTML/SVG charts except the
+LTV curve, which uses Recharts); tab rows carry the period and filters between tabs. Tests check the SQL on
+a hand-computed ledger (incl. Asia/Kolkata bounds and workspace isolation) and cross-check every function
+against direct SQL on the demo data.
+
 **AI insights.** `ai/facts.ts` builds a JSON facts pack (current vs previous period, top and
 wasted campaigns, biggest movers, channel mix) with pre-formatted figures (whole-unit money, signed
 changes, human dates, platform and channel display names). `ai/report.ts` calls the
