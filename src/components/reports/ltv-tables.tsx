@@ -3,7 +3,6 @@ import { PlatformBadge } from "@/components/platform-badge";
 import {
   ReportEmpty,
   ROW_HOVER,
-  shortMoney,
   STICKY_HEAD_BG,
   STICKY_ROW_BG,
 } from "@/components/reports/report-ui";
@@ -14,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CHANNEL_LABELS, money, num } from "@/lib/format";
+import { channelLabel, countLabel, credit, creditTitle, moneyShort, moneyWhole, num, plural } from "@/lib/format";
 import type { LtvChannelRow, LtvCohort } from "@/lib/reports-advanced";
 import { cn } from "@/lib/utils";
 
@@ -69,9 +68,9 @@ function ScrollRegion({
 }
 
 function Source({ row }: { row: LtvChannelRow }) {
-  if (row.platform) return <PlatformBadge platform={row.platform} />;
+  if (row.platform) return <PlatformBadge platform={row.platform} className="font-medium text-foreground" />;
   return (
-    <span className="font-medium">{CHANNEL_LABELS[row.key] ?? row.key}</span>
+    <span className="font-medium">{channelLabel(row.key)}</span>
   );
 }
 
@@ -140,15 +139,15 @@ export function CohortTable({
                 >
                   <div className="font-medium">{monthLabel(co.cohort)}</div>
                   <div className="tabular text-xs text-muted-foreground @xl:hidden">
-                    {num(co.customers)} cust. ·{" "}
-                    {shortMoney(co.totalRevenueMinor, c)}
+                    {plural(co.customers, "customer")} ·{" "}
+                    {moneyShort(co.totalRevenueMinor, c)}
                   </div>
                 </TableCell>
                 <TableCell className="tabular hidden text-right @xl:table-cell">
                   {num(co.customers)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @xl:table-cell">
-                  {shortMoney(co.totalRevenueMinor, c)}
+                  {moneyWhole(co.totalRevenueMinor, c)}
                 </TableCell>
                 {Array.from({ length: width }, (_, i) => {
                   const v = co.cumulativeLtvMinor[i];
@@ -163,9 +162,9 @@ export function CohortTable({
                         style={{
                           backgroundColor: `color-mix(in oklch, var(--primary) ${Math.round(alpha * 100)}%, transparent)`,
                         }}
-                        title={`${money(co.revenueMinor[i], c)} revenue in month ${i}`}
+                        title={`${moneyWhole(co.revenueMinor[i], c)} revenue in month ${i}`}
                       >
-                        {shortMoney(v, c)}
+                        {moneyShort(v, c)}
                       </div>
                     </TableCell>
                   );
@@ -234,22 +233,25 @@ export function ChannelTable({
                 <TableCell className="py-2.5 pr-1 pl-4">
                   <Source row={x} />
                   <div className="tabular mt-1 text-xs text-muted-foreground @2xl:hidden">
-                    {num(x.customers, 1)} cust. ·{" "}
-                    {shortMoney(x.revenueMinor, c)}
+                    {countLabel(x.customers, "customer")} ·{" "}
+                    {moneyShort(x.revenueMinor, c)}
                   </div>
                 </TableCell>
-                <TableCell className="tabular hidden text-right @2xl:table-cell">
-                  {num(x.customers, 1)}
+                <TableCell
+                  className="tabular hidden text-right @2xl:table-cell"
+                  title={creditTitle(x.customers, "customers")}
+                >
+                  {credit(x.customers)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @2xl:table-cell">
-                  {shortMoney(x.revenueMinor, c)}
+                  {moneyWhole(x.revenueMinor, c)}
                 </TableCell>
                 <TableCell className="tabular text-right font-medium">
-                  {shortMoney(x.ltvMinor, c)}
+                  {moneyWhole(x.ltvMinor, c)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @2xl:table-cell">
                   {x.spendMinor ? (
-                    shortMoney(x.spendMinor, c)
+                    moneyWhole(x.spendMinor, c)
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
@@ -258,7 +260,7 @@ export function ChannelTable({
                   {x.cacMinor === null ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
-                    shortMoney(x.cacMinor, c)
+                    moneyWhole(x.cacMinor, c)
                   )}
                 </TableCell>
                 <TableCell className="pr-4 text-right">

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { CHANNEL_LABELS, money } from "@/lib/format";
+import { channelLabel, moneyWhole } from "@/lib/format";
 import { listContacts, type ContactRow } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
@@ -54,10 +54,10 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
   const from = (page - 1) * PAGE + 1;
   const to = Math.min(total, page * PAGE);
   const firstTouch = (c: ContactRow) => ({
-    primary: c.firstCampaign ?? (c.firstChannel ? (CHANNEL_LABELS[c.firstChannel] ?? c.firstChannel) : null),
-    secondary: c.firstCampaign && c.firstChannel ? (CHANNEL_LABELS[c.firstChannel] ?? c.firstChannel) : null,
+    primary: c.firstCampaign ?? (c.firstChannel ? channelLabel(c.firstChannel) : null),
+    secondary: c.firstCampaign && c.firstChannel ? channelLabel(c.firstChannel) : null,
   });
-  const revenue = (c: ContactRow) => (c.revenueMinor ? money(c.revenueMinor, ws.reportingCurrency) : "—");
+  const revenue = (c: ContactRow) => (c.revenueMinor ? moneyWhole(c.revenueMinor, ws.reportingCurrency) : "—");
 
   return (
     <>
@@ -254,7 +254,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                         </TableCell>
                         <TableCell className="hidden @4xl:table-cell">
                           <div className="truncate text-sm" title={ft.primary ?? undefined}>
-                            {ft.primary ?? <span className="text-muted-foreground">—</span>}
+                            {ft.primary ?? <span className="text-muted-foreground">No tracked touchpoint</span>}
                           </div>
                           {ft.secondary ? <div className="truncate text-xs text-muted-foreground">{ft.secondary}</div> : null}
                         </TableCell>

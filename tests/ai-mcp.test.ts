@@ -33,6 +33,23 @@ describe("AI facts + number check", () => {
     const md = templateReport(facts);
     expect(md).toContain("## Summary");
     expect(unverifiedNumbers(md, facts)).toEqual([]);
+    // Reads like an analyst wrote it, not a debug dump.
+    expect(md).toContain("**Aug 3 – Sep 1, 2026:** you spent");
+    expect(md).toContain("the previous 30 days");
+    expect(md).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(md).not.toMatch(/\((meta|google|linkedin|tiktok|microsoft)\)/);
+    expect(md).toMatch(/\((Meta|Google|LinkedIn|TikTok|Microsoft)\)/);
+    expect(md).not.toMatch(/0\.00x|\$0\.00|\b1 leads\b|changed -/);
+    expect(md).not.toMatch(/\$\d{1,3}(,\d{3})+\.\d{2}/); // no cents on large amounts
+  });
+
+  it("facts use display names and readable figures", async () => {
+    const { facts } = await buildFacts(db, ws, { end: "2026-09-01", days: 7 });
+    expect(facts.period).toMatchObject({ start: "2026-08-26", end: "2026-09-01", days: 7, label: "Aug 26 – Sep 1, 2026" });
+    expect(facts.attributionModelLabel).toBe("Linear");
+    for (const c of [...facts.topCampaigns, ...facts.wastedSpend]) expect(c.platform).toMatch(/^[A-Z]/);
+    for (const c of facts.channelMix) expect(c.channel).not.toContain("_");
+    expect(facts.changeVsPreviousPeriod.spend).toMatch(/^([+−]\d+\.\d%|0%|new)$/);
   });
 
   it("generates and stores a report without an LLM configured", async () => {

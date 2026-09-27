@@ -177,10 +177,17 @@ campaign flagged as a journey starter or closer) and `ltv` (first-payment-month 
 monthly and cumulative revenue per customer, and LTV:CAC per acquiring platform/channel).
 
 **AI insights.** `ai/facts.ts` builds a JSON facts pack (current vs previous period, top and
-wasted campaigns, biggest movers, channel mix) with pre-formatted money. `ai/report.ts` calls the
+wasted campaigns, biggest movers, channel mix) with pre-formatted figures (whole-unit money, signed
+changes, human dates, platform and channel display names). `ai/report.ts` calls the
 configured model through the Vercel AI SDK (OpenAI, Anthropic, Gemini, or any
 OpenAI-compatible endpoint incl. Ollama/LM Studio/OpenRouter/DeepSeek). With no model, a
 deterministic template report is produced. `ai/numbers.ts` flags numbers not present in the facts.
+
+**Display formatting.** `src/lib/format.ts` owns how numbers read in the UI: exact `money()` for
+individual payments, `moneyWhole()` (no cents above 10) for tables, KPIs and unit costs,
+`moneyShort()` ($41.3K) for secondary text; `credit()` shows credited leads/customers whole from
+10 up and to one decimal below (linear credit is fractional; CSV exports keep exact values);
+`roas()`, `pct()`, `signedPct()` use a real minus sign; `dateRange()` gives "Sep 20 – 26".
 
 **MCP.** `/api/mcp` serves read-only tools via `mcp-handler` (Streamable HTTP, stateless) with
 API-key auth. Tool output always states date range, currency and attribution model; contact
