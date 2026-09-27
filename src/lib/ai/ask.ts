@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { generateText, stepCountIs, tool, type LanguageModel, type ModelMessage } from "ai";
 import { z } from "zod";
 import { AD_PLATFORMS, type Platform } from "../connectors/types";
@@ -536,4 +536,3 @@ export async function pruneAskHistory(db: DB, workspaceId: string, userId: strin
   if (old.length) await db.delete(schema.askMessages).where(inArray(schema.askMessages.id, old.map((o) => o.id)));
 }
 
-export { asc };

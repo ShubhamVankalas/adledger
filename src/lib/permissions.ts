@@ -15,6 +15,7 @@ export type Permission =
   | "reports.view"
   | "reports.export"
   | "insights.generate"
+  | "insights.ask"
   | "alerts.manage"
   | "reports.share"
   | "apikeys.manage"
@@ -31,6 +32,8 @@ const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   "reports.export": ["owner", "admin", "analyst"],
   "insights.generate": ["owner", "admin", "analyst"],
+  // Ask reads aggregates only; clients are left out so an agency's AI model isn't spent by client seats.
+  "insights.ask": ["owner", "admin", "analyst", "viewer"],
   "alerts.manage": ["owner", "admin", "analyst"],
   "reports.share": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],

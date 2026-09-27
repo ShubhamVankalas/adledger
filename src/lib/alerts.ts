@@ -14,7 +14,8 @@ import {
   type AnomalyMetric,
 } from "./alerts-meta";
 import type { AlertComparator, AlertMetric, AlertScope } from "./db/schema";
-import { credit, longDate, moneyWhole, platformLabel, roas as roasX, signedPct } from "./format";
+import { credit, longDate, moneyWhole, platformLabel, signedPct } from "./format";
+import { ratioX as roasX } from "./metrics";
 import { log } from "./log";
 import { fromDecimalString, toDecimalString } from "./money";
 import { appUrl, sendToChannel } from "./notify";

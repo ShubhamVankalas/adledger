@@ -1,233 +1,178 @@
-import { desc, eq } from "drizzle-orm";
-import { AlertTriangleIcon, BotIcon, CheckCircle2Icon, FileTextIcon, SparklesIcon } from "lucide-react";
+import { and, desc, eq } from "drizzle-orm";
+import { SettingsIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { generateReportAction } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
-import { Markdown } from "@/components/markdown";
+import { ActionCards } from "@/components/insights/action-cards";
+import { AlertHistory } from "@/components/insights/alerts/alert-history";
+import { AskPanel, type AskMessageView } from "@/components/insights/ask/ask-panel";
+import { InsightsTabs, type InsightsTab } from "@/components/insights/insights-tabs";
+import { providerLabel, WeeklyReport } from "@/components/insights/weekly-report";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { alertsView } from "@/lib/alerts";
+import { askHistory } from "@/lib/ai/ask";
 import { getLlmConfig } from "@/lib/ai/report";
-import { requireUser } from "@/lib/auth";
+import { requireUser, type SessionUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
-import { cn } from "@/lib/utils";
-import { DeleteReportButton } from "./delete-report-button";
+import { dateRange, MODEL_LABELS } from "@/lib/format";
+import { actionCards } from "@/lib/reports-insights";
 
-export const metadata = { title: "AI insights" };
+export const metadata = { title: "Insights" };
 
-// Report sections are separated by a hairline so a long note scans like a document.
-const PROSE = "[&_h3:not(:first-child)]:mt-8 [&_h3:not(:first-child)]:border-t [&_h3:not(:first-child)]:pt-7";
-
-const PROVIDER_LABELS: Record<string, string> = {
-  ollama: "Ollama",
-  lmstudio: "LM Studio",
-  openai: "OpenAI",
-  anthropic: "Anthropic",
-  google: "Google Gemini",
-  openrouter: "OpenRouter",
-  deepseek: "DeepSeek",
-  custom: "Custom model",
-};
-
-type Report = typeof schema.aiReports.$inferSelect;
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function InsightsPage({ searchParams }: PageProps<"/insights">) {
   const user = await requireUser();
-  const ws = user.workspace;
-  const canGenerate = user.can("insights.generate");
   const sp = await searchParams;
+  const canAsk = user.can("insights.ask");
+  const requested = one(sp.tab);
+  const tab: InsightsTab = requested === "ask" && canAsk ? "ask" : requested === "alerts" ? "alerts" : "reports";
   const db = await getDb();
-  const [reports, llm] = await Promise.all([
-    db.select().from(schema.aiReports).where(eq(schema.aiReports.workspaceId, ws.id)).orderBy(desc(schema.aiReports.createdAt)).limit(20),
-    getLlmConfig(ws, db),
-  ]);
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: ws.timezone,
-  });
-  const shortFmt = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: ws.timezone,
-  });
-  const periodFmt = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-  const period = (r: Report) => {
-    const a = new Date(`${r.periodStart}T00:00:00Z`);
-    const b = new Date(`${r.periodEnd}T00:00:00Z`);
-    return Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) ? `${r.periodStart} – ${r.periodEnd}` : periodFmt.formatRange(a, b);
-  };
-  const author = (r: Report) => (r.modelName === "template" ? "Rule-based" : r.modelName);
-  const latest = reports[0];
-  const selected = reports.find((r) => r.id === sp.report) ?? latest;
-
-  const generate = canGenerate ? (
-    <ActionButton action={generateReportAction} size="sm" className="h-10 sm:h-7">
-      <SparklesIcon aria-hidden /> Generate now
-    </ActionButton>
-  ) : null;
-
-  const modelCard = (
-    <Card size="sm">
-      <CardContent className="space-y-4">
-        <div className="flex items-start gap-3">
-          <span
-            className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", llm ? "bg-success/15 text-success" : "bg-primary/10 text-primary")}
-          >
-            {llm ? <CheckCircle2Icon className="size-4" aria-hidden /> : <BotIcon className="size-4" aria-hidden />}
-          </span>
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium">{llm ? "AI model connected" : "No AI model connected"}</p>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {llm ? (
-                <>
-                  Written by <span className="font-medium break-words text-foreground">{PROVIDER_LABELS[llm.provider] ?? llm.provider}</span> ·{" "}
-                  <span className="break-all" translate="no">
-                    {llm.model}
-                  </span>
-                </>
-              ) : (
-                "Reports are rule-based until you connect one. Local models like Ollama are free and private."
-              )}
-            </p>
-          </div>
-        </div>
-        <p className="rounded-lg bg-muted/60 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
-          Every number is computed by AdLedger in SQL. The model only writes the narrative, and any figure it invents is flagged.
-        </p>
-        {user.can("workspace.settings") ? (
-          <Button variant="outline" className="h-10 w-full sm:h-8" render={<Link href="/settings/workspace/ai" />}>
-            {llm ? "Change model" : "Connect a model"}
-          </Button>
-        ) : null}
-      </CardContent>
-    </Card>
+  // Threshold rules currently in breach (the anomaly rule's state only means "fired today").
+  const triggered = await db.$count(
+    schema.alertRules,
+    and(eq(schema.alertRules.workspaceId, user.workspace.id), eq(schema.alertRules.kind, "threshold"), eq(schema.alertRules.enabled, true), eq(schema.alertRules.state, "breached")),
   );
 
   return (
     <>
-      <PageHeader title="AI insights" description="A weekly note on what changed, what’s wasting money and where to move budget">
-        {generate}
+      <PageHeader title="Insights" description="What changed, what to do about it, and answers to your questions">
+        {tab === "reports" && user.can("insights.generate") ? (
+          <ActionButton action={generateReportAction} size="sm" variant="outline" className="max-sm:h-9">
+            <SparklesIcon aria-hidden /> Generate report
+          </ActionButton>
+        ) : null}
       </PageHeader>
       <PageBody>
-        <div className="mx-auto grid max-w-6xl items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-          <div className="min-w-0">
-            {!selected ? (
-              <Empty className="border bg-card">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <SparklesIcon aria-hidden />
-                  </EmptyMedia>
-                  <EmptyTitle>No reports yet</EmptyTitle>
-                  <EmptyDescription>
-                    A report is written automatically every week from your spend, leads and revenue.
-                    {canGenerate ? " Generate one now to see the last 7 days." : " Ask an admin or analyst to generate one."}
-                  </EmptyDescription>
-                </EmptyHeader>
-                {canGenerate ? (
-                  <EmptyContent>
-                    <ActionButton action={generateReportAction} className="h-10 sm:h-8">
-                      <SparklesIcon aria-hidden /> Generate a report
-                    </ActionButton>
-                  </EmptyContent>
-                ) : null}
-              </Empty>
-            ) : (
-              <article id={`report-${selected.id}`} aria-labelledby="report-title" className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-                <header className="flex items-start gap-3 border-b bg-gradient-to-b from-primary/[0.05] to-transparent px-5 py-5 sm:px-8 sm:py-6">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-xs font-medium text-primary">Weekly insights</p>
-                    <h2 id="report-title" className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-balance">
-                      {period(selected)}
-                      {selected.id === latest?.id ? <Badge>Latest</Badge> : <Badge variant="secondary">Earlier report</Badge>}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Generated <span className="whitespace-nowrap">{fmt.format(selected.createdAt)}</span> ·{" "}
-                      <span className="[overflow-wrap:anywhere]">{author(selected)}</span>
-                    </p>
-                  </div>
-                  {canGenerate ? <DeleteReportButton id={selected.id} period={period(selected)} /> : null}
-                </header>
-                <div className="space-y-6 px-5 py-6 sm:px-8 sm:py-8">
-                  <Unverified numbers={selected.unverifiedNumbers} />
-                  <Markdown source={selected.contentMd} className={cn("max-w-[70ch]", PROSE)} />
-                </div>
-              </article>
-            )}
-          </div>
-
-          <aside className="space-y-4 md:space-y-6 lg:sticky lg:top-24">
-            {modelCard}
-            {reports.length ? (
-              <Card size="sm">
-                <CardHeader>
-                  <CardTitle>Report history</CardTitle>
-                  <CardDescription>
-                    {reports.length} {reports.length === 1 ? "report" : "reports"}, newest first
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ol className="-mx-2 space-y-0.5">
-                    {reports.map((r) => {
-                      const active = r.id === selected?.id;
-                      return (
-                        <li key={r.id}>
-                          <Link
-                            href={r.id === latest?.id ? "/insights" : `/insights?report=${r.id}`}
-                            scroll={false}
-                            aria-current={active ? "page" : undefined}
-                            className={cn(
-                              "flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60",
-                              active && "bg-muted text-foreground hover:bg-muted",
-                            )}
-                          >
-                            <FileTextIcon className={cn("size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")} aria-hidden />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate font-medium">{period(r)}</span>
-                              <span className="block truncate text-xs text-muted-foreground">
-                                {shortFmt.format(r.createdAt)} · {author(r)}
-                              </span>
-                            </span>
-                            {r.unverifiedNumbers.length ? (
-                              <>
-                                <AlertTriangleIcon className="size-4 shrink-0 text-warning" aria-hidden />
-                                <span className="sr-only">Has unverified numbers</span>
-                              </>
-                            ) : null}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </CardContent>
-              </Card>
-            ) : null}
-          </aside>
-        </div>
+        <InsightsTabs active={tab} alertCount={triggered} showAsk={canAsk} />
+        {tab === "reports" ? (
+          <ReportsTab user={user} selectedId={one(sp.report)} />
+        ) : tab === "ask" ? (
+          <AskTab user={user} initialQuestion={one(sp.q)?.slice(0, 1000) ?? null} />
+        ) : (
+          <AlertsTab user={user} />
+        )}
       </PageBody>
     </>
   );
 }
 
-function Unverified({ numbers }: { numbers: string[] }) {
-  if (!numbers.length) return null;
+async function ReportsTab({ user, selectedId }: { user: SessionUser; selectedId?: string }) {
+  const ws = user.workspace;
+  const db = await getDb();
+  const [reports, llm] = await Promise.all([
+    db.select().from(schema.aiReports).where(eq(schema.aiReports.workspaceId, ws.id)).orderBy(desc(schema.aiReports.createdAt)).limit(20),
+    getLlmConfig(ws, db),
+  ]);
   return (
-    <div className="flex max-w-[70ch] items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-sm leading-relaxed">
-      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-      <span>
-        The model used numbers that aren&rsquo;t in AdLedger&rsquo;s data: <strong className="break-words">{numbers.join(", ")}</strong>. Treat those figures with
-        caution.
-      </span>
+    <div className="space-y-8">
+      <Suspense fallback={<CardsSkeleton />}>
+        <Cards user={user} />
+      </Suspense>
+      <WeeklyReport
+        reports={reports}
+        selectedId={selectedId}
+        llm={llm}
+        timezone={ws.timezone}
+        canGenerate={user.can("insights.generate")}
+        canConfigure={user.can("workspace.settings")}
+      />
+    </div>
+  );
+}
+
+async function Cards({ user }: { user: SessionUser }) {
+  const db = await getDb();
+  const { period, cards } = await actionCards(db, user.workspace);
+  return <ActionCards cards={cards} caption={`${dateRange(period.start, period.end, { year: true })}, ${MODEL_LABELS[period.model] ?? period.model} attribution. Every figure links to its source.`} />;
+}
+
+function CardsSkeleton() {
+  return (
+    <div className="reveal-delayed space-y-3" aria-busy="true" aria-label="Loading recommendations…">
+      <Skeleton className="h-6 w-40" />
+      <div className="grid gap-3 md:grid-cols-2">
+        <Skeleton className="h-44 rounded-xl" />
+        <Skeleton className="h-44 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+async function AskTab({ user, initialQuestion }: { user: SessionUser; initialQuestion: string | null }) {
+  const db = await getDb();
+  const [history, llm] = await Promise.all([askHistory(db, user.workspace.id, user.id), getLlmConfig(user.workspace, db)]);
+  const initial: AskMessageView[] = history.map((m) => ({
+    id: m.id,
+    role: m.role,
+    content: m.content,
+    tables: m.tables,
+    unverifiedNumbers: m.unverifiedNumbers,
+    modelName: m.modelName,
+    createdAt: m.createdAt.toISOString(),
+  }));
+  return (
+    <AskPanel
+      initial={initial}
+      modelLabel={llm ? `${providerLabel(llm.provider)}, ${llm.model}` : null}
+      canConfigure={user.can("workspace.settings")}
+      initialQuestion={initialQuestion}
+    />
+  );
+}
+
+async function AlertsTab({ user }: { user: SessionUser }) {
+  const db = await getDb();
+  const view = await alertsView(db, user.workspace, { historyLimit: 50 });
+  const canManage = user.can("alerts.manage");
+  const active = view.rules.filter((r) => r.enabled);
+  return (
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <section aria-labelledby="feed-title" className="min-w-0 space-y-3">
+        <h2 id="feed-title" className="text-title-sm">
+          Alert history
+        </h2>
+        <AlertHistory
+          items={view.history}
+          channelNames={view.channelNames}
+          emptyHint={active.length || view.anomaly.enabled ? "Your alerts are watching. Anything that fires will show up here." : "Set up an alert and anything that fires will show up here."}
+        />
+      </section>
+      <aside className="space-y-3 lg:sticky lg:top-24">
+        <div className="rounded-xl bg-card p-4 shadow-(--elev-card)">
+          <p className="text-ui font-medium">Watching</p>
+          {active.length || view.anomaly.enabled ? (
+            <ul className="mt-2 space-y-2.5">
+              {view.anomaly.enabled ? (
+                <li className="text-caption text-muted-foreground">
+                  <span className="block text-ui text-foreground">Unusual days</span>
+                  Revenue, spend and leads against the last 4 weeks
+                </li>
+              ) : null}
+              {active.map((r) => (
+                <li key={r.id} className="text-caption text-muted-foreground">
+                  <span className="flex items-center gap-2 text-ui text-foreground">
+                    <span className="min-w-0 truncate">{r.name}</span>
+                    {r.state === "breached" ? <Badge variant="warning">Triggered</Badge> : null}
+                  </span>
+                  {r.summary}, {r.scopeLabel === "Whole workspace" ? "whole workspace" : r.scopeLabel}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-caption text-pretty text-muted-foreground">No alerts are on. Get told when CAC climbs, ROAS drops below break-even or a day looks unusual.</p>
+          )}
+          {canManage ? (
+            <Button variant="outline" className="mt-4 w-full max-sm:h-10" render={<Link href="/settings/workspace/alerts" />}>
+              <SettingsIcon aria-hidden /> Manage alerts
+            </Button>
+          ) : null}
+        </div>
+      </aside>
     </div>
   );
 }

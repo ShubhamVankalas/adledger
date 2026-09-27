@@ -1,7 +1,8 @@
 // Client-safe: how Ask result cells read. Used by the server (what the model sees) and the UI
 // (what the person sees), so both show exactly the same figures.
 import type { AskColumnKind } from "../db/schema";
-import { credit, moneyWhole, pct, platformLabel, roas, signedPct } from "../format";
+import { credit, moneyWhole, pct, platformLabel, signedPct } from "../format";
+import { ratioX } from "../metrics";
 
 export function formatCell(kind: AskColumnKind, value: string | number | null | undefined, currency: string): string {
   if (value === null || value === undefined || value === "") return "—";
@@ -13,7 +14,7 @@ export function formatCell(kind: AskColumnKind, value: string | number | null | 
     case "money":
       return moneyWhole(n, currency);
     case "ratio":
-      return roas(n);
+      return ratioX(n);
     case "pct":
       return signedPct(n);
     case "credit":
