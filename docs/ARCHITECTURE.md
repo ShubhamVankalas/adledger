@@ -125,6 +125,10 @@ unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), reve
 conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
 error, mock, sent_at).
 
+**Overview layouts** — `dashboards` (name, preset, layout jsonb, version, updated_at; `user_id` null =
+the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
+nulls not distinct).
+
 ## 5. Key flows
 
 **Pixel → touchpoint.** `al.js` loads with `data-site=pk_…`, keeps a first-party `_al_vid`
@@ -267,6 +271,36 @@ omitted; session with `workspace.data` only). *Retention*: optional “delete ra
 (7–3650), enforced by the daily `data-retention` job; touchpoints, contacts and revenue are kept, so
 attribution is unaffected. Erasures, exports and retention changes are audit-logged (ids only, never emails).
 
+**Overview widget board.** The Overview (`src/app/(app)/page.tsx`) is a board of widgets: a briefing
+sentence, a pinned strip of up to 6 KPI tiles and named sections on a 12 / 6 / 1-column grid with fixed
+sizes (s 3/12, m 6/12, l 8/12, xl 12/12) and fixed heights (KPI 124px, card 380px), so nothing jumps
+between loading, empty, error and data.
+- *Registries.* `src/lib/metrics.ts` (label, definition, format, polarity: spend neutral, CAC/CPL
+  down-is-good, |Δ| < 2% reads "flat") and `src/lib/widgets/catalog.ts` (client-safe metadata: title,
+  category, description, allowed sizes, default size) + `src/lib/widgets/registry.tsx` (server: the async
+  component and same-size skeleton per type).
+- *Numbers.* `src/lib/reports-metrics.ts`: `kpiSeries` returns every KPI per day plus the period total
+  in one query (`group by rollup`), so tiles, sparklines and the Metric explorer share one result and
+  agree with `overview()` (tested on the demo data); plus wasted spend with campaign maturity ("too early"
+  when a campaign is younger than the median days to convert), the platform scorecard and recent
+  leads and payments (emails masked on the server, never sent to the browser raw). The briefing sentence
+  is a template (`src/lib/dashboard/briefing.ts`), never the LLM. The Spend vs revenue week/month toggle
+  groups the daily SQL rows in the browser (integer addition only).
+- *Rendering.* Each widget is an async server component in its own error boundary and `<Suspense>`;
+  shared inputs are `React.cache` loaders (`src/lib/dashboard/data.ts`) and the KPI queries are started
+  before anything else renders. Recharts and `@dnd-kit` load in their own chunks (`@dnd-kit` only in
+  edit mode, on desktop).
+- *Layouts.* `src/lib/dashboard/layout.ts` validates every read and save with zod: bad items are dropped,
+  bad settings unset, disallowed sizes snap back, and unknown widget types are kept and render "Widget
+  unavailable" (a downgrade never destroys a board). Presets: Minimal (fresh workspaces), E-commerce (the
+  demo), Lead gen, Agency. A member sees their personal view, else the workspace default, else the preset.
+- *Editing.* "Customize", the `E` key or `/?edit=1`: drag with pointer or keyboard, size menu, remove,
+  sections add/rename/reorder/delete, reset to a preset or the workspace default, save. Phones get an
+  ↑ / ↓ reorder list. KPI tiles pin/unpin outside edit mode (optimistic, Undo toast). Server actions in
+  `src/app/actions/dashboard.ts` use `guard("dashboard.edit")` (every role, for personal views; the
+  workspace default also needs `workspace.settings`) and `audit()`; saves carry the row version and a
+  stale save is rejected instead of overwriting a teammate's change.
+
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
 events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
@@ -340,3 +374,9 @@ get an `aria-label`, and phones/touch screens get >= 36px tap targets (see `glob
   workspace data keeps it (like the `llm` connection).
 - **LTV attribution for repeat payments.** Renewals credit the acquiring journey instead of
   becoming “unattributed” once the window has passed.
+- **2026-09-27 — Overview as a widget board on CSS grid spans.** Layouts are fixed size presets on a
+  12-column grid (not free pixel positions, not `react-grid-layout`): they can't turn ugly, need no
+  positioning maths and work with server components, so every widget still streams from the server.
+  Drag and drop uses `@dnd-kit/core` + `@dnd-kit/sortable` (keyboard and touch accessible), loaded only
+  in edit mode. Layouts live in one `dashboards` table (workspace default + personal overrides) with an
+  optimistic-concurrency `version`.
