@@ -219,7 +219,8 @@ export function AskPanel({
           e.preventDefault();
           send(draft);
         }}
-        className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 mt-2 bg-gradient-to-t from-background from-70% to-transparent pt-4 pb-3 md:bottom-0 md:pb-6"
+        // Phones: the bottom padding is the tab bar's space, so the composer never floats over content when the bar hides.
+        className="sticky bottom-0 z-10 bg-gradient-to-t from-background from-80% to-transparent pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pt-4 md:pb-6"
       >
         <label htmlFor="ask-input" className="sr-only">
           Your question
