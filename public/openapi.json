@@ -233,6 +233,104 @@
         }
       }
     },
+    "/api/v1/reports/{report}/pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getReportPdf",
+        "summary": "Download a PDF report",
+        "description": "Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape) or `wasted-spend`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.",
+        "parameters": [
+          {
+            "name": "report",
+            "in": "path",
+            "required": true,
+            "description": "Which report.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "executive-summary",
+                "weekly-performance",
+                "attribution-models",
+                "ltv-cohorts",
+                "wasted-spend"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "description": "First day, YYYY-MM-DD (workspace timezone). Omit start and end for the report's default range ending on the latest day with data.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "description": "Last day, inclusive, YYYY-MM-DD. At most two years after start.",
+            "schema": {
+              "$ref": "#/components/schemas/Date"
+            }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Attribution model.",
+            "schema": {
+              "$ref": "#/components/schemas/AttributionModel",
+              "default": "linear"
+            }
+          },
+          {
+            "name": "compare",
+            "in": "query",
+            "required": false,
+            "description": "Compare with the previous period of equal length (executive summary and weekly performance).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "previous",
+                "none"
+              ],
+              "default": "previous"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The PDF (`Cache-Control: private, no-store`). `X-Export-Id` and `X-Report-Fingerprint` identify this export.",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/contacts": {
       "get": {
         "tags": [

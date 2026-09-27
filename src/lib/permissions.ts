@@ -14,6 +14,8 @@ export const ROLES: { role: Role; label: string; description: string }[] = [
 export type Permission =
   | "reports.view"
   | "reports.export"
+  | "reports.pdf"
+  | "reports.schedule"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -27,6 +29,9 @@ export type Permission =
 const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   "reports.export": ["owner", "admin", "analyst"],
+  // Branded PDF reports (Reports page, /api/v1/reports/{kind}/pdf). Clients: configurable later.
+  "reports.pdf": ["owner", "admin", "analyst"],
+  "reports.schedule": ["owner", "admin", "analyst"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],

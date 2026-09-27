@@ -125,6 +125,11 @@ unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), reve
 conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
 error, mock, sent_at).
 
+**Reports** — `report_schedules` (report kind, params {model, compare}, weekly/monthly cadence, weekday,
+local hour, recipients {all | user ids}, skip_empty, last run status), `export_log` (one row per PDF:
+user / API key / schedule id, kind, params, unique fingerprint, data hash, bytes, pages, recipients,
+status — ids only, no personal data). `organizations.logo_png` holds the PNG copy of the logo for PDFs.
+
 ## 5. Key flows
 
 **Pixel → touchpoint.** `al.js` loads with `data-site=pk_…`, keeps a first-party `_al_vid`
@@ -266,6 +271,21 @@ credits to “unattributed” in place (same result as a full recompute, without
 omitted; session with `workspace.data` only). *Retention*: optional “delete raw events older than N days”
 (7–3650), enforced by the daily `data-retention` job; touchpoints, contacts and revenue are kept, so
 attribution is unaffected. Erasures, exports and retention changes are audit-logged (ids only, never emails).
+
+**PDF reports.** `@react-pdf/renderer` renders on the server (pure JS, no Chromium, listed in
+`serverExternalPackages`); charts are drawn with react-pdf `<Svg>` primitives by the in-house kit in
+`src/lib/pdf/charts/` (nice-tick scales, line, bars, combo, donut, funnel, heatmap, waterfall, bullet,
+slope, sparkline). Report kinds live in the `src/lib/report-kinds/` registry: each declares its meta,
+a `load(db, ws, params)` that calls only `reports*.ts`, and a react-pdf body. `generateReportPdf`
+loads the data, fingerprints it (SHA-256 over kind, params, data, export id, exporter and time),
+renders the shared frame (masthead with the org logo from `organizations.logo_png`, cover,
+methodology appendix, "Prepared for …" watermark and "n / total" on every page) and writes one
+`export_log` row (ids only). `GET /api/v1/reports/{kind}/pdf` (session `reports.pdf` or API key)
+runs behind an in-process limiter (2 renders at once, 2 queued, then 429). `/verify` looks a
+fingerprint up and shows only kind, workspace, period and issue date. `report_schedules` are run by
+the hourly `report-schedules` job (`BUILTIN_JOBS` in `jobs.ts`) and emailed with the PDF attached.
+Fonts ship in `src/lib/pdf/fonts/` (OFL). `src/app/print.css` makes Ctrl+P print light, without
+navigation. Details: [REPORTS.md](REPORTS.md).
 
 **Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
