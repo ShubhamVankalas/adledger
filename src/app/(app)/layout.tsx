@@ -85,6 +85,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               data: user.can("workspace.data"),
               notes: user.can("contacts.notes"),
               editContacts: user.can("contacts.edit"),
+              roles: user.can("roles.manage"),
               pages,
             }}
           />

@@ -17,6 +17,7 @@ import {
   MousePointerClickIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
+  UserCogIcon,
   UploadIcon,
   UserIcon,
   UsersIcon,
@@ -38,7 +39,9 @@ export function SettingsNav({
   canAudit,
   canAlerts,
   canShare,
+  canRoles = false,
 }: {
+  canRoles?: boolean;
   workspaceName: string;
   organizationName: string;
   canWorkspace: boolean;
@@ -83,6 +86,7 @@ export function SettingsNav({
       items: [
         { href: "/settings/organization", label: "Organization & workspaces", short: "Organization", icon: Building2Icon },
         { href: "/settings/organization/members", label: "Members & roles", short: "Members", icon: UsersIcon, show: canMembers },
+        { href: "/settings/organization/roles", label: "Roles & permissions", short: "Roles", icon: UserCogIcon, show: canRoles },
         { href: "/settings/organization/security", label: "Security policy", short: "Policy", icon: ShieldCheckIcon, show: canAudit },
         { href: "/settings/organization/audit", label: "Audit log", icon: FileClockIcon, show: canAudit },
       ],
