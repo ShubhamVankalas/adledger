@@ -114,7 +114,7 @@ export async function PlatformsWidget({ p, currency }: { p: DashParams; currency
                       {pct(r.spendShare, 0)}
                     </span>
                   </span>
-                  <span className="flex items-center gap-4">
+                  <span className="flex shrink-0 items-center gap-4">
                     <span className="hidden text-xs text-muted-foreground tabular-nums sm:block">
                       {moneyShort(r.spendMinor, currency)} → <span className="text-foreground">{moneyShort(r.revenueMinor, currency)}</span>
                     </span>
