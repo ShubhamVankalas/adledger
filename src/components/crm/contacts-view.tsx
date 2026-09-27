@@ -150,9 +150,10 @@ export function ContactsView(p: Props) {
   useHotkeys([
     { id: "contacts.next", keys: "j", label: "Next contact", group: "Contacts", run: () => moveFocus(1) },
     { id: "contacts.prev", keys: "k", label: "Previous contact", group: "Contacts", run: () => moveFocus(-1) },
-    { id: "contacts.peek", keys: "space", label: "Preview the focused contact", group: "Contacts", run: () => (focus >= 0 ? void setPeek(rows[focus].id) : false) },
+    // Space and Enter belong to a focused button, link or checkbox; only take them when focus is elsewhere.
+    { id: "contacts.peek", keys: "space", label: "Preview the focused contact", group: "Contacts", run: (e) => (focus >= 0 && !onControl(e) ? void setPeek(rows[focus].id) : false) },
     { id: "contacts.open", keys: "o", label: "Open the focused contact", group: "Contacts", run: () => (focus >= 0 ? void openRecord(rows[focus].id) : false) },
-    { id: "contacts.open-enter", keys: "enter", label: "Open the focused contact", group: "Contacts", hidden: true, run: () => (focus >= 0 ? void openRecord(rows[focus].id) : false) },
+    { id: "contacts.open-enter", keys: "enter", label: "Open the focused contact", group: "Contacts", hidden: true, run: (e) => (focus >= 0 && !onControl(e) ? void openRecord(rows[focus].id) : false) },
     { id: "contacts.select", keys: "x", label: "Select the focused contact", group: "Contacts", run: () => (focus >= 0 ? void toggle(focus, false) : false) },
     { id: "contacts.select-range", keys: "shift+x", label: "Select a range of contacts", group: "Contacts", run: () => (focus >= 0 ? void toggle(focus, true) : false) },
     { id: "contacts.clear", keys: "escape", label: "Clear the selection", group: "Contacts", run: () => (selected.size ? void setSelected(new Set()) : false) },
@@ -371,6 +372,8 @@ export function ContactsView(p: Props) {
     </div>
   );
 }
+
+const onControl = (e: KeyboardEvent) => Boolean((e.target as Element | null)?.closest?.("button, a[href], input, select, textarea, summary, [role=button], [role=checkbox], [role=tab]"));
 
 function FragmentRows({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
