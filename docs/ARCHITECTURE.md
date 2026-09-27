@@ -372,6 +372,27 @@ case-insensitive substring on `lower(name)` with a small `LIMIT` per kind, exact
 (`localStorage`, per workspace, bare emails masked). `?question` hands off to Insights → Ask through
 `sessionStorage` (`adledger:ask-draft`), not the URL.
 
+**Live.** `/live` shows visitors in the last 5 minutes, today so far vs the same time yesterday (local day
+in the workspace timezone; spend, reported per day by the platforms, compares against yesterday's total ×
+the share of the day passed), today vs yesterday by hour, a feed of ad clicks, visits (session starts),
+leads, payments and refunds, and the top pages and sources of the last 30 minutes. Every number is SQL in
+`src/lib/reports-live.ts`. Transport is Server-Sent Events from the same Node process:
+`GET /api/v1/live` (dashboard session, any role with `reports.view`) subscribes to a per-workspace hub in
+`src/lib/live.ts` that polls the database every 2 s while anyone is watching (indexed, `created_at`-cursor
+queries with a 10 s look-back for late commits, de-duplicated by key; counters refresh every 10 s, sooner
+after new activity), so it works unchanged with several app instances and needs no pub/sub service.
+`nudgeLive(workspaceId)` asks for an immediate poll from ingest paths. Streams send a heartbeat every 15 s,
+resume from `Last-Event-ID` / `?after=<cursor>`, re-check the session every minute, are recycled every
+15 minutes, and cap at 50 per workspace; the browser closes its stream 20 s after the tab is hidden and
+resumes on return. Payloads never carry an email, phone or full name: people are initials (`P. S.`) or a
+masked email (`p•••@gmail.com`, company domains fully masked), paths lose their query string, and free
+text is scrubbed of emails and long digit runs. `GET /api/v1/live/pulse` (session or API key) returns
+today's revenue and visitors now for the sidebar pulse, polled every 30 s by one shared client poller.
+Streamer mode (hide every amount) and sale toasts are per-browser preferences in `localStorage`. In a
+sample-data workspace, `src/lib/live-demo.ts` writes a gentle trickle of simulated visits, leads and sales
+(copied from the demo's own campaigns, `@example.com` people) while Live is open, so the page moves and
+still reads only SQL; it never runs for a real workspace.
+
 ## 6. Configuration
 
 All optional; see `.env.example`. Connector credentials and the AI model are configured in the
