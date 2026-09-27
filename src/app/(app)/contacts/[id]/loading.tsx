@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-[1760px] p-4 md:p-6 2xl:px-8" aria-busy="true" aria-label="Loading contact">
+    <div className="mx-auto w-full max-w-[1760px] p-4 md:p-6 2xl:px-8" role="status" aria-live="polite" aria-busy="true" aria-label="Loading contact…">
       <div className="mx-auto max-w-6xl space-y-4 md:space-y-6">
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="flex items-center gap-4 p-4 sm:p-6">
@@ -41,6 +41,7 @@ export default function Loading() {
           </div>
         </div>
       </div>
+      <span className="sr-only">Loading contact…</span>
     </div>
   );
 }

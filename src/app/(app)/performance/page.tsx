@@ -158,7 +158,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
           >
             <Link
               href={href({ level: "campaign" })}
-              className="inline-flex min-h-10 items-center hover:text-foreground md:min-h-0"
+              className="inline-flex min-h-10 items-center rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0"
             >
               All campaigns
             </Link>
@@ -169,7 +169,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
                   href={c.href}
                   aria-current={i === crumbs.length - 1 ? "page" : undefined}
                   className={cn(
-                    "inline-flex min-h-10 max-w-[70vw] items-center truncate hover:text-foreground md:min-h-0 md:max-w-80",
+                    "inline-flex min-h-10 max-w-[70vw] min-w-0 items-center truncate rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:max-w-80",
                     i === crumbs.length - 1 && "font-medium text-foreground",
                   )}
                 >
@@ -206,14 +206,14 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
           >
             <Link
               href="/reports/models"
-              className="inline-flex h-10 items-center gap-1 rounded-lg border bg-card md:h-9 px-3 font-medium text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-10 items-center gap-1 rounded-lg border bg-card px-3 font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9"
             >
               Compare models{" "}
               <ChevronRightIcon aria-hidden className="size-3.5" />
             </Link>
             <Link
               href="/reports/ltv"
-              className="inline-flex h-10 items-center gap-1 rounded-lg border bg-card md:h-9 px-3 font-medium text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-10 items-center gap-1 rounded-lg border bg-card px-3 font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9"
             >
               Customer LTV <ChevronRightIcon aria-hidden className="size-3.5" />
             </Link>

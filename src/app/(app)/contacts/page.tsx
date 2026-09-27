@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { channelLabel, moneyWhole } from "@/lib/format";
+import { channelLabel, moneyWhole, num } from "@/lib/format";
 import { listContacts, type ContactRow } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +82,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                 aria-label="Search contacts"
                 enterKeyHint="search"
                 autoComplete="off"
+                spellCheck={false}
                 className="h-10 pr-10 pl-9 @xl:h-9 [&::-webkit-search-cancel-button]:hidden"
               />
               {lifecycle ? <input type="hidden" name="lifecycle" value={lifecycle} /> : null}
@@ -142,7 +143,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                 <EmptyMedia variant="icon">{q ? <SearchIcon /> : <UsersIcon />}</EmptyMedia>
                 {q ? (
                   <>
-                    <EmptyTitle>
+                    <EmptyTitle className="break-words">
                       No {noun}s match “{q}”
                     </EmptyTitle>
                     <EmptyDescription>Search looks at names and email addresses. Check the spelling or try part of the email.</EmptyDescription>
@@ -182,8 +183,8 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
           )
         ) : (
           <section className="@container space-y-3" aria-label={`${noun}s`}>
-            <p className="text-sm text-muted-foreground">
-              <span className="tabular font-medium text-foreground">{total.toLocaleString()}</span> {noun}
+            <p className="text-sm break-words text-muted-foreground">
+              <span className="tabular font-medium text-foreground">{num(total)}</span> {noun}
               {total === 1 ? "" : "s"}
               {q ? (
                 <>
@@ -206,7 +207,11 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                           <span className="truncate font-medium">{c.name || c.email || "Anonymous"}</span>
                           {c.revenueMinor ? <span className="tabular shrink-0 text-sm font-medium">{revenue(c)}</span> : null}
                         </div>
-                        {c.name && c.email ? <div className="truncate text-xs text-muted-foreground">{c.email}</div> : null}
+                        {c.name && c.email ? (
+                          <div className="truncate text-xs text-muted-foreground" translate="no">
+                            {c.email}
+                          </div>
+                        ) : null}
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           <LifecycleBadge lifecycle={c.lifecycle} />
                           <span className="min-w-0 truncate">{ft.primary ?? "No tracked touchpoint"}</span>
@@ -245,7 +250,11 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                             <Avatar c={c} />
                             <span className="min-w-0">
                               <span className="block truncate font-medium">{c.name || c.email || "Anonymous"}</span>
-                              {c.name && c.email ? <span className="block truncate text-xs text-muted-foreground">{c.email}</span> : null}
+                              {c.name && c.email ? (
+                                <span className="block truncate text-xs text-muted-foreground" translate="no">
+                                  {c.email}
+                                </span>
+                              ) : null}
                             </span>
                           </Link>
                         </TableCell>
@@ -261,7 +270,7 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
                         <TableCell className="hidden text-sm text-muted-foreground @6xl:table-cell">
                           {c.firstLeadAt ? dateFmt.format(new Date(c.firstLeadAt)) : "—"}
                         </TableCell>
-                        <TableCell className="tabular text-right">{c.touchpoints}</TableCell>
+                        <TableCell className="tabular text-right">{num(c.touchpoints)}</TableCell>
                         <TableCell className={cn("tabular pr-4 text-right font-medium", !c.revenueMinor && "font-normal text-muted-foreground")}>{revenue(c)}</TableCell>
                       </TableRow>
                     );
@@ -276,10 +285,10 @@ export default async function ContactsPage({ searchParams }: PageProps<"/contact
           <nav aria-label="Pagination" className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
             <span className="tabular">
               <span className="hidden sm:inline">Showing </span>
-              {from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}
+              {num(from)}–{num(to)} of {num(total)}
               <span className="hidden sm:inline">
                 {" "}
-                · page {page} of {pages}
+                · page {num(page)} of {num(pages)}
               </span>
             </span>
             <div className="flex gap-2">

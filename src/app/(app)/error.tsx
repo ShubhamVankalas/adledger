@@ -15,9 +15,9 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
           <AlertTriangleIcon className="size-5" aria-hidden />
         </span>
         <div className="space-y-1.5">
-          <h1 className="text-xl font-semibold tracking-tight">Something went wrong</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-balance">Something went wrong</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            This page couldn&apos;t load. Your data is safe. Try again, and if it keeps happening, check the server logs.
+            This page couldn&rsquo;t load. Your data is safe. Try again, and if it keeps happening, check the server logs.
           </p>
         </div>
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
@@ -25,20 +25,20 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
             Back to overview
           </Button>
           <Button className="h-10 sm:h-8" onClick={reset}>
-            <RotateCwIcon /> Try again
+            <RotateCwIcon aria-hidden /> Try again
           </Button>
         </div>
         {error.message || error.digest ? (
           <details className="group w-full border-t pt-4 text-left text-xs text-muted-foreground">
-            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-1 rounded-md font-medium hover:text-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-1 rounded-md font-medium outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
               Technical details
-              <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
+              <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden />
             </summary>
             <div className="mt-3 space-y-1.5 rounded-lg bg-muted/50 p-3">
               {error.message ? <p className="break-words">{error.message}</p> : null}
               {error.digest ? (
                 <p>
-                  Reference <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{error.digest}</code>
+                  Reference <code className="rounded bg-muted px-1.5 py-0.5 font-mono" translate="no">{error.digest}</code>
                 </p>
               ) : null}
             </div>

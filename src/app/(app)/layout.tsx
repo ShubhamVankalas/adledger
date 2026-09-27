@@ -40,13 +40,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Demo
             </span>
             <span className="truncate">
-              <span className="sm:hidden">You&apos;re viewing demo data.</span>
-              <span className="hidden sm:inline">You&apos;re exploring sample data.</span>
+              <span className="sm:hidden">You&rsquo;re viewing demo data.</span>
+              <span className="hidden sm:inline">You&rsquo;re exploring sample data.</span>
             </span>
             {user.can("workspace.data") ? (
               <Link
                 href="/settings/workspace"
-                className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-sm font-medium text-primary underline-offset-4 hover:underline"
+                className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="sm:hidden">Use real data</span>
                 <span className="hidden sm:inline">Clear it and connect your real accounts</span>

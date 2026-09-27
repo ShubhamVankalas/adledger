@@ -35,7 +35,8 @@ export const metadata = { title: "Overview" };
 /** Card-header link: a 36px tap target on phones, compact from `sm` up. */
 const headerLink = "h-9 px-3 sm:h-7 sm:px-2.5";
 /** List rows are links: comfortable tap height on phones, a hover wash on desktop. */
-const rowLink = "-mx-2 rounded-lg px-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none";
+const rowLink =
+  "-mx-2 rounded-lg px-2 transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60";
 
 export default async function OverviewPage({ searchParams }: PageProps<"/">) {
   const user = await requireUser();
@@ -86,7 +87,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
 
         {cur.warnings.map((w) => (
           <div key={w} role="status" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
-            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" /> {w}
+            <AlertTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" /> {w}
           </div>
         ))}
 
@@ -138,9 +139,9 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
               <CardContent className="px-2 sm:px-4">
                 {empty ? (
                   <div className="flex h-[220px] flex-col items-center justify-center gap-2 px-6 text-center sm:h-[280px]">
-                    <ChartNoAxesColumnIcon className="size-8 text-muted-foreground/50" />
+                    <ChartNoAxesColumnIcon aria-hidden className="size-8 text-muted-foreground/50" />
                     <p className="text-sm font-medium">No spend or revenue in this period</p>
-                    <p className="max-w-xs text-xs text-muted-foreground">Try a longer date range, or connect an ad platform and payments to start filling this chart.</p>
+                    <p className="max-w-xs text-xs text-pretty text-muted-foreground">Try a longer date range, or connect an ad platform and payments to start filling this chart.</p>
                   </div>
                 ) : (
                   <SpendRevenueChart data={series} currency={c} />
@@ -154,7 +155,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                 <CardDescription>Revenue credited to each campaign and its return on ad spend</CardDescription>
                 <CardAction>
                   <Button variant="ghost" size="sm" className={headerLink} render={<Link href={perfHref()} />}>
-                    All <span className="max-sm:sr-only">campaigns</span> <ArrowRightIcon />
+                    All <span className="max-sm:sr-only">campaigns</span> <ArrowRightIcon aria-hidden />
                   </Button>
                 </CardAction>
               </CardHeader>
@@ -163,7 +164,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                   <p className="text-sm text-muted-foreground">Connect Meta, Google Ads or another ad platform to see campaigns here.</p>
                 ) : (
                   <>
-                    <div className="mb-1 hidden grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_9rem] gap-x-4 text-[11px] @4xl:grid-cols-[minmax(0,1fr)_6rem_6rem_14rem] font-medium tracking-wide text-muted-foreground uppercase @xl:grid">
+                    <div className="mb-1 hidden grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_9rem] gap-x-4 text-[11px] font-medium tracking-wide text-muted-foreground uppercase @xl:grid @4xl:grid-cols-[minmax(0,1fr)_6rem_6rem_14rem]">
                       <span>Campaign</span>
                       <span className="text-right">Revenue</span>
                       <span className="text-right">Spend</span>
@@ -209,13 +210,13 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
             <Card className="order-6 bg-gradient-to-br from-primary/[0.07] to-card ring-primary/25">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <SparklesIcon className="size-4 text-primary" /> Latest insight
+                  <SparklesIcon aria-hidden className="size-4 text-primary" /> Latest insight
                 </CardTitle>
                 <CardDescription>{latest ? `${dateRange(latest.periodStart, latest.periodEnd)} · ${reportSourceLabel(latest.modelName)}` : "Weekly AI summary of what changed and why"}</CardDescription>
                 {latest ? (
                   <CardAction>
                     <Button variant="ghost" size="sm" className={headerLink} render={<Link href="/insights" />}>
-                      Open <ArrowRightIcon />
+                      Open <span className="sr-only">latest insight</span> <ArrowRightIcon aria-hidden />
                     </Button>
                   </CardAction>
                 ) : null}
@@ -224,13 +225,13 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                 {latest ? (
                   <Link href="/insights" className="relative block max-h-56 overflow-hidden rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                     <Markdown source={latest.contentMd} className="max-w-3xl" />
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+                    <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
                   </Link>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">No report yet. Works with a local model (Ollama), any API key, or without AI at all.</p>
                     <Button variant="outline" size="sm" className={headerLink} render={<Link href="/insights" />}>
-                      <SparklesIcon /> Generate a report
+                      <SparklesIcon aria-hidden /> Generate a report
                     </Button>
                   </div>
                 )}
@@ -242,7 +243,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
             <Card className={cn("order-2 lg:col-span-2", waste.length && "ring-destructive/30")}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangleIcon className={cn("size-4", waste.length ? "text-destructive" : "text-muted-foreground")} /> Wasted spend
+                  <AlertTriangleIcon aria-hidden className={cn("size-4", waste.length ? "text-destructive" : "text-muted-foreground")} /> Wasted spend
                 </CardTitle>
                 <CardDescription>Campaigns with real spend and ROAS below 0.5x</CardDescription>
                 {waste.length ? (
@@ -278,8 +279,8 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                   ))}
                 </ul>
                 {waste.length > 4 ? (
-                  <Link href={perfHref()} className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-                    +{waste.length - 4} more <ChevronRightIcon className="size-3.5" />
+                  <Link href={perfHref()} className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-md text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60">
+                    +{waste.length - 4} more <ChevronRightIcon aria-hidden className="size-3.5" />
                   </Link>
                 ) : null}
               </CardContent>
@@ -323,7 +324,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
             <Card className="order-5">
               <CardHeader>
                 <CardTitle>By ad platform</CardTitle>
-                <CardDescription>Spend and the revenue each platform&apos;s ads earned</CardDescription>
+                <CardDescription>Spend and the revenue each platform&rsquo;s ads earned</CardDescription>
               </CardHeader>
               <CardContent>
                 {plats.length === 0 ? (
