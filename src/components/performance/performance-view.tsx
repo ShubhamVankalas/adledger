@@ -183,8 +183,9 @@ export function PerformanceView({ report, levels, level, parent, currency, perio
       label: compareOn ? "Turn comparison off" : "Compare with the previous period",
       group: "Performance",
       run: () => {
+        // Read the URL, not the props: a second press can land before the first one's report arrives.
         const sp = new URLSearchParams(window.location.search);
-        if (compareOn) sp.set("compare", "none");
+        if (sp.get("compare") !== "none") sp.set("compare", "none");
         else sp.delete("compare");
         startTransition(() => router.replace(`${pathname}?${sp}`, { scroll: false }));
       },

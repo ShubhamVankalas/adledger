@@ -175,11 +175,13 @@ function PeekBody({ id, level, row: tableRow, period, currency, targets, childLa
               return (
                 <div key={k} className="min-w-0">
                   <dt className="text-caption text-muted-foreground">{col.label}</dt>
-                  <dd className="num mt-0.5 flex items-center gap-1.5 text-title-sm">
-                    {light ? <StoplightDot light={light.light} target={light.target} /> : null}
-                    {formatValue(col.format, row[k as keyof PerfRowV2] as number | null, currency, true)}
+                  <dd className="mt-0.5">
+                    <span className="num flex items-center gap-1.5 text-title-sm">
+                      {light ? <StoplightDot light={light.light} target={light.target} /> : null}
+                      {formatValue(col.format, row[k as keyof PerfRowV2] as number | null, currency, true)}
+                    </span>
+                    {row.delta ? <DeltaLine change={row.delta[k as keyof typeof row.delta]} polarity={col.polarity} className="justify-start" /> : null}
                   </dd>
-                  {row.delta ? <DeltaLine change={row.delta[k as keyof typeof row.delta]} polarity={col.polarity} className="justify-start" /> : null}
                 </div>
               );
             })}

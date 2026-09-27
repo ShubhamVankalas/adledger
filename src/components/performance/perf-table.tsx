@@ -223,7 +223,7 @@ const Row = memo(function Row({ row: r, columns, sortKey, compact, compare, curr
   return (
     <tr
       data-row-id={r.id}
-      aria-selected={selected || undefined}
+      data-selected={selected || undefined}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("a,button")) return;
         onPeek(r.id);
