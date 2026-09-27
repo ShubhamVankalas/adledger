@@ -31,10 +31,19 @@ docker compose up -d
 Open http://localhost:3000. For HTTPS on a server set `DOMAIN=` (and `PUBLIC_URL=https://…`) in
 `.env`, then `docker compose --profile https up -d`.
 
+**Demo in one command** (no setup screen, 90 days of sample data):
+
+```bash
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=adledger-demo-123 DEMO_DATA=true docker compose up -d
+```
+
+Passwords need at least 15 characters (8 once two-factor sign-in is on).
+
 ## Option 3 — platforms
 
-- **Render:** create a Blueprint from your fork; `render.yaml` provisions the web service and a
-  PostgreSQL database.
+- **Render:** [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ShubhamVankalas/adledger)
+  or create a Blueprint from your fork; `render.yaml` provisions the web service, a PostgreSQL 16
+  database and a generated `APP_SECRET`.
 - **Railway:** new project → deploy from your fork (uses `Dockerfile` / `railway.json`) → add a
   PostgreSQL plugin → set `DATABASE_URL=${{Postgres.DATABASE_URL}}` on the service.
 - **Coolify / Dokploy / CapRover / Portainer:** deploy the Docker Compose file as-is.
@@ -74,7 +83,10 @@ docker compose exec postgres pg_dump -U adledger adledger | gzip > adledger-$(da
 ```
 
 Restore: `gunzip -c backup.sql.gz | docker compose exec -T postgres psql -U adledger adledger`.
-Keep `APP_SECRET` with your backups — it decrypts the stored API credentials.
+You also need `APP_SECRET` to restore: it decrypts the stored credentials and 2FA secrets. Keep it in
+a password manager or secret store, **not** in the same place as the database backup (see
+[SECURITY.md → Encryption key](SECURITY.md#encryption-key)). On the embedded database, back up the
+data folder (`DATA_DIR`, `/data` in the single container) instead.
 
 ## Configuration reference
 
@@ -90,6 +102,19 @@ See [`.env.example`](../.env.example). Highlights:
 | `DEMO_DATA=true` | Load demo data on first boot |
 | `LLM_MODEL`, `LLM_API_BASE`, `LLM_API_KEY` | Default AI model (can also be set in the UI) |
 | `SYNC_INTERVAL_HOURS` | Ad sync frequency (default 6) |
+| `SMTP_URL`, `SMTP_FROM` | Email for invitations, alerts and scheduled PDF reports when no Email channel is set up in the dashboard |
+| `DOMAIN` | Hostname for the bundled Caddy HTTPS profile |
+| `SECURITY_CONTACT` | Your contact for vulnerability reports, listed first in `/.well-known/security.txt` |
+| `ADLEDGER_BREAK_GLASS` | One-time two-factor reset for a locked-out owner ([how](SECURITY.md#locked-out-of-two-factor-sign-in-break-glass)); remove it after signing in |
+| `COOKIE_SECURE`, `ALLOW_PRIVATE_URLS`, `DISABLE_SCHEDULER` | Advanced: force secure cookies, allow private outbound URLs, run without background jobs |
+
+## Hardening
+
+Before you put real customer data in it, go through the operator checklist in
+[SECURITY.md](SECURITY.md#7-operator-hardening-checklist): set `APP_SECRET`, serve over HTTPS,
+require two-factor sign-in, keep sessions short, back up, review API keys, verify the audit log and
+stay up to date. **Settings → Organization → Security policy** shows the same checklist with your
+install's current state.
 
 ## Troubleshooting
 
