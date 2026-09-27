@@ -28,7 +28,7 @@ export function NumberChip({ text, href, tone }: { text: string; href: string; t
       href={href}
       title="Open the report this number comes from"
       className={cn(
-        "num mx-px inline rounded-[4px] bg-fill px-1 py-px font-medium whitespace-nowrap [box-decoration-break:clone] transition-colors duration-100 outline-none hover:bg-fill-active focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+        "num mx-px inline rounded-[4px] bg-fill px-1 py-px font-medium whitespace-nowrap underline decoration-dotted decoration-1 underline-offset-[3px] [box-decoration-break:clone] transition-colors duration-100 outline-none hover:bg-fill-active focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
         tone === "good" ? "text-positive" : tone === "bad" ? "text-negative" : "text-foreground",
       )}
     >
