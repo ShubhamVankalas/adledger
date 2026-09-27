@@ -236,12 +236,14 @@ const OVERCLAIM: Partial<Record<Platform, [number, number]>> = {
   linkedin: [1.3, 1.7],
 };
 
-export type PlatformClaim = { purchases: number; value: number };
+/** `leads` is the platform's lead count (its own modeled conversions included), 2 decimals. */
+export type PlatformClaim = { leads: number; purchases: number; value: number };
 
 /**
- * What the ad platform itself claims for one ad-day: purchases and purchase value (major units).
+ * What the ad platform itself claims for one ad-day: leads, purchases and purchase value (major units).
  * Pure function of (ad, date) on its own random stream, so `adDayMetrics` is unchanged. The claim
- * is the purchases this ad-day's clicks should produce, inflated by the platform's over-claim factor.
+ * is what this ad-day's clicks should produce, inflated by the platform's over-claim factor (leads
+ * a little less than purchases: view-through credit matters most for sales).
  */
 export function platformClaim(ad: DemoAd, date: string, currency: string): PlatformClaim {
   const m = adDayMetrics(ad, date, currency);
@@ -252,7 +254,8 @@ export function platformClaim(ad: DemoAd, date: string, currency: string): Platf
   const purchases = Math.floor(expected) + (r.next() < expected - Math.floor(expected) ? 1 : 0);
   const exp = currencyExponent(currency);
   const value = purchases * spec.firstOrder * currencyScale(currency) * r.range(0.85, 1.2);
-  return { purchases, value: Math.round(value * 10 ** exp) / 10 ** exp };
+  const leads = Math.round(m.conversions * (1 + (r.range(lo, hi) - 1) * 0.7) * 100) / 100;
+  return { leads, purchases, value: Math.round(value * 10 ** exp) / 10 ** exp };
 }
 
 // ---------------------------------------------------------------- people & journeys

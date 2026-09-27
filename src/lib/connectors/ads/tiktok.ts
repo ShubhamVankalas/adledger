@@ -173,7 +173,7 @@ export function mockTikTokReport(window: DateWindow, currency: string): { accoun
           spend: m.spend.toFixed(currencyExponent(currency)),
           impressions: String(m.impressions),
           clicks: String(m.clicks),
-          conversion: String(Math.round((m.conversions + claim.purchases) * 100) / 100),
+          conversion: String(Math.round((claim.leads + claim.purchases) * 100) / 100),
           total_complete_payment_rate: claim.value.toFixed(currencyExponent(currency)),
           campaign_id: ad.campaign.externalId,
           campaign_name: ad.campaign.name,

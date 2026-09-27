@@ -149,7 +149,7 @@ export function mockMetaInsights(window: DateWindow, currency: string): { accoun
         impressions: String(m.impressions),
         clicks: String(m.clicks),
         actions: [
-          ...(m.conversions > 0 ? [{ action_type: "lead", value: String(m.conversions) }] : []),
+          ...(claim.leads > 0 ? [{ action_type: "lead", value: String(claim.leads) }] : []),
           ...(claim.purchases > 0 ? [{ action_type: "purchase", value: String(claim.purchases) }] : []),
         ],
         action_values: claim.purchases > 0 ? [{ action_type: "purchase", value: claim.value.toFixed(currencyExponent(currency)) }] : [],
@@ -287,7 +287,7 @@ export function mockGoogleStream(window: DateWindow, currency: string): { custom
           costMicros: String(Math.round(m.spend * 1_000_000)),
           impressions: String(m.impressions),
           clicks: String(m.clicks),
-          conversions: Math.round((m.conversions + claim.purchases) * 100) / 100,
+          conversions: Math.round((claim.leads + claim.purchases) * 100) / 100,
           conversionsValue: claim.value,
         },
       });
