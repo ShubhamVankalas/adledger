@@ -2,6 +2,12 @@
 
 import {
   BellIcon,
+  BellRingIcon,
+  CopyCheckIcon,
+  KanbanIcon,
+  Link2Icon,
+  PiggyBankIcon,
+  TargetIcon,
   BotIcon,
   Building2Icon,
   CableIcon,
@@ -30,6 +36,8 @@ export function SettingsNav({
   canApi,
   canMembers,
   canAudit,
+  canAlerts,
+  canShare,
 }: {
   workspaceName: string;
   organizationName: string;
@@ -37,6 +45,8 @@ export function SettingsNav({
   canApi: boolean;
   canMembers: boolean;
   canAudit: boolean;
+  canAlerts: boolean;
+  canShare: boolean;
 }) {
   const pathname = usePathname();
   const strip = useRef<HTMLDivElement>(null);
@@ -54,9 +64,15 @@ export function SettingsNav({
       items: [
         { href: "/settings/workspace", label: "General", icon: SlidersHorizontalIcon },
         { href: "/settings/workspace/tracking", label: "Tracking & forms", short: "Tracking", icon: MousePointerClickIcon, show: canWorkspace },
+        { href: "/settings/workspace/pipeline", label: "Pipeline stages", short: "Pipeline", icon: KanbanIcon, show: canWorkspace },
         { href: "/settings/workspace/integrations", label: "Integrations", icon: CableIcon, show: canWorkspace },
+        { href: "/settings/workspace/goals", label: "Targets & goals", short: "Targets", icon: TargetIcon },
+        { href: "/settings/workspace/profit", label: "Profit", icon: PiggyBankIcon },
         { href: "/settings/workspace/notifications", label: "Notifications", icon: BellIcon, show: canWorkspace },
+        { href: "/settings/workspace/alerts", label: "Alerts", icon: BellRingIcon, show: canAlerts },
+        { href: "/settings/workspace/sharing", label: "Sharing", icon: Link2Icon, show: canShare },
         { href: "/settings/workspace/import", label: "Import data", short: "Import", icon: UploadIcon, show: canWorkspace },
+        { href: "/settings/workspace/duplicates", label: "Duplicates", icon: CopyCheckIcon, show: canWorkspace },
         { href: "/settings/workspace/ai", label: "AI model", icon: BotIcon, show: canWorkspace },
         { href: "/settings/workspace/api", label: "API & MCP", icon: CodeIcon, show: canApi },
       ],

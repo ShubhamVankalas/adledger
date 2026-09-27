@@ -15,7 +15,10 @@ import {
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
+  PiggyBankIcon,
   PlusIcon,
+  ReceiptTextIcon,
+  ScaleIcon,
   SearchIcon,
   SettingsIcon,
   SparklesIcon,
@@ -28,12 +31,14 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore, useTransition } from "react";
+import { Suspense, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { switchOrganizationAction, switchWorkspaceAction } from "@/app/actions/account";
 import { logoutAction } from "@/app/actions/auth";
 import { openPalette, openShortcuts } from "@/components/app-shell";
 import { OrgLogo, UserAvatar } from "@/components/avatars";
+import { LiveNavBadge, LivePulse, type PulseData } from "@/components/live/live-pulse";
+import { PinnedViews } from "@/components/performance/pinned-views";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,15 +64,17 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import type { SavedView } from "@/lib/view-params";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; keys?: string };
+/** `badge` shows a live count after the label: visitors on the site now, overdue tasks, breached alerts. */
+type NavItem = { href: string; label: string; icon: LucideIcon; keys?: string; badge?: "live" | "tasks" | "alerts" };
 
 // Brief §3.1. `keys` are the G-then-letter shortcuts from the hotkey registry, shown on hover.
 const NAV: { label?: string; items: NavItem[] }[] = [
   {
     items: [
       { href: "/", label: "Overview", icon: LayoutGridIcon, keys: "G O" },
-      { href: "/live", label: "Live", icon: AudioWaveformIcon, keys: "G V" },
+      { href: "/live", label: "Live", icon: AudioWaveformIcon, keys: "G V", badge: "live" },
     ],
   },
   {
@@ -76,8 +83,17 @@ const NAV: { label?: string; items: NavItem[] }[] = [
       { href: "/performance", label: "Performance", icon: BarChart3Icon, keys: "G P" },
       { href: "/attribution", label: "Attribution", icon: GitForkIcon, keys: "G A" },
       { href: "/customers", label: "Customers", icon: UserRoundIcon, keys: "G R" },
+      { href: "/insights", label: "Insights", icon: SparklesIcon, keys: "G I", badge: "alerts" },
       { href: "/reports", label: "Reports", icon: FileTextIcon },
-      { href: "/insights", label: "Insights", icon: SparklesIcon, keys: "G I" },
+    ],
+  },
+  {
+    // What the ads really earned: profit after ads, per-payment receipts, and platform over-claims.
+    label: "Money",
+    items: [
+      { href: "/profit", label: "Profit", icon: PiggyBankIcon },
+      { href: "/receipts", label: "Receipts", icon: ReceiptTextIcon },
+      { href: "/truth", label: "Truth gap", icon: ScaleIcon },
     ],
   },
   {
@@ -85,7 +101,7 @@ const NAV: { label?: string; items: NavItem[] }[] = [
     items: [
       { href: "/contacts", label: "Contacts", icon: UsersIcon, keys: "G C" },
       { href: "/pipeline", label: "Pipeline", icon: KanbanIcon, keys: "G D" },
-      { href: "/tasks", label: "My tasks", icon: ListTodoIcon, keys: "G T" },
+      { href: "/tasks", label: "My tasks", icon: ListTodoIcon, keys: "G T", badge: "tasks" },
     ],
   },
 ];
@@ -98,9 +114,17 @@ type Props = {
   organizations: { id: string; name: string; logoUrl: string | null }[];
   workspace: { id: string; name: string; isDemo: boolean };
   workspaces: { id: string; name: string; isDemo: boolean }[];
-  can: { settings: boolean; members: boolean; workspaces: boolean };
+  can: { settings: boolean; members: boolean; workspaces: boolean; tasks: boolean };
   /** Required setup steps; null hides the ring (setup complete, demo workspace or no permission). */
   setup: SetupProgress | null;
+  /** Today's revenue and visitors now (null without reports.view). */
+  pulse: PulseData | null;
+  /** Saved views pinned to the sidebar (at most eight). */
+  pinnedViews: SavedView[];
+  /** Open tasks assigned to the viewer that are past due. */
+  overdueTasks: number;
+  /** Threshold alert rules currently breached. */
+  alertsTriggered: number;
 };
 
 const isActive = (pathname: string, href: string) =>
@@ -123,7 +147,7 @@ function Kbd({ children, className }: { children: React.ReactNode; className?: s
   );
 }
 
-export function AppSidebar({ user, organization, organizations, workspace, workspaces, can, setup }: Props) {
+export function AppSidebar({ user, organization, organizations, workspace, workspaces, can, setup, pulse, pinnedViews, overdueTasks, alertsTriggered }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -213,11 +237,22 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => (
+                {group.items.filter((item) => item.badge !== "tasks" || can.tasks).map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton isActive={isActive(pathname, item.href)} tooltip={item.label} render={<Link href={item.href} />}>
                       <item.icon strokeWidth={1.75} />
                       <span className="flex-1">{item.label}</span>
+                      {item.badge === "live" ? <LiveNavBadge initial={pulse} className="group-data-[collapsible=icon]:hidden" /> : null}
+                      {item.badge === "tasks" && overdueTasks > 0 ? (
+                        <CountBadge tone="negative" label={`${overdueTasks} overdue`}>
+                          {overdueTasks}
+                        </CountBadge>
+                      ) : null}
+                      {item.badge === "alerts" && alertsTriggered > 0 ? (
+                        <CountBadge tone="warning" label={`${alertsTriggered} ${alertsTriggered === 1 ? "alert" : "alerts"} triggered`}>
+                          {alertsTriggered}
+                        </CountBadge>
+                      ) : null}
                       {item.keys ? (
                         <span
                           aria-hidden
@@ -234,6 +269,10 @@ export function AppSidebar({ user, organization, organizations, workspace, works
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        {/* Reads the URL to mark the open view, so it needs its own Suspense boundary. */}
+        <Suspense fallback={null}>
+          <PinnedViews views={pinnedViews} />
+        </Suspense>
       </SidebarContent>
 
       <SidebarFooter className="gap-0.5 pt-1">
@@ -254,6 +293,11 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                   {setup.next ? <span className="truncate text-caption text-muted-foreground">Next: {setup.next}</span> : null}
                 </span>
               </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : null}
+          {pulse ? (
+            <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+              <LivePulse initial={pulse} />
             </SidebarMenuItem>
           ) : null}
           <SidebarMenuItem>
@@ -330,6 +374,22 @@ export function AppSidebar({ user, organization, organizations, workspace, works
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+/** Small count pill after a nav label (overdue tasks, triggered alerts). Hidden on the icon rail. */
+function CountBadge({ tone, label, children }: { tone: "negative" | "warning"; label: string; children: React.ReactNode }) {
+  return (
+    <span
+      aria-label={label}
+      title={label}
+      className={cn(
+        "num rounded-full px-1.5 text-micro font-medium tabular-nums group-data-[collapsible=icon]:hidden",
+        tone === "negative" ? "bg-negative-soft text-negative" : "bg-warning-soft text-warning",
+      )}
+    >
+      {children}
+    </span>
   );
 }
 

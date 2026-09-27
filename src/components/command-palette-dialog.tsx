@@ -3,12 +3,16 @@
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import {
+  BookmarkPlusIcon,
   CalendarRangeIcon,
   ClipboardCopyIcon,
+  EyeIcon,
+  EyeOffIcon,
   CornerDownLeftIcon,
   GitCompareArrowsIcon,
   HistoryIcon,
   KeyboardIcon,
+  ListPlusIcon,
   SquarePenIcon,
   LoaderCircleIcon,
   MoonIcon,
@@ -27,6 +31,7 @@ import { toast } from "sonner";
 import { pixelSnippetAction, syncAllNowAction } from "@/app/actions/palette";
 import { BrandGlyph } from "@/components/brand-icon";
 import { initialsOf } from "@/components/avatars";
+import { useLivePref } from "@/components/live/live-prefs";
 import { Keycaps, KBD } from "@/components/keycaps";
 import { TINT, tintStyle } from "@/lib/avatar-tint";
 import { fuzzyScore } from "@/lib/fuzzy";
@@ -42,7 +47,7 @@ import {
   isReportPath,
   type PaletteCan,
 } from "./command-palette-data";
-import { OPEN_SHORTCUTS_EVENT, pushRecent, readRecent, type RecentEntry } from "./command-palette-store";
+import { OPEN_SHORTCUTS_EVENT, pushRecent, readRecent, SAVE_VIEW_EVENT, type RecentEntry } from "./command-palette-store";
 
 // The ⌘K palette's dialog (loaded on idle by command-palette.tsx, so the first open is instant).
 // Base UI Autocomplete inside a Base UI Dialog: combobox + listbox semantics, the highlighted row
@@ -198,6 +203,7 @@ export function PaletteDialog({ open, onOpenChange, via, initialQuery, session, 
   const term = (mode === "all" ? query : query.slice(1)).trim();
   const remote = useRemoteSearch(term, open && mode === "all", session);
   const dark = resolvedTheme === "dark";
+  const [streamer, setStreamer] = useLivePref("streamer");
 
   const nav = useMemo(() => NAV.filter((n) => !n.show || n.show(can)), [can]);
 
@@ -277,6 +283,40 @@ export function PaletteDialog({ open, onOpenChange, via, initialQuery, session, 
         },
       });
     }
+    list.push({
+      id: "streamer",
+      label: streamer ? "Turn off streamer mode" : "Turn on streamer mode",
+      keywords: ["hide money", "hide revenue", "screen share", "presentation", "privacy", "live"],
+      icon: streamer ? EyeIcon : EyeOffIcon,
+      run: () => {
+        setStreamer(!streamer);
+        toast.success(streamer ? "Streamer mode off: amounts are visible again" : "Streamer mode on: amounts are hidden on Live and in the sidebar");
+      },
+    });
+    if (pathname === "/performance") {
+      list.push({
+        id: "view.save",
+        label: "Save view…",
+        keywords: ["saved view", "bookmark", "pin view", "save filters", "save columns"],
+        icon: BookmarkPlusIcon,
+        top: true,
+        run: () => {
+          window.dispatchEvent(new Event(SAVE_VIEW_EVENT));
+        },
+      });
+    }
+    if (can.editContacts) {
+      list.push({
+        id: "task.new",
+        label: "New task",
+        keywords: ["add task", "todo", "reminder", "follow up"],
+        icon: ListPlusIcon,
+        run: () => {
+          if (pathname === "/tasks") document.getElementById("my-task-input")?.focus();
+          else router.push("/tasks?new=1");
+        },
+      });
+    }
     if (can.members) list.push({ id: "invite", label: "Invite teammate", keywords: ["add member", "team", "invite user", "share access"], icon: UserPlusIcon, href: "/settings/organization/members?invite=1" });
     list.push({
       id: "shortcuts",
@@ -290,7 +330,7 @@ export function PaletteDialog({ open, onOpenChange, via, initialQuery, session, 
       },
     });
     return list;
-  }, [can, dark, router, setTheme]);
+  }, [can, dark, pathname, router, setStreamer, setTheme, streamer]);
 
   const groups = useMemo<Group[]>(() => {
     const askItem = (question: string): Item => ({

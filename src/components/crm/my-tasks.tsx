@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleCheckBigIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { CrmMember, TaskRow } from "@/lib/crm-query";
 import { useHotkeys } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,10 @@ type Group = (typeof GROUPS)[number]["id"];
 export function MyTasks({ tasks, members, viewerId, canEdit, tz, now }: { tasks: TaskRow[]; members: CrmMember[]; viewerId: string; canEdit: boolean; tz: string; now: string }) {
   const [list, apply] = useTaskList(tasks);
   useHotkeys(canEdit ? [{ id: "tasks.new", keys: "t", label: "New task", group: "Tasks", run: () => document.getElementById("my-task-input")?.focus() }] : []);
+  // "New task" from the ⌘K palette lands here with ?new=1: focus the composer straight away.
+  useEffect(() => {
+    if (canEdit && new URLSearchParams(window.location.search).get("new") === "1") document.getElementById("my-task-input")?.focus();
+  }, [canEdit]);
   const grouped = useMemo(() => {
     const today = dayKey(now, tz);
     const out: Record<Group, TaskRow[]> = { overdue: [], today: [], upcoming: [], someday: [], done: [] };

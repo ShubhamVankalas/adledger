@@ -7,6 +7,8 @@ import type { SearchKind } from "@/lib/search";
 export const OPEN_PALETTE_EVENT = "adledger:open-palette";
 /** window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT)) opens the "?" sheet. */
 export const OPEN_SHORTCUTS_EVENT = "adledger:open-shortcuts";
+/** Opens the "Save view" dialog on pages with a Views menu (Performance). */
+export const SAVE_VIEW_EVENT = "adledger:save-view";
 
 export function openCommandPalette(detail: { query?: string } = {}) {
   window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT, { detail }));

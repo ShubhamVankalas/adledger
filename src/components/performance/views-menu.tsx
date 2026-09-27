@@ -2,7 +2,8 @@
 
 import { BookmarkIcon, CheckIcon, ChevronDownIcon, PencilIcon, PinIcon, PinOffIcon, PlusIcon, RefreshCwIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { SAVE_VIEW_EVENT } from "@/components/command-palette-store";
 import { toast } from "sonner";
 import { deleteViewAction, renameViewAction, saveViewAction, setViewPinnedAction, updateViewParamsAction } from "@/app/actions/views";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,12 @@ export function ViewsMenu({
     });
 
   const current = () => Object.fromEntries(params.entries());
+
+  useEffect(() => {
+    const open = () => setDialog({ kind: "save" });
+    window.addEventListener(SAVE_VIEW_EVENT, open);
+    return () => window.removeEventListener(SAVE_VIEW_EVENT, open);
+  }, []);
 
   return (
     <>
