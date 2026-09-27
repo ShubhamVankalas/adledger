@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useHotkeys, type HotkeyDef } from "@/lib/hotkeys";
-import { NAV, type PaletteCan } from "./command-palette-data";
+import { NAV, navVisible, type PaletteCan } from "./command-palette-data";
 import { OPEN_PALETTE_EVENT, pushRecent } from "./command-palette-store";
 
 export { openCommandPalette, openShortcutsSheet, OPEN_PALETTE_EVENT, OPEN_SHORTCUTS_EVENT } from "./command-palette-store";
@@ -69,7 +69,7 @@ export function CommandPalette({ workspaceId, can }: { workspaceId: string; can:
         if (el instanceof HTMLInputElement) el.select();
       },
     },
-    ...NAV.filter((n) => n.hotkey && (!n.show || n.show(can))).map<HotkeyDef>((n) => ({
+    ...NAV.filter((n) => n.hotkey && navVisible(n, can)).map<HotkeyDef>((n) => ({
       id: `go.${n.id}`,
       keys: n.hotkey!,
       label: `Go to ${n.label}`,

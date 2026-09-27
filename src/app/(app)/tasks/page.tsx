@@ -3,10 +3,13 @@ import { PageBody, PageHeader } from "@/components/page-header";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { crmMembers, myTasks } from "@/lib/reports-crm";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "My tasks" };
 
 export default async function TasksPage() {
+  const denied = await gatePage("page.tasks");
+  if (denied) return denied;
   // Tasks are internal team work: clients never see them.
   const user = await requireUser("contacts.notes");
   const ws = user.workspace;

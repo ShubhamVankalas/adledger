@@ -13,12 +13,15 @@ import { dateRange } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { costPerStage, pipelineBoard, pipelineSummary, stageFunnel, type CostPerStageLevel } from "@/lib/reports-pipeline";
 import { cn } from "@/lib/utils";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Pipeline" };
 
 const LEVELS = ["campaign", "ad_group", "ad"] as const;
 
 export default async function PipelinePage({ searchParams }: PageProps<"/pipeline">) {
+  const denied = await gatePage("page.pipeline");
+  if (denied) return denied;
   const user = await requireUser();
   const ws = user.workspace;
   const sp = await searchParams;

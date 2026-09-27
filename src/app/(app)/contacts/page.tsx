@@ -17,10 +17,13 @@ import {
   listContactViews,
   starterViewCounts,
 } from "@/lib/reports-crm";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Contacts" };
 
 export default async function ContactsPage({ searchParams }: PageProps<"/contacts">) {
+  const denied = await gatePage("page.contacts");
+  if (denied) return denied;
   const user = await requireUser();
   const ws = user.workspace;
   const db = await getDb();

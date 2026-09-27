@@ -15,10 +15,13 @@ import { getDb } from "@/lib/db";
 import { dateRange, num, pct, plural } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { conversionsHeatmap, MIN_FOR_RECOMMENDATION, timeToConvert, TOUCH_BUCKETS } from "@/lib/reports-analysis";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Time to convert" };
 
 export default async function TimeToConvertPage({ searchParams }: PageProps<"/attribution/time-to-convert">) {
+  const denied = await gatePage("page.attribution");
+  if (denied) return denied;
   const user = await requireUser();
   const ws = user.workspace;
   const db = await getDb();

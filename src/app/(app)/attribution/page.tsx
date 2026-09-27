@@ -26,12 +26,15 @@ import { getDb } from "@/lib/db";
 import { moneyDelta, moneyKpi, moneyShort, num, pct, plural, roas } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { modelComparison, ROLE_THRESHOLD } from "@/lib/reports-advanced";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Attribution" };
 
 export default async function AttributionPage({
   searchParams,
 }: PageProps<"/attribution">) {
+  const denied = await gatePage("page.attribution");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const p = await resolvePeriodParams(db, ws, await searchParams);

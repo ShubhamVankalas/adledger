@@ -6,10 +6,13 @@ import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { resolvePeriodParams } from "@/lib/period";
 import { getUnitEconomics, pauseDrafts, profitRows, timeToMoney } from "@/lib/reports-profit";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Time to money" };
 
 export default async function TimeToMoneyPage({ searchParams }: PageProps<"/profit/time-to-money">) {
+  const denied = await gatePage("page.profit");
+  if (denied) return denied;
   const user = await requireUser("reports.view");
   const ws = user.workspace;
   const db = await getDb();

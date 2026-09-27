@@ -1,3 +1,4 @@
+import { hrefAllowed } from "@/lib/permissions";
 import {
   ActivityIcon,
   BadgeCheckIcon,
@@ -64,7 +65,14 @@ export type PaletteCan = {
   notes: boolean;
   /** contacts.edit (create notes and tasks, edit contacts) */
   editContacts: boolean;
+  /** roles.manage */
+  roles?: boolean;
+  /** Page permissions the viewer holds (page.performance…); entries for other pages are hidden. */
+  pages: readonly string[];
 };
+
+/** Is a palette entry available to this viewer (role checks and page access)? */
+export const navVisible = (n: NavEntry, can: PaletteCan) => (!n.show || n.show(can)) && hrefAllowed(n.href, can.pages);
 
 export type NavEntry = {
   id: string;
@@ -125,6 +133,7 @@ export const NAV: NavEntry[] = [
   { id: "nav.settings.api", label: "API & MCP", href: "/settings/workspace/api", icon: CodeIcon, section: "Settings", keywords: ["api keys", "tokens", "mcp", "claude", "developer", "rest"], show: (c) => c.api },
   { id: "nav.settings.organization", label: "Organization & workspaces", href: "/settings/organization", icon: Building2Icon, section: "Settings", keywords: ["company", "branding", "logo", "new workspace", "clients"] },
   { id: "nav.settings.members", label: "Members & roles", href: "/settings/organization/members", icon: UsersIcon, section: "Settings", keywords: ["team", "invite", "teammates", "permissions", "users"], show: (c) => c.members },
+  { id: "nav.settings.roles", label: "Roles & permissions", href: "/settings/organization/roles", icon: UsersIcon, section: "Settings", keywords: ["custom roles", "permissions", "access", "hide pages", "lock"], show: (c) => Boolean(c.roles) },
   { id: "nav.settings.policy", label: "Security policy", href: "/settings/organization/security", icon: ShieldCheckIcon, section: "Settings", keywords: ["require 2fa", "session timeout", "posture", "checklist", "encryption key", "permissions"], show: (c) => c.audit },
   { id: "nav.settings.audit", label: "Audit log", href: "/settings/organization/audit", icon: FileClockIcon, section: "Settings", keywords: ["history", "activity", "security log", "verify chain"], show: (c) => c.audit },
   { id: "nav.setup", label: "Setup checklist", href: "/onboarding", icon: ListChecksIcon, section: "Settings", keywords: ["onboarding", "getting started", "install"], show: (c) => c.settings },

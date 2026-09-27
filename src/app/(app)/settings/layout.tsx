@@ -22,6 +22,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
           canAlerts={user.can("alerts.manage")}
           canBrand={user.can("org.branding")}
           canShare={user.can("reports.share")}
+          canRoles={user.can("roles.manage")}
         />
         {/* Container queries (@…/settings) let each page adapt to the width it actually gets. */}
         <div className={`@container/settings min-w-0 space-y-5 md:space-y-6 ${TOUCH_TARGETS}`}>{children}</div>

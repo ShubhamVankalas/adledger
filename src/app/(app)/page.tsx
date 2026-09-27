@@ -15,6 +15,7 @@ import { getDb } from "@/lib/db";
 import { isMetricKey } from "@/lib/metrics";
 import { resolvePeriodParams } from "@/lib/period";
 import { renderWidget } from "@/lib/widgets/registry";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Overview" };
 
@@ -22,6 +23,8 @@ export const metadata = { title: "Overview" };
 // sections. Every widget streams in its own <Suspense>; the KPI queries start first.
 
 export default async function OverviewPage({ searchParams }: PageProps<"/">) {
+  const denied = await gatePage("page.overview");
+  if (denied) return denied;
   const user = await getViewer();
   const ws = user.workspace;
   const db = await getDb();

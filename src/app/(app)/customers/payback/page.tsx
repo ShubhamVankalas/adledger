@@ -13,6 +13,7 @@ import { getDb } from "@/lib/db";
 import { dateRange, longDate, MODEL_LABELS, moneyKpi, moneyShort, plural } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { paybackByChannel } from "@/lib/reports-analysis";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Payback" };
 
@@ -21,6 +22,8 @@ const days = (d: number | null) => (d === null ? "—" : d === 0 ? "Day 0" : plu
 const when = (d: number | null) => (d === 0 ? "on the first purchase" : `after ${days(d)}`);
 
 export default async function PaybackPage({ searchParams }: PageProps<"/customers/payback">) {
+  const denied = await gatePage("page.customers");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const sp = await searchParams;

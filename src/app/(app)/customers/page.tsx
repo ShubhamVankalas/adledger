@@ -29,12 +29,15 @@ import { getDb } from "@/lib/db";
 import { dateRange, longDate, MODEL_LABELS, moneyKpi, moneyShort, num } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { ltv } from "@/lib/reports-advanced";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Customers" };
 
 export default async function CustomersPage({
   searchParams,
 }: PageProps<"/customers">) {
+  const denied = await gatePage("page.customers");
+  if (denied) return denied;
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const sp = await searchParams;

@@ -20,12 +20,15 @@ import { requireUser, type SessionUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { dateRange, MODEL_LABELS } from "@/lib/format";
 import { actionCards } from "@/lib/reports-insights";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Insights" };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function InsightsPage({ searchParams }: PageProps<"/insights">) {
+  const denied = await gatePage("page.insights");
+  if (denied) return denied;
   const user = await requireUser();
   const sp = await searchParams;
   const canAsk = user.can("insights.ask");

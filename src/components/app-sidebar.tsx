@@ -63,6 +63,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { hrefAllowed } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { SavedView } from "@/lib/view-params";
 
@@ -114,7 +115,8 @@ type Props = {
   organizations: { id: string; name: string; logoUrl: string | null }[];
   workspace: { id: string; name: string; isDemo: boolean };
   workspaces: { id: string; name: string; isDemo: boolean }[];
-  can: { settings: boolean; members: boolean; workspaces: boolean; tasks: boolean };
+  /** `pages`: page permissions the viewer holds (links to other pages are hidden). */
+  can: { settings: boolean; members: boolean; workspaces: boolean; tasks: boolean; pages: readonly string[] };
   /** Required setup steps; null hides the ring (setup complete, demo workspace or no permission). */
   setup: SetupProgress | null;
   /** Today's revenue and visitors now (null without reports.view). */
@@ -232,12 +234,14 @@ export function AppSidebar({ user, organization, organizations, workspace, works
       </SidebarHeader>
 
       <SidebarContent>
-        {NAV.map((group, i) => (
+        {NAV.map((group) => ({ ...group, items: group.items.filter((item) => (item.badge !== "tasks" || can.tasks) && hrefAllowed(item.href, can.pages)) }))
+          .filter((group) => group.items.length > 0)
+          .map((group, i) => (
           <SidebarGroup key={group.label ?? i} className={i === 0 ? "pt-1.5" : undefined}>
             {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.filter((item) => item.badge !== "tasks" || can.tasks).map((item) => (
+                {group.items.map((item) => (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton isActive={isActive(pathname, item.href)} tooltip={item.label} render={<Link href={item.href} />}>
                       <item.icon strokeWidth={1.75} />

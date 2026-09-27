@@ -11,6 +11,7 @@ import { resolvePeriodParams } from "@/lib/period";
 import { REPORT_CATALOG, REPORT_LIST, isReportKindId } from "@/lib/report-kinds/catalog";
 import { cadenceLabel, scheduleRecipients } from "@/lib/report-kinds/schedule-rules";
 import { getConnection } from "@/lib/settings";
+import { gatePage } from "@/components/access-denied";
 
 export const metadata = { title: "Reports" };
 
@@ -35,6 +36,8 @@ const shortDateTime = (d: Date, tz: string) => {
 };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const denied = await gatePage("page.reports");
+  if (denied) return denied;
   const user = await requireUser("reports.view");
   const ws = user.workspace;
   const db = await getDb();
