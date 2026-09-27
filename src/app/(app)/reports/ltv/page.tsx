@@ -63,7 +63,7 @@ export default async function LtvPage({
         />
       </PageHeader>
       <PageBody>
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
             label="New customers"
             value={num(r.customers)}
@@ -135,7 +135,7 @@ export default async function LtvPage({
           </p>
           <Link
             href="/performance"
-            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-lg border bg-card md:h-9 px-3 font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-lg border bg-card px-3 font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9"
           >
             Campaign performance{" "}
             <ChevronRightIcon aria-hidden className="size-3.5" />

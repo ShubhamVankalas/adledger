@@ -73,7 +73,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
 
   const generate = canGenerate ? (
     <ActionButton action={generateReportAction} size="sm" className="h-10 sm:h-7">
-      <SparklesIcon /> Generate now
+      <SparklesIcon aria-hidden /> Generate now
     </ActionButton>
   ) : null;
 
@@ -84,7 +84,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
           <span
             className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", llm ? "bg-success/15 text-success" : "bg-primary/10 text-primary")}
           >
-            {llm ? <CheckCircle2Icon className="size-4" /> : <BotIcon className="size-4" />}
+            {llm ? <CheckCircle2Icon className="size-4" aria-hidden /> : <BotIcon className="size-4" aria-hidden />}
           </span>
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-medium">{llm ? "AI model connected" : "No AI model connected"}</p>
@@ -92,7 +92,9 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
               {llm ? (
                 <>
                   Written by <span className="font-medium break-words text-foreground">{PROVIDER_LABELS[llm.provider] ?? llm.provider}</span> ·{" "}
-                  <span className="break-all">{llm.model}</span>
+                  <span className="break-all" translate="no">
+                    {llm.model}
+                  </span>
                 </>
               ) : (
                 "Reports are rule-based until you connect one. Local models like Ollama are free and private."
@@ -114,7 +116,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
 
   return (
     <>
-      <PageHeader title="AI insights" description="A weekly note on what changed, what's wasting money and where to move budget">
+      <PageHeader title="AI insights" description="A weekly note on what changed, what’s wasting money and where to move budget">
         {generate}
       </PageHeader>
       <PageBody>
@@ -124,7 +126,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
               <Empty className="border bg-card">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
-                    <SparklesIcon />
+                    <SparklesIcon aria-hidden />
                   </EmptyMedia>
                   <EmptyTitle>No reports yet</EmptyTitle>
                   <EmptyDescription>
@@ -135,7 +137,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
                 {canGenerate ? (
                   <EmptyContent>
                     <ActionButton action={generateReportAction} className="h-10 sm:h-8">
-                      <SparklesIcon /> Generate a report
+                      <SparklesIcon aria-hidden /> Generate a report
                     </ActionButton>
                   </EmptyContent>
                 ) : null}
@@ -145,7 +147,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
                 <header className="flex items-start gap-3 border-b bg-gradient-to-b from-primary/[0.05] to-transparent px-5 py-5 sm:px-8 sm:py-6">
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <p className="text-xs font-medium text-primary">Weekly insights</p>
-                    <h2 id="report-title" className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
+                    <h2 id="report-title" className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-balance">
                       {period(selected)}
                       {selected.id === latest?.id ? <Badge>Latest</Badge> : <Badge variant="secondary">Earlier report</Badge>}
                     </h2>
@@ -185,7 +187,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
                             scroll={false}
                             aria-current={active ? "page" : undefined}
                             className={cn(
-                              "flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted/60",
+                              "flex min-h-11 items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60",
                               active && "bg-muted text-foreground hover:bg-muted",
                             )}
                           >
@@ -197,7 +199,10 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
                               </span>
                             </span>
                             {r.unverifiedNumbers.length ? (
-                              <AlertTriangleIcon className="size-4 shrink-0 text-warning" aria-label="Has unverified numbers" />
+                              <>
+                                <AlertTriangleIcon className="size-4 shrink-0 text-warning" aria-hidden />
+                                <span className="sr-only">Has unverified numbers</span>
+                              </>
                             ) : null}
                           </Link>
                         </li>
@@ -218,9 +223,9 @@ function Unverified({ numbers }: { numbers: string[] }) {
   if (!numbers.length) return null;
   return (
     <div className="flex max-w-[70ch] items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-sm leading-relaxed">
-      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+      <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <span>
-        The model used numbers that aren&apos;t in AdLedger&apos;s data: <strong className="break-words">{numbers.join(", ")}</strong>. Treat those figures with
+        The model used numbers that aren&rsquo;t in AdLedger&rsquo;s data: <strong className="break-words">{numbers.join(", ")}</strong>. Treat those figures with
         caution.
       </span>
     </div>

@@ -25,7 +25,7 @@ export function DeleteReportButton({ id, period, withLabel }: { id: string; peri
           />
         }
       >
-        <Trash2Icon />
+        <Trash2Icon aria-hidden />
         {withLabel ? "Delete report" : null}
       </DialogTrigger>
       <DialogContent>
@@ -46,14 +46,14 @@ export function DeleteReportButton({ id, period, withLabel }: { id: string; peri
               start(async () => {
                 const r = await deleteReportAction(id);
                 if (r.ok) toast.success(r.message ?? "Report deleted.");
-                else toast.error(r.message ?? "Something went wrong");
+                else toast.error(r.message ?? "Couldn’t delete the report. Try again in a moment.");
                 setOpen(false);
                 router.refresh();
               })
             }
           >
-            {pending ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />}
-            Delete report
+            {pending ? <Loader2Icon className="animate-spin motion-reduce:animate-none" aria-hidden /> : <Trash2Icon aria-hidden />}
+            {pending ? "Deleting…" : "Delete report"}
           </Button>
         </DialogFooter>
       </DialogContent>

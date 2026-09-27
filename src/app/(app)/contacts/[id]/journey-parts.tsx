@@ -128,7 +128,7 @@ function Chip({
   return (
     <span className="inline-flex h-6 max-w-full items-center gap-1 rounded-md border bg-muted/40 px-2 text-xs">
       {label ? <span className="text-muted-foreground">{label}</span> : null}
-      <span className="truncate font-medium text-foreground/90">
+      <span className="min-w-0 truncate font-medium text-foreground/90">
         {children}
       </span>
     </span>
@@ -315,9 +315,9 @@ function Touchpoint({
       ) : null}
       {hasDetails ? (
         <details className="group/details mt-2 text-xs">
-          <summary className="inline-flex min-h-7 cursor-pointer list-none items-center gap-1 rounded-md text-muted-foreground transition-colors select-none hover:text-foreground [&::-webkit-details-marker]:hidden">
+          <summary className="inline-flex min-h-7 cursor-pointer list-none items-center gap-1 rounded-md text-muted-foreground transition-colors outline-none select-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 [&::-webkit-details-marker]:hidden">
             <ChevronRightIcon
-              className="size-3.5 transition-transform group-open/details:rotate-90"
+              className="size-3.5 transition-transform group-open/details:rotate-90 motion-reduce:transition-none"
               aria-hidden
             />
             Tracking details
@@ -331,14 +331,18 @@ function Touchpoint({
                     className="size-3 shrink-0 text-muted-foreground"
                     aria-hidden
                   />
-                  <span className="truncate">{landing.host}</span>
+                  <span className="truncate" translate="no">
+                    {landing.host}
+                  </span>
                 </dd>
               </>
             ) : null}
             {referrer ? (
               <>
                 <dt className="text-muted-foreground">Referrer</dt>
-                <dd className="truncate">{referrer.host}</dd>
+                <dd className="truncate" translate="no">
+                  {referrer.host}
+                </dd>
               </>
             ) : null}
             {params.map(([k, v]) => (
@@ -354,7 +358,7 @@ function Touchpoint({
             {i.landingUrl ? (
               <>
                 <dt className="text-muted-foreground">Full URL</dt>
-                <dd className="font-mono text-[11px] leading-relaxed break-all text-muted-foreground">
+                <dd className="font-mono text-[11px] leading-relaxed break-all text-muted-foreground" translate="no">
                   {i.landingUrl}
                 </dd>
               </>
@@ -370,7 +374,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="tabular min-w-0 break-all">{value}</dd>
+      <dd className="tabular min-w-0 break-all" translate="no">
+        {value}
+      </dd>
     </>
   );
 }
@@ -386,7 +392,10 @@ export function SourceValue({
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       {item.platform ? (
-        <BrandGlyph id={item.platform} className="size-3.5" />
+        // The name sits right next to the logo, so the logo's own label would be read twice.
+        <span aria-hidden className="inline-flex shrink-0">
+          <BrandGlyph id={item.platform} className="size-3.5" />
+        </span>
       ) : null}
       <span className="truncate">
         {item.platform

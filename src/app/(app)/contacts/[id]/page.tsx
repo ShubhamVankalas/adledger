@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { CHANNEL_LABELS, MODEL_LABELS, money } from "@/lib/format";
+import { CHANNEL_LABELS, MODEL_LABELS, money, num, pct } from "@/lib/format";
 import { journey, type JourneyItem } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { ContactAvatar, leadSourceLabel, parseUrl, PLATFORM_LABELS, SourceValue, TimelineItem } from "./journey-parts";
@@ -98,8 +98,8 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
       value: shortDate.format(new Date(j.contact.firstSeenAt)),
     },
     { label: "Last activity", value: shortDate.format(new Date(lastAt)) },
-    { label: "Touchpoints", value: touches.length.toLocaleString("en-US") },
-    { label: devices === 1 ? "Device" : "Devices", value: String(devices) },
+    { label: "Touchpoints", value: num(touches.length) },
+    { label: devices === 1 ? "Device" : "Devices", value: num(devices) },
   ];
 
   return (
@@ -123,11 +123,13 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
               <ContactAvatar id={j.contact.id} name={j.contact.name} email={j.contact.email} className="size-12 text-base sm:size-14 sm:text-lg" />
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="min-w-0 text-lg font-semibold tracking-tight break-words sm:text-xl">{displayName}</h2>
+                  <h2 className="min-w-0 text-lg font-semibold tracking-tight text-balance break-words sm:text-xl">{displayName}</h2>
                   <Badge variant={customer ? "default" : "secondary"}>{customer ? "Customer" : "Lead"}</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {j.contact.name && j.contact.email ? <span className="break-all">{j.contact.email}</span> : null}
+                  {j.contact.name && j.contact.email ? <span className="break-all" translate="no">
+                      {j.contact.email}
+                    </span> : null}
                   {j.contact.name && j.contact.email ? <span aria-hidden> · </span> : null}
                   {customer && firstPayment
                     ? `Customer since ${shortDate.format(new Date(firstPayment.at))}`
@@ -234,8 +236,8 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                     <Fact label="First payment">{firstPayment ? <span>after {since(firstPayment.at)}</span> : <Muted>Not yet</Muted>}</Fact>
                     <Fact label="Payments">
                       <span className="tabular">
-                        {payments.length}
-                        {refunds.length ? <span className="text-muted-foreground"> · {refunds.length} refunded</span> : null}
+                        {num(payments.length)}
+                        {refunds.length ? <span className="text-muted-foreground"> · {num(refunds.length)} refunded</span> : null}
                       </span>
                     </Fact>
                   </dl>
@@ -245,7 +247,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
               <Card>
                 <CardHeader>
                   <CardTitle>Who gets the credit?</CardTitle>
-                  <CardDescription>How each attribution model splits this contact&apos;s revenue</CardDescription>
+                  <CardDescription>How each attribution model splits this contact&rsquo;s revenue</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
                   {byModel.length === 0 ? (
@@ -265,7 +267,7 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                           {model === "all" ? "Every model agrees" : (MODEL_LABELS[model] ?? model)}
                         </div>
                         {items.map((x) => {
-                          const pct = Math.round((Math.abs(x.revenueMinor) / total) * 100);
+                          const share = Math.abs(x.revenueMinor) / total;
                           return (
                             <div key={x.label} className="space-y-1.5">
                               <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -274,11 +276,11 @@ export default async function ContactPage({ params }: PageProps<"/contacts/[id]"
                                 </span>
                                 <span className="tabular shrink-0 font-medium">
                                   {money(x.revenueMinor, ws.reportingCurrency)}
-                                  <span className="ml-1.5 inline-block w-9 text-right text-xs font-normal text-muted-foreground">{pct}%</span>
+                                  <span className="ml-1.5 inline-block w-9 text-right text-xs font-normal text-muted-foreground">{pct(share, 0)}</span>
                                 </span>
                               </div>
                               <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                                <div className={cn("h-full rounded-full", x.revenueMinor < 0 ? "bg-destructive" : "bg-primary")} style={{ width: `${pct}%` }} />
+                                <div className={cn("h-full rounded-full", x.revenueMinor < 0 ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.round(share * 100)}%` }} />
                               </div>
                             </div>
                           );

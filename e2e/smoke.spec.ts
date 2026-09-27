@@ -39,7 +39,7 @@ async function login(page: Page) {
 
 test("overview shows KPIs, chart and the winner/waster story", async ({ page }) => {
   await login(page);
-  await expect(page.getByText("You're exploring sample data.")).toBeVisible();
+  await expect(page.getByText("You’re exploring sample data.")).toBeVisible();
   for (const label of ["Ad spend", "Revenue", "ROAS", "Leads", "Customers"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
