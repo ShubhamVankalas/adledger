@@ -1,47 +1,50 @@
+import { PageBody, PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-[1760px] p-4 md:p-6 2xl:px-8" role="status" aria-live="polite" aria-busy="true" aria-label="Loading contact…">
-      <div className="mx-auto max-w-6xl space-y-4 md:space-y-6">
-        <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="flex items-center gap-4 p-4 sm:p-6">
-            <Skeleton className="size-12 shrink-0 rounded-full sm:size-14" />
+    <>
+      <PageHeader title="Contact" breadcrumbs={[{ href: "/contacts", label: "Contacts" }]} />
+      <PageBody>
+        <div className="reveal-delayed space-y-6" role="status" aria-busy="true" aria-label="Loading contact…">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-12 shrink-0 rounded-full" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-5 w-48 max-w-full" />
-              <Skeleton className="h-4 w-72 max-w-full" />
+              <Skeleton className="h-3.5 w-72 max-w-full" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-px border-t bg-border sm:grid-cols-3 xl:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="space-y-2 bg-card px-4 py-3 sm:px-6 sm:py-4">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border sm:grid-cols-3 xl:grid-cols-6">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="space-y-2 bg-card px-3.5 py-3">
                 <Skeleton className="h-3 w-16" />
                 <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-3 w-20" />
               </div>
             ))}
           </div>
-        </div>
-        <div className="grid items-start gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
-          <div className="space-y-5 rounded-xl border bg-card p-4 sm:p-6">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-4 w-2/3" />
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="size-8 shrink-0 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-3/5" />
-                  <Skeleton className="h-3 w-2/5" />
+          <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-8">
+            <div className="space-y-3">
+              {Array.from({ length: 7 }, (_, i) => (
+                <Skeleton key={i} className="h-5 w-full" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-7 w-64" />
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="flex gap-3">
+                  <Skeleton className="size-6 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-          <div className="space-y-4 md:space-y-6">
-            <Skeleton className="h-64 rounded-xl" />
-            <Skeleton className="h-48 rounded-xl" />
-          </div>
+          <span className="sr-only">Loading contact…</span>
         </div>
-      </div>
-      <span className="sr-only">Loading contact…</span>
-    </div>
+      </PageBody>
+    </>
   );
 }

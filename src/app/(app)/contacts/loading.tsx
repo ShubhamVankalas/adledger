@@ -1,29 +1,40 @@
+import { PageBody, PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Cold load only: matches the real layout (view tabs, toolbar, table rows) and waits 200ms before it shows.
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-[1760px] space-y-6 p-4 md:p-6 2xl:px-8" role="status" aria-live="polite" aria-busy="true" aria-label="Loading contacts…">
-      <Skeleton className="h-7 w-40" />
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <Skeleton className="h-10 w-full rounded-lg sm:h-9 sm:max-w-sm" />
-        <Skeleton className="h-11 w-full rounded-lg sm:h-8 sm:w-60" />
-      </div>
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-28" />
-        <div className="divide-y overflow-hidden rounded-xl border bg-card">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-3 py-3 md:px-4">
-              <Skeleton className="size-9 shrink-0 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-2/5" />
-                <Skeleton className="h-3 w-3/5" />
-              </div>
-              <Skeleton className="h-4 w-16" />
+    <>
+      <PageHeader title="Contacts" />
+      <PageBody>
+        <div className="reveal-delayed space-y-3" role="status" aria-busy="true" aria-label="Loading contacts…">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex gap-1.5">
+              {[64, 96, 104, 92].map((w, i) => (
+                <Skeleton key={i} className="h-7 rounded-md" style={{ width: w }} />
+              ))}
             </div>
-          ))}
+            <div className="flex gap-1.5">
+              <Skeleton className="h-8 w-full rounded-md md:w-56" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-card shadow-sm">
+            <div className="h-9 border-b bg-bg-subtle" />
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} className="flex h-9 items-center gap-3 border-b px-3 last:border-0">
+                <Skeleton className="size-6 shrink-0 rounded-full" />
+                <Skeleton className="h-3 w-40" />
+                <Skeleton className="ml-auto h-3 w-16" />
+                <Skeleton className="hidden h-3 w-32 md:block" />
+                <Skeleton className="hidden h-3 w-20 md:block" />
+              </div>
+            ))}
+          </div>
+          <span className="sr-only">Loading contacts…</span>
         </div>
-      </div>
-      <span className="sr-only">Loading contacts…</span>
-    </div>
+      </PageBody>
+    </>
   );
 }

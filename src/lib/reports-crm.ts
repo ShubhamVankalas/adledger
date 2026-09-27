@@ -3,11 +3,13 @@ import { displayEmail, type ContactViewer } from "./contact-display";
 import {
   ADDED_RANGES,
   type ContactGroupTotals,
+  type CrmAbilities,
   type ContactListRow,
   type ContactQuery,
   type ContactRecord,
   type ContactSort,
   type ContactTotals,
+  type ContactView,
   type CrmMember,
   type Lifecycle,
   type NoteRow,
@@ -16,7 +18,7 @@ import {
 } from "./crm-query";
 import { rows, type DB } from "./db";
 import { fromDecimalString } from "./money";
-import { roleCan } from "./permissions";
+import { roleCan, type Permission } from "./permissions";
 import { journey } from "./reports";
 import type { Workspace } from "./settings";
 
@@ -566,6 +568,32 @@ export async function contactRecord(
     currency: rc,
     timezone: ws.timezone,
   };
+}
+
+/** What the signed-in viewer may do on CRM surfaces. */
+export function crmAbilities(user: { role: string; can: (p: Permission) => boolean }): CrmAbilities {
+  return {
+    edit: user.can("contacts.edit"),
+    notes: user.can("contacts.notes"),
+    moderate: user.role === "owner" || user.role === "admin",
+    // TODO(integration): switch to the security slice's `contacts.export` permission once merged.
+    export: user.can("reports.export"),
+    delete: user.can("workspace.data"),
+  };
+}
+
+/** The viewer's saved views on the Contacts table, oldest first (tab order). */
+export async function listContactViews(db: DB, ws: Workspace, userId: string): Promise<ContactView[]> {
+  return rows<{ id: string; name: string; filters: Record<string, string> }>(
+    await db.execute(sql`select id, name, filters from contact_views where workspace_id = ${ws.id} and user_id = ${userId}::uuid order by created_at, id`),
+  ).map((v) => ({ id: v.id, name: v.name, filters: v.filters ?? {} }));
+}
+
+/** Tags in use in the workspace, most used first (tag pickers). */
+export async function workspaceTags(db: DB, ws: Workspace): Promise<{ tag: string; count: number }[]> {
+  return rows<{ tag: string; cnt: string }>(
+    await db.execute(sql`select tag, count(*) cnt from contact_tags where workspace_id = ${ws.id} group by 1 order by 2 desc, 1 limit 200`),
+  ).map((r) => ({ tag: r.tag, count: n(r.cnt) }));
 }
 
 /** Contacts (by id) that exist in the workspace. Guards every write against cross-tenant ids. */

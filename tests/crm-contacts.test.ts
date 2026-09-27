@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { sha256 } from "@/lib/crypto";
-import { DEFAULT_QUERY, parseContactQuery, contactQueryParams, type ContactQuery } from "@/lib/crm-query";
+import { DEFAULT_QUERY, parseContactQuery, contactQueryParams } from "@/lib/crm-query";
 import { rows, schema, type DB } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
 import { roleCan } from "@/lib/permissions";
@@ -34,7 +34,7 @@ let other: Workspace;
 let orgId: string;
 const viewer = null;
 
-const q = (patch: Partial<ContactQuery> = {}): ResolvedQuery => ({ ...DEFAULT_QUERY, viewerId: "00000000-0000-0000-0000-000000000000", ...patch });
+const q = (patch: Partial<ResolvedQuery> = {}): ResolvedQuery => ({ ...DEFAULT_QUERY, viewerId: "00000000-0000-0000-0000-000000000000", ...patch });
 
 async function member(role: "owner" | "admin" | "analyst" | "viewer" | "client", workspace = ws) {
   const [user] = await db

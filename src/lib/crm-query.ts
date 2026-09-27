@@ -244,7 +244,30 @@ export type ContactTotals = {
 
 export type ContactGroupTotals = Record<Lifecycle, ContactTotals>;
 
+/** A personal saved view: its name and the table URL params it restores. */
+export type ContactView = { id: string; name: string; filters: Record<string, string> };
+
+export type FilterOptions = {
+  platforms: { id: string; count: number }[];
+  campaigns: { id: string; name: string; platform: string; count: number }[];
+  tags: { tag: string; count: number }[];
+};
+
 export type CrmMember = { id: string; name: string | null; email: string; role: string; canEdit: boolean };
+
+/** What the viewer may do on CRM surfaces (computed on the server from their role). */
+export type CrmAbilities = {
+  /** Tags, owner, status, name, tasks and notes (contacts.edit). */
+  edit: boolean;
+  /** See notes and tasks (contacts.notes). */
+  notes: boolean;
+  /** Edit or delete anyone's note, not just their own (owner, admin). */
+  moderate: boolean;
+  /** Download contact CSVs. */
+  export: boolean;
+  /** Erase contacts (workspace.data). */
+  delete: boolean;
+};
 
 export type TaskRow = {
   id: string;
