@@ -2,8 +2,10 @@ import { FlaskConicalIcon } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
+import { CommandPalette } from "@/components/command-palette";
 import { MobileNav } from "@/components/mobile-nav";
 import { getSetupStatus } from "@/components/onboarding";
+import { ShortcutsSheet } from "@/components/shortcuts-sheet";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -56,6 +58,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         ) : null}
         {children}
+        <CommandPalette workspaceId={user.workspace.id} can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), audit: user.can("audit.view"), api: user.can("apikeys.manage") }} />
+        <ShortcutsSheet />
         <MobileNav />
       </SidebarInset>
     </SidebarProvider>
