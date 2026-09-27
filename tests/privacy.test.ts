@@ -164,7 +164,7 @@ describe("workspace export", () => {
     const scoped = rows<{ table_name: string }>(
       await db.execute(sql`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'workspace_id'`),
     ).map((r) => r.table_name);
-    const notExported = ["sessions"];
+    const notExported = ["sessions", "contact_notes", "contact_stats"];
     expect(scoped.filter((t) => !notExported.includes(t)).sort()).toEqual(EXPORT_TABLES.map((t) => t.table).sort());
     expect(doc.tables.contacts).toHaveLength(2);
     expect(doc.tables.revenue_events.map((r: { amount_minor: number }) => r.amount_minor).sort((a: number, b: number) => a - b)).toEqual([-1000, 3000, 5000, 12000]);

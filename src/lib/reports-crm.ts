@@ -78,8 +78,10 @@ export async function refreshContactStats(
       from leads l join c on c.id = l.contact_id where l.workspace_id = ${workspaceId} group by l.contact_id
     ),
     vis as (
+      -- No workspace predicate: contact ids are already scoped, and with it the planner can pick a
+      -- slow BitmapAnd with the (workspace_id, anonymous_id) index per contact.
       select v.contact_id, max(v.last_seen_at) last_seen
-      from visitors v join c on c.id = v.contact_id where v.workspace_id = ${workspaceId} group by v.contact_id
+      from visitors v join c on c.id = v.contact_id group by v.contact_id
     ),
     ev as (
       select v.contact_id, count(*) events_30d

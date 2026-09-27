@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| 3 CRM foundation | ✅ | `contact_stats` roll-up + keyset paging; Contacts v2 (starter + saved view tabs, filter chips, Display: sort/columns/density/group-by, footer totals, bulk bar: tag, owner, export, delete); preview sheet with J/K; record page v2 (highlights, properties, unified timeline, notes & tasks, attribution) with optimistic edits and Undo; tags, owner, notes, tasks, My tasks, engagement score. Next: split "Save for everyone" views, inline table cell edits, AND/OR filter groups, live "new contacts" pill, a phone bottom action bar on the record page, sidebar pins (via `saved_views`) |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).
