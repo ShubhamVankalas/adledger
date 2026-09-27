@@ -48,7 +48,18 @@ export function Email({ id, masked, className }: { id: string; masked: string; c
 }
 
 /** "Show emails" / "Hide emails". Renders nothing for roles that can't reveal. */
-export function RevealToggle({ label = "emails", className, compact = false }: { label?: string; className?: string; compact?: boolean }) {
+export function RevealToggle({
+  label = "emails",
+  className,
+  labelClassName,
+  compact = false,
+}: {
+  label?: string;
+  className?: string;
+  /** e.g. "hidden @3xl:inline" to show only the eye icon in narrow containers (the button keeps its aria-label). */
+  labelClassName?: string;
+  compact?: boolean;
+}) {
   const { emails, pending, toggle, canReveal } = use(RevealContext);
   if (!canReveal) return null;
   const shown = Boolean(emails);
@@ -62,9 +73,10 @@ export function RevealToggle({ label = "emails", className, compact = false }: {
       aria-pressed={shown}
       className={cn(!compact && "h-10 sm:h-7", className)}
       title={shown ? undefined : "Showing emails is recorded in the audit log"}
+      aria-label={shown ? `Hide ${label}` : `Show ${label}`}
     >
       {pending ? <Loader2Icon className="animate-spin" /> : shown ? <EyeOffIcon /> : <EyeIcon />}
-      {shown ? `Hide ${label}` : `Show ${label}`}
+      <span className={labelClassName}>{shown ? `Hide ${label}` : `Show ${label}`}</span>
     </Button>
   );
 }

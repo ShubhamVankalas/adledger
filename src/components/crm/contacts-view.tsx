@@ -209,7 +209,7 @@ export function ContactsView(p: Props) {
             onFieldChange={setFilterField}
           />
           <DisplayMenu query={query} navigate={navigate} />
-          <RevealToggle compact className="h-8" />
+          <RevealToggle compact className="h-8" labelClassName="hidden @3xl:inline" />
         </div>
       </div>
 

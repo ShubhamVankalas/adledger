@@ -29,11 +29,11 @@ describe("layout parsing", () => {
   });
 
   it("keeps unknown widget types so they render a 'Widget unavailable' card", () => {
-    const raw = { v: 1, pinned: [{ id: "x1", type: "kpi.ncRoas", size: "s" }], sections: [{ id: "s1", title: "A", collapsed: false, items: [{ id: "x2", type: "chart.funnel", size: "xl" }] }] };
+    const raw = { v: 1, pinned: [{ id: "x1", type: "kpi.ncRoas", size: "s" }], sections: [{ id: "s1", title: "A", collapsed: false, items: [{ id: "x2", type: "chart.quadrant", size: "xl" }] }] };
     const out = parseLayout(raw, minimal());
     expect(out.pinned[0].type).toBe("kpi.ncRoas");
-    expect(out.sections[0].items[0]).toEqual({ id: "x2", type: "chart.funnel", size: "xl" });
-    expect(widgetMeta("chart.funnel")).toBeUndefined();
+    expect(out.sections[0].items[0]).toEqual({ id: "x2", type: "chart.quadrant", size: "xl" });
+    expect(widgetMeta("chart.quadrant")).toBeUndefined();
   });
 
   it("drops invalid items and repairs sizes, settings and titles", () => {
