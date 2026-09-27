@@ -19,7 +19,7 @@ const LABELS: Record<string, string> = {
   "member.invited": "invited",
   "member.invite_revoked": "revoked an invitation",
   "member.joined": "joined as",
-  "member.updated": "changed a member's access",
+  "member.updated": "changed a member’s access",
   "member.removed": "removed a member",
   "integration.saved": "connected or updated",
   "integration.disconnected": "disconnected",
@@ -39,7 +39,7 @@ const LABELS: Record<string, string> = {
   "organization.logo_updated": "uploaded a new logo for",
   "organization.logo_removed": "removed the logo of",
   "contact.erased": "deleted a contact (erasure request)",
-  "contact.exported": "exported a contact's data",
+  "contact.exported": "exported a contact’s data",
   "contacts.exported": "exported contacts as CSV",
   "workspace.exported": "exported all data from",
   "retention.updated": "set raw event retention to",
@@ -81,7 +81,7 @@ export default async function AuditPage() {
       {rows.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
-            <FileClockIcon className="size-5 text-muted-foreground" />
+            <FileClockIcon aria-hidden className="size-5 text-muted-foreground" />
             <p className="text-sm font-medium">Nothing logged yet</p>
             <p className="max-w-sm text-xs text-muted-foreground">Changes to settings, members, integrations and data will show up here.</p>
           </CardContent>
@@ -90,7 +90,7 @@ export default async function AuditPage() {
         <Card className="py-0">
           <CardContent className="p-0">
             {days.map((d) => (
-              <section key={d.day} aria-label={d.day}>
+              <section key={d.day} aria-label={d.day} className="[contain-intrinsic-size:auto_12rem] [content-visibility:auto]">
                 <h3 className="border-b bg-muted/40 px-4 py-1.5 text-xs font-medium text-muted-foreground [&:not(:first-child)]:border-t">{d.day}</h3>
                 <ol className="divide-y">
                   {d.rows.map(({ log, email, name, workspace }) => (

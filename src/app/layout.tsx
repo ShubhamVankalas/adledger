@@ -27,6 +27,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}>
       <body className="min-h-full">
+        {/* First tab stop: jumps keyboard and screen-reader users past the sidebar to the page's <main id="main">. */}
+        <a
+          href="#main"
+          className="fixed top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-[100] -translate-y-[calc(100%+env(safe-area-inset-top)+1rem)] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:bg-primary/90 focus-visible:translate-y-0"
+        >
+          Skip to main content
+        </a>
         <Providers>{children}</Providers>
       </body>
     </html>

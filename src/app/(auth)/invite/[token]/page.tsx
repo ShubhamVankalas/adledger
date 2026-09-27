@@ -20,10 +20,10 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
       <Card className={authCard}>
         <CardHeader>
           <span className="mb-2 flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <LinkIcon className="size-5" />
+            <LinkIcon aria-hidden className="size-5" />
           </span>
           <CardTitle className={authTitle}>
-            <h1>This invitation isn&apos;t valid</h1>
+            <h1>This invitation isn’t valid</h1>
           </CardTitle>
           <CardDescription>It may have expired, been revoked, or already been used. Ask the person who invited you for a new link.</CardDescription>
         </CardHeader>
@@ -46,19 +46,19 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
         <CardTitle className={`${authTitle} break-words`}>
           <h1>Join {organization.name}</h1>
         </CardTitle>
-        <CardDescription>You&apos;ve been invited to see which ads are making {organization.name} money.</CardDescription>
+        <CardDescription className="break-words">You’ve been invited to see which ads are making {organization.name} money.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <dl className="grid gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
           <div className="flex items-center gap-2">
-            <ShieldCheckIcon className="size-4 shrink-0 text-primary" />
+            <ShieldCheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
             <dt className="text-muted-foreground">Role</dt>
             <dd className="ml-auto font-medium">{roleLabel(invitation.role)}</dd>
           </div>
           <div className="flex min-w-0 items-center gap-2">
-            <MailIcon className="size-4 shrink-0 text-primary" />
+            <MailIcon aria-hidden className="size-4 shrink-0 text-primary" />
             <dt className="text-muted-foreground">Email</dt>
-            <dd className="ml-auto min-w-0 truncate font-medium" title={invitation.email}>
+            <dd translate="no" className="ml-auto min-w-0 truncate font-medium" title={invitation.email}>
               {invitation.email}
             </dd>
           </div>

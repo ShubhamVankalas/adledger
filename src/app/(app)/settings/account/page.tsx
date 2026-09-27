@@ -25,7 +25,7 @@ export default async function AccountPage() {
 
   return (
     <>
-      <SettingsHeader title="Profile & security" description="Your personal details, password and the devices you're signed in on." />
+      <SettingsHeader title="Profile & security" description="Your personal details, password and the devices you’re signed in on." />
       <AccountForms
         id={user.id}
         name={user.name ?? ""}

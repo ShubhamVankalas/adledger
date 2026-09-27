@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, CompassIcon, Loader2Icon, RocketIcon } from "lucide-react";
-import { useActionState, useState, useSyncExternalStore } from "react";
+import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import { setupAction } from "@/app/actions/auth";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { AuthField as Field, FormError, PasswordInput, authButton, authInput } from "../fields";
+import { AuthField as Field, FormError, PasswordInput, authButton, authInput, describedBy, useFocusFirstError } from "../fields";
 import { authCard, authTitle } from "../styles";
 
 // Native selects: 40px tall and 16px text on phones (smaller text makes iOS zoom in on focus).
@@ -32,6 +32,8 @@ const STARTS = [
 
 export function SetupForm() {
   const [state, action, pending] = useActionState(setupAction, undefined);
+  const form = useRef<HTMLFormElement>(null);
+  useFocusFirstError(form, state);
   // Default to the browser's timezone (server render uses UTC).
   const browserTz = useSyncExternalStore(
     () => () => {},
@@ -54,23 +56,34 @@ export function SetupForm() {
         <CardDescription>Create your account. It takes 30 seconds, and nothing leaves your server.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-4">
+        <form ref={form} action={action} className="grid gap-4">
           <Field label="Business or agency name" error={e.organizationName} htmlFor="organizationName" hint="Agencies can add a workspace for each client later.">
             <Input
               id="organizationName"
               name="organizationName"
-              placeholder="Acme Inc."
+              placeholder="Acme Inc…"
               required
               autoFocus
               autoComplete="organization"
               defaultValue={v.organizationName}
               aria-invalid={e.organizationName ? true : undefined}
+              aria-describedby={describedBy("organizationName", e.organizationName, true)}
               className={authInput}
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Your name" error={e.name} htmlFor="name">
-              <Input id="name" name="name" placeholder="Alex" autoComplete="name" defaultValue={v.name} aria-invalid={e.name ? true : undefined} className={authInput} />
+              <Input
+                id="name"
+                name="name"
+                placeholder="Alex…"
+                autoComplete="name"
+                spellCheck={false}
+                defaultValue={v.name}
+                aria-invalid={e.name ? true : undefined}
+                aria-describedby={describedBy("name", e.name)}
+                className={authInput}
+              />
             </Field>
             <Field label="Email" error={e.email} htmlFor="email">
               <Input
@@ -80,21 +93,30 @@ export function SetupForm() {
                 inputMode="email"
                 autoCapitalize="none"
                 spellCheck={false}
-                placeholder="you@company.com"
+                placeholder="you@company.com…"
                 required
                 autoComplete="email"
                 defaultValue={v.email}
                 aria-invalid={e.email ? true : undefined}
+                aria-describedby={describedBy("email", e.email)}
                 className={authInput}
               />
             </Field>
           </div>
           <Field label="Password" error={e.password} hint="At least 8 characters." htmlFor="password">
-            <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" aria-invalid={e.password ? true : undefined} />
+            <PasswordInput
+              id="password"
+              name="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              aria-invalid={e.password ? true : undefined}
+              aria-describedby={describedBy("password", e.password, true)}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Reporting currency" error={e.currency} htmlFor="currency">
-              <NativeSelect id="currency" name="currency" defaultValue={v.currency || "USD"} key={v.currency} className={selectCls}>
+              <NativeSelect id="currency" name="currency" autoComplete="off" defaultValue={v.currency || "USD"} key={v.currency} className={selectCls}>
                 {CURRENCIES.map(([code, name]) => (
                   <option key={code} value={code}>
                     {code} — {name}
@@ -103,7 +125,7 @@ export function SetupForm() {
               </NativeSelect>
             </Field>
             <Field label="Timezone" error={e.timezone} htmlFor="timezone">
-              <NativeSelect id="timezone" name="timezone" value={tz} onChange={(ev) => setTz(ev.target.value)} className={selectCls}>
+              <NativeSelect id="timezone" name="timezone" autoComplete="off" value={tz} onChange={(ev) => setTz(ev.target.value)} className={selectCls}>
                 {zones.map((z) => (
                   <option key={z} value={z}>
                     {z.replaceAll("_", " ")}
@@ -127,11 +149,11 @@ export function SetupForm() {
                   >
                     <input type="radio" name="start" value={s.value} checked={on} onChange={() => setStart(s.value)} className="sr-only" />
                     <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md sm:hidden", on ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
-                      <s.icon className="size-4" />
+                      <s.icon aria-hidden className="size-4" />
                     </span>
                     <span className="grid min-w-0 gap-1">
                       <span className="flex items-center gap-2 pr-6 text-sm font-medium">
-                        <s.icon className="hidden size-4 text-primary sm:block" /> {s.title}
+                        <s.icon aria-hidden className="hidden size-4 text-primary sm:block" /> {s.title}
                       </span>
                       <span className="text-xs leading-relaxed text-muted-foreground">{s.body}</span>
                     </span>
@@ -153,7 +175,7 @@ export function SetupForm() {
           <Button type="submit" size="lg" disabled={pending} className={cn(authButton, "mt-1")}>
             {pending ? (
               <>
-                <Loader2Icon className="animate-spin" /> {start === "demo" ? "Building your demo workspace…" : "Creating your account…"}
+                <Loader2Icon aria-hidden className="animate-spin" /> {start === "demo" ? "Building your demo workspace…" : "Creating your account…"}
               </>
             ) : start === "demo" ? (
               "Create account & explore"

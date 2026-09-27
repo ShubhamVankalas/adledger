@@ -13,7 +13,7 @@ const retentionForm = (page: Page) => page.locator("form", { has: page.locator("
 async function signIn(page: Page) {
   await page.goto("/");
   if (page.url().includes("/setup")) {
-    await page.getByPlaceholder("Acme Inc.").fill("Acme Analytics");
+    await page.getByPlaceholder("Acme Inc").fill("Acme Analytics");
     await page.getByPlaceholder("Alex").fill("Demo Admin");
     await page.getByPlaceholder("you@company.com").fill(EMAIL);
     await page.locator('input[name="password"]').fill(PASSWORD);
@@ -83,7 +83,7 @@ test("contact page: export data, then delete the contact", async ({ page }) => {
 
   // Streamed page (loading.tsx), so the not-found UI arrives with a 200.
   await page.goto(contactUrl);
-  await expect(page.getByText("This page doesn't exist.")).toBeVisible();
+  await expect(page.getByText("This page doesn’t exist.")).toBeVisible();
   expect((await page.request.get(exportHref!)).status()).toBe(404);
 });
 
