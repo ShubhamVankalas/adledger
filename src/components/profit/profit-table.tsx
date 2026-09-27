@@ -26,7 +26,7 @@ export function ProfitTable({ rows, level, currency: c, workspaceRefundRate }: {
   const noun = level === "platform" ? "Platform" : level === "campaign" ? "Campaign" : "Ad";
   return (
     <div role="region" aria-label={`Profit by ${noun.toLowerCase()}`} tabIndex={0} className="overflow-x-auto overscroll-x-contain outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-      <table className="w-full min-w-[58rem] text-ui">
+      <table className="w-full min-w-[58rem] text-ui [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
         <thead>
           <tr className="border-y text-caption text-muted-foreground">
             <th scope="col" className="sticky left-0 z-[1] bg-card py-2 pr-3 pl-4 text-left font-medium">
@@ -57,7 +57,7 @@ export function ProfitTable({ rows, level, currency: c, workspaceRefundRate }: {
             const flagged = r.refundRate !== null && r.refundRate >= flagAt && r.grossMinor > 0;
             return (
               <tr key={r.id} className="group/row hover:bg-fill">
-                <th scope="row" className="sticky left-0 z-[1] max-w-[20rem] bg-card py-2 pr-3 pl-4 text-left font-normal group-hover/row:bg-fill">
+                <th scope="row" className="sticky left-0 z-[1] max-w-[11rem] bg-card sm:max-w-[20rem] py-2 pr-3 pl-4 text-left font-normal group-hover/row:bg-fill">
                   <span className="flex min-w-0 items-center gap-2">
                     <PlatformBadge platform={r.platform} compact={level !== "platform"} className={cn("text-foreground", level === "platform" && "font-medium")} />
                     {level !== "platform" ? (

@@ -50,7 +50,7 @@ const BASIS: Record<LagRow["basis"], string> = { campaign: "its own buyers", wor
 export function LagTable({ rows }: { rows: LagRow[] }) {
   return (
     <div role="region" aria-label="Payback lag by campaign" tabIndex={0} className="overflow-x-auto overscroll-x-contain outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
-      <table className="w-full min-w-[46rem] text-ui">
+      <table className="w-full min-w-[46rem] text-ui [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
         <thead>
           <tr className="border-y text-caption text-muted-foreground">
             <th scope="col" className="sticky left-0 z-[1] bg-card py-2 pr-3 pl-4 text-left font-medium">
@@ -67,7 +67,7 @@ export function LagTable({ rows }: { rows: LagRow[] }) {
         <tbody className="divide-y divide-border">
           {rows.map((r) => (
             <tr key={r.campaignId} className="group/row hover:bg-fill">
-              <th scope="row" className="sticky left-0 z-[1] max-w-[18rem] bg-card py-2 pr-3 pl-4 text-left font-normal group-hover/row:bg-fill">
+              <th scope="row" className="sticky left-0 z-[1] max-w-[11rem] bg-card sm:max-w-[18rem] py-2 pr-3 pl-4 text-left font-normal group-hover/row:bg-fill">
                 <span className="flex min-w-0 items-center gap-2">
                   <PlatformBadge platform={r.platform} compact className="text-foreground" />
                   <span className="truncate font-medium" title={r.name}>
