@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { schema, type DB } from "../db";
-import { roleCan } from "../permissions";
+import { parsePolicy, policyCan } from "../security/policy";
 import type { Workspace } from "../settings";
 
 // When a scheduled report is due, which period it covers and who receives it. No PDF imports
@@ -64,7 +64,8 @@ export function cadenceLabel(s: Pick<Schedule, "cadence" | "weekday" | "hour">):
 
 /**
  * Members a schedule sends to: only people who can open the workspace (clients are limited to
- * theirs) and whose role may hold a PDF report (`reports.pdf`), so email never hands a PDF to
+ * theirs) and whose role may hold a PDF report (`reports.pdf`, narrowed by the organization's
+ * security policy, e.g. client downloads switched off), so email never hands a PDF to
  * someone the download button would refuse.
  */
 export async function scheduleRecipients(db: DB, ws: Workspace, s: Pick<Schedule, "recipients">): Promise<{ userId: string; email: string; name: string | null }[]> {
@@ -73,7 +74,9 @@ export async function scheduleRecipients(db: DB, ws: Workspace, s: Pick<Schedule
     .from(schema.memberships)
     .innerJoin(schema.users, eq(schema.users.id, schema.memberships.userId))
     .where(eq(schema.memberships.organizationId, ws.organizationId));
-  const allowed = members.filter((m) => (!m.workspaceIds || m.workspaceIds.includes(ws.id)) && roleCan(m.role, "reports.pdf"));
+  const [org] = await db.select({ security: schema.organizations.security }).from(schema.organizations).where(eq(schema.organizations.id, ws.organizationId));
+  const policy = parsePolicy(org?.security);
+  const allowed = members.filter((m) => (!m.workspaceIds || m.workspaceIds.includes(ws.id)) && policyCan(m.role, "reports.pdf", policy));
   const picked = s.recipients.all ? allowed : allowed.filter((m) => s.recipients.userIds.includes(m.userId));
   return picked.map((m) => ({ userId: m.userId, email: m.email, name: m.name }));
 }

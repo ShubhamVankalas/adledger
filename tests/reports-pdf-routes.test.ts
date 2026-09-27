@@ -61,19 +61,24 @@ beforeEach(() => {
 });
 
 describe("GET /api/v1/reports/{kind}/pdf", () => {
-  it("grants reports.pdf to owners, admins and analysts only", () => {
+  it("grants reports.pdf to every role, and scheduling to owners, admins and analysts", () => {
     expect(["owner", "admin", "analyst"].every((r) => roleCan(r as Role, "reports.pdf"))).toBe(true);
-    expect(roleCan("viewer", "reports.pdf")).toBe(false);
-    expect(roleCan("client", "reports.pdf")).toBe(false);
+    // Aggregate PDFs carry no contact data; clients can be switched off per organization (security policy).
+    expect(roleCan("viewer", "reports.pdf")).toBe(true);
+    expect(roleCan("client", "reports.pdf")).toBe(true);
     expect(roleCan("viewer", "reports.schedule")).toBe(false);
   });
 
   it("needs a session with reports.pdf or an API key", async () => {
     expect((await call("executive-summary")).status).toBe(401);
     expect((await call("executive-summary", { authorization: "Bearer al_nope" })).status).toBe(401);
-    for (const role of ["viewer", "client"] as Role[]) {
-      const r = await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users[role]!.id)}` });
-      expect(r.status, role).toBe(403);
+    // Clients get aggregate PDFs unless the organization switches that off.
+    expect((await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users.client!.id)}` })).status).toBe(200);
+    await db.update(schema.organizations).set({ security: { clientsCanDownloadPdf: false } }).where(eq(schema.organizations.id, ws.organizationId));
+    try {
+      expect((await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users.client!.id)}` })).status).toBe(403);
+    } finally {
+      await db.update(schema.organizations).set({ security: {} }).where(eq(schema.organizations.id, ws.organizationId));
     }
     // A cross-site page can't make a signed-in browser render (and log) a report.
     const cross = await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users.analyst!.id)}`, "sec-fetch-site": "cross-site" });
@@ -89,7 +94,8 @@ describe("GET /api/v1/reports/{kind}/pdf", () => {
     const exportId = res.headers.get("x-export-id")!;
     const [row] = await db.select().from(schema.exportLog).where(eq(schema.exportLog.id, exportId));
     expect(row).toMatchObject({ userId: users.analyst!.id, via: "session", reportKind: "executive-summary", status: "ok" });
-    const [a] = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.action, "report.pdf_exported"), eq(schema.auditLog.target, "executive-summary")));
+    const audits = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.action, "report.pdf_exported"), eq(schema.auditLog.target, "executive-summary")));
+    const a = audits.find((x) => (x.meta as { exportId?: string } | null)?.exportId === exportId)!;
     expect(a.meta).toMatchObject({ exportId, via: "session" });
     expect(JSON.stringify(a.meta)).not.toMatch(/@/);
 
@@ -226,8 +232,8 @@ describe("scheduled reports", () => {
       expect(outcome.status).toBe("sent");
       expect(mail.sent).toHaveLength(1);
       const m = mail.sent[0] as { bcc: string; to: string; subject: string; attachments: { filename: string; content: Buffer; contentType: string }[]; html: string };
-      // Viewers and clients can't download PDFs, so the schedule doesn't email them one either.
-      expect(m.bcc.split(", ").sort()).toEqual(["admin@pdf.test", "analyst@pdf.test", "owner@pdf.test"]);
+      // Everyone who may download the PDF gets it (clients only while the organization allows client PDFs).
+      expect(m.bcc.split(", ").sort()).toEqual(["admin@pdf.test", "analyst@pdf.test", "client@pdf.test", "owner@pdf.test", "viewer@pdf.test"]);
       expect(m.to).toBe("AdLedger <reports@pdf.test>");
       expect(m.subject).toBe("Weekly performance · Route Test · 21 – 27 Sep 2026");
       expect(m.attachments).toHaveLength(1);
@@ -235,7 +241,7 @@ describe("scheduled reports", () => {
       expect(m.attachments[0].content.subarray(0, 5).toString("latin1")).toBe("%PDF-");
       expect(m.html).toContain("$123");
       const [row] = await db.select().from(schema.exportLog).where(eq(schema.exportLog.id, outcome.exportId!));
-      expect(row).toMatchObject({ scheduleId: s.id, via: "schedule", recipients: 3, status: "ok", params: { start: "2026-09-21", end: "2026-09-27", model: "linear", compare: "previous" } });
+      expect(row).toMatchObject({ scheduleId: s.id, via: "schedule", recipients: 5, status: "ok", params: { start: "2026-09-21", end: "2026-09-27", model: "linear", compare: "previous" } });
       [after] = await db.select().from(schema.reportSchedules).where(eq(schema.reportSchedules.id, s.id));
       expect(after).toMatchObject({ lastStatus: "sent", lastError: null });
 
