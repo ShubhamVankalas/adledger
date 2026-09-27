@@ -1,0 +1,167 @@
+/*
+ * Print stylesheet (Ctrl+P / ⌘P on any dashboard page). Imported once from src/app/layout.tsx,
+ * after globals.css. Prints light, without navigation or controls, keeps charts in colour and
+ * avoids splitting cards, KPI tiles and table rows across pages.
+ * Branded, fingerprinted reports come from Reports → Download PDF; this is for quick printouts.
+ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+
+  /* Always print in the light "Quiet Ledger" palette, whatever the screen theme. */
+  :root,
+  html.dark {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #111815;
+    --card: #ffffff;
+    --card-foreground: #111815;
+    --popover: #ffffff;
+    --popover-foreground: #111815;
+    --secondary: #eef1ef;
+    --secondary-foreground: #111815;
+    --muted: #f3f7f5;
+    --muted-foreground: #5d6561;
+    --border: #e3e6e4;
+    --input: #cdd2d0;
+    --primary: #111815;
+    --primary-foreground: #f8fbf9;
+    --chart-1: #019f68;
+    --chart-2: #5176cd;
+    --chart-3: #dc932e;
+    --chart-4: #738292;
+    --chart-5: #e06065;
+    /* Quiet Ledger names (BRIEF §2.2), for components already on the new tokens. */
+    --bg: #ffffff;
+    --bg-subtle: #f3f7f5;
+    --surface: #ffffff;
+    --fill: #eef1ef;
+    --fg: #111815;
+    --fg-muted: #5d6561;
+    --fg-faint: #818885;
+    --ink: #111815;
+    --ink-fg: #f8fbf9;
+    --chart-revenue: #019f68;
+    --chart-spend: #738292;
+    --chart-leads: #dc932e;
+    --chart-customers: #5176cd;
+    --chart-grid: #e3e6e4;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111815;
+    font-size: 11pt;
+  }
+
+  /* Charts, deltas and status dots keep their colours. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Chrome: navigation, filters, buttons and floating layers. */
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-rail"],
+  [data-slot="sidebar-trigger"],
+  [data-slot="page-header"] > :not(:has(h1)),
+  nav[aria-label],
+  [role="note"],
+  [data-sonner-toaster],
+  [data-print="hide"],
+  a[href="#main"],
+  [data-slot="button"],
+  [data-slot="select-trigger"],
+  [data-slot="toggle-group"],
+  [data-slot="switch"],
+  [data-slot="dropdown-menu-trigger"],
+  [role="radiogroup"],
+  select,
+  input,
+  textarea {
+    display: none !important;
+  }
+
+  /* Content uses the full page width. */
+  [data-slot="sidebar-wrapper"],
+  [data-slot="sidebar-inset"],
+  main {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  [data-slot="page-header"] {
+    position: static !important;
+    backdrop-filter: none !important;
+    background: transparent !important;
+    border-bottom: 1px solid #e3e6e4;
+    padding: 0 0 8pt !important;
+    margin-bottom: 12pt;
+  }
+  [data-slot="page-header"] h1 {
+    font-size: 16pt;
+  }
+  [data-slot="page-header"] p {
+    display: block !important;
+  }
+
+  /* Don't split a card, a KPI tile, a chart or a table row across pages. */
+  [data-slot="card"],
+  figure,
+  svg,
+  tr,
+  li,
+  [data-print="keep"] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  [data-print="break-before"] {
+    break-before: page;
+  }
+
+  /* Cards print as hairline boxes on white. */
+  [data-slot="card"] {
+    background: #ffffff !important;
+    border: 1px solid #e3e6e4;
+  }
+
+  /* Scroll containers show everything. */
+  [data-slot="table-container"],
+  [data-radix-scroll-area-viewport],
+  .overflow-auto,
+  .overflow-x-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

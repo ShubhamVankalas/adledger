@@ -40,9 +40,27 @@ export function requestAttribution(workspaceId: string) {
 
 type Scheduled = { name: string; everyMs: number; run: () => Promise<unknown> };
 
+/**
+ * Jobs that always run alongside the ones boot() passes in. Their modules load lazily so the
+ * PDF renderer stays out of every request path that imports this file.
+ */
+export const BUILTIN_JOBS: Scheduled[] = [
+  {
+    // Reports → Schedule: render due PDF reports and email them (one at a time).
+    name: "report-schedules",
+    everyMs: 3_600_000,
+    run: async () => {
+      const { runDueReportSchedules } = await import("./report-kinds/schedules");
+      const ran = await runDueReportSchedules(await getDb());
+      if (ran) log.info(`scheduled reports: ${ran} delivered or skipped`);
+    },
+  },
+];
+
 /** Start interval jobs; each tick takes a cluster-wide advisory lock. */
 export function startScheduler(jobs: Scheduled[]) {
   if (g.__adledgerScheduler) return;
+  jobs = [...jobs, ...BUILTIN_JOBS.filter((b) => !jobs.some((j) => j.name === b.name))];
   g.__adledgerScheduler = jobs.map((job) => {
     const tick = async () => {
       try {
