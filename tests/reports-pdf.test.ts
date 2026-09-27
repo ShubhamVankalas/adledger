@@ -6,6 +6,7 @@ import { niceTicks, spread } from "@/lib/pdf/charts";
 import { moneyWhole, safeText } from "@/lib/pdf/format";
 import { pdfTheme } from "@/lib/pdf/theme";
 import { REPORT_KIND_IDS, getReportKind, type ReportData, type ReportRequest } from "@/lib/report-kinds";
+import { defaultScheduleName } from "@/lib/report-kinds/catalog";
 import type { AttributionModelsData } from "@/lib/report-kinds/attribution-models";
 import type { ExecutiveSummaryData } from "@/lib/report-kinds/executive-summary";
 import { paybackMonth, type LtvCohortsData } from "@/lib/report-kinds/ltv-cohorts";
@@ -191,6 +192,12 @@ describe("PDF kit helpers", () => {
     expect(pdfTheme("#1D4ED8").brand).toBe("#1d4ed8");
     expect(pdfTheme("#fafafa").brand).toBe("#008859"); // too light on white
     expect(pdfTheme('red" onload="x').brand).toBe("#008859");
+  });
+
+  it("names schedules without repeating the cadence", () => {
+    expect(defaultScheduleName("Weekly performance", "weekly")).toBe("Weekly performance");
+    expect(defaultScheduleName("Weekly performance", "monthly")).toBe("Weekly performance, monthly");
+    expect(defaultScheduleName("Executive summary", "weekly")).toBe("Executive summary, weekly");
   });
 
   it("payback is the first month cumulative LTV covers CAC", () => {

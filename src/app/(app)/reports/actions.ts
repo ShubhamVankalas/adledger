@@ -7,7 +7,7 @@ import { fail, guard, ok, run, type ActionResult } from "@/lib/actions";
 import { audit } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { pdfLimiter, Busy } from "@/lib/pdf/limiter";
-import { REPORT_CATALOG } from "@/lib/report-kinds/catalog";
+import { REPORT_CATALOG, defaultScheduleName } from "@/lib/report-kinds/catalog";
 import { REPORT_KIND_IDS } from "@/lib/report-kinds/types";
 import { MAX_SCHEDULES_PER_WORKSPACE, scheduleRecipients } from "@/lib/report-kinds/schedule-rules";
 
@@ -49,7 +49,7 @@ export async function createScheduleAction(input: ScheduleInput): Promise<Action
       .insert(schema.reportSchedules)
       .values({
         workspaceId: ws.id,
-        name: v.name || `${meta.title}, ${v.cadence}`,
+        name: v.name || defaultScheduleName(meta.title, v.cadence),
         reportKind: v.kind,
         params: { model: v.model, compare: meta.usesCompare ? "previous" : "none" },
         cadence: v.cadence,

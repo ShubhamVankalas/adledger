@@ -78,3 +78,6 @@ export const midSentence = (text: string) => {
 };
 
 export const isReportKindId = (v: string): v is ReportKindId => Object.prototype.hasOwnProperty.call(REPORT_CATALOG, v);
+
+/** Default schedule name: "Executive summary, monthly", but plain "Weekly performance" when weekly. */
+export const defaultScheduleName = (title: string, cadence: "weekly" | "monthly") => (title.toLowerCase().includes(cadence) ? title : `${title}, ${cadence}`);

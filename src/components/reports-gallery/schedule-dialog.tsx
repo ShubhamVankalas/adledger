@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { MODEL_LABELS } from "@/lib/format";
-import { midSentence } from "@/lib/report-kinds/catalog";
+import { defaultScheduleName, midSentence } from "@/lib/report-kinds/catalog";
 import type { ReportMeta } from "@/lib/report-kinds/types";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +116,7 @@ function ScheduleForm({ report, onOpenChange, model, timezone, members, currentU
     });
   };
 
-  const placeholder = `${report.title}, ${cadence}`;
+  const placeholder = defaultScheduleName(report.title, cadence);
 
   return (
     <form onSubmit={submit} className="grid gap-5">

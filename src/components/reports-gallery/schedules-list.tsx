@@ -77,7 +77,8 @@ export function SchedulesList({ rows }: { rows: ScheduleRow[] }) {
                   {!r.enabled ? <span className="shrink-0 rounded-full bg-muted px-2 py-px text-[11px] font-medium text-muted-foreground">Paused</span> : null}
                 </div>
                 <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-                  {r.reportTitle} · {r.cadence} · {r.recipients}
+                  {r.name === r.reportTitle ? "" : `${r.reportTitle} · `}
+                  {r.cadence} · {r.recipients}
                 </p>
                 <p className="mt-1 text-xs">
                   <Status row={r} />
