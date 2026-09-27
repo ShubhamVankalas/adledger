@@ -957,6 +957,8 @@ export const contactViews = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.workspaceId, t.userId)],
+);
+
 // ---------------------------------------------------------------- goals & data hygiene
 
 /**
