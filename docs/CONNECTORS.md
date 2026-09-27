@@ -48,12 +48,13 @@ time for the token — apply early).
 
 1. **Developer token:** Google Ads → Tools → **API Center** (in a manager account). *Basic
    access* is enough.
-2. **OAuth client:** Google Cloud Console → enable **Google Ads API** → Credentials → *Create
+2. **OAuth client:** Google Cloud Console → enable **Google Ads API** (and the **Data Manager API**
+   if you upload conversions) → Credentials → *Create
    OAuth client ID* (type **Web application**, redirect URI
    `https://developers.google.com/oauthplayground`).
 3. **Refresh token:** open the [OAuth Playground](https://developers.google.com/oauthplayground),
-   gear icon → *Use your own OAuth credentials* → scope
-   `https://www.googleapis.com/auth/adwords` → Authorize → *Exchange authorization code for
+   gear icon → *Use your own OAuth credentials* → scopes
+   `https://www.googleapis.com/auth/adwords` and `https://www.googleapis.com/auth/datamanager` → Authorize → *Exchange authorization code for
    tokens* → copy the **refresh token**.
 4. In AdLedger enter the customer IDs to import (`123-456-7890`), the manager (MCC) ID if you
    access them through one, the developer token, client ID, client secret and refresh token →
@@ -62,6 +63,15 @@ time for the token — apply early).
 AdLedger queries `ad_group_ad` daily metrics via Google Ads API `v25` `searchStream`.
 `cost_micros` is converted to exact minor units (no floating point), including zero-decimal
 currencies like JPY.
+
+**Conversion uploads** (optional toggle) go through the Google **Data Manager API**
+(`datamanager.googleapis.com/v1/events:ingest`), not the Google Ads API: since 15 June 2026
+`uploadClickConversions` rejects developer tokens that had not uploaded offline conversions before. It
+needs the `datamanager` scope on the refresh token and the Data Manager API enabled in the same Cloud
+project; the signed-in Google user needs access to the conversion account. Connections made before
+this change only have the `adwords` scope: reconnect (or create a new refresh token with both scopes)
+and the queued uploads go through on the next retry. Every event carries Google consent
+(`adUserData` / `adPersonalization`); see ARCHITECTURE.md, *Consent-aware uploads*.
 
 ## Enable one-click connect
 
@@ -77,7 +87,7 @@ register is always `<PUBLIC_URL>/api/v1/oauth/<provider>/callback` — set `PUBL
 | Platform | Env vars | Redirect URI path | Where to create the app |
 |---|---|---|---|
 | Meta | `META_APP_ID`, `META_APP_SECRET` (+ `META_LOGIN_CONFIG_ID` for Business apps) | `/api/v1/oauth/meta/callback` | developers.facebook.com → Create app (Business) → add **Facebook Login for Business** + **Marketing API**; create a login configuration (User access token, permission `ads_read`) and set its ID as `META_LOGIN_CONFIG_ID` (without it the classic `scope=ads_read` is sent). `ads_read` needs Advanced Access / app review for accounts outside your business |
-| Google Ads | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN` | `/api/v1/oauth/google_ads/callback` | Google Cloud Console → enable Google Ads API → OAuth client (Web application); consent screen with scope `…/auth/adwords`. Developer token from Google Ads → API Center |
+| Google Ads | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_ADS_DEVELOPER_TOKEN` | `/api/v1/oauth/google_ads/callback` | Google Cloud Console → enable Google Ads API → OAuth client (Web application); consent screen with scopes `…/auth/adwords` and `…/auth/datamanager` (enable the Data Manager API too, for conversion uploads). Developer token from Google Ads → API Center |
 | TikTok | `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET` | `/api/v1/oauth/tiktok_ads/callback` | business-api.tiktok.com → My apps → create an app with Ad Account Management + Reporting scopes; set the advertiser redirect URL |
 | LinkedIn | `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | `/api/v1/oauth/linkedin_ads/callback` | linkedin.com/developers → app with the **Advertising API** product; scopes `r_ads`, `r_ads_reporting`; add the redirect URL in the Auth tab |
 
