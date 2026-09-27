@@ -313,6 +313,33 @@ UI conventions that keep it green: grids start from `grid-cols-1` (implicit colu
 nowrap content), wide tables become card lists below `sm`, icon-only controls and select triggers
 get an `aria-label`, and phones/touch screens get >= 36px tap targets (see `globals.css`).
 
+## 9. UI system ("Quiet Ledger")
+
+The look is specified in `docs/redesign/BRIEF.md` §2 and lives in one place:
+
+- **Tokens** — `src/app/globals.css`. Raw OKLCH tokens per theme (`--bg`, `--bg-subtle`, `--surface`,
+  `--fill*`, `--border*`, `--fg`, `--fg-muted`, `--fg-faint`, `--ink`, `--brand*`, `--positive`,
+  `--negative`, `--warning`, `--chart-revenue|spend|leads|customers`) are mapped onto the shadcn
+  names (`--background`, `--card`, `--primary` = ink…), so primitives pick them up unchanged. The
+  brief's emerald accent is `--brand` (`text-brand`, `bg-brand-soft`) because shadcn's `--accent` is
+  the hover fill. Green is for money only; primary buttons are ink.
+- **Scale** — type utilities `text-micro|caption|ui|body|title-sm|title|kpi|kpi-lg|mono` (body text
+  is 13px `text-ui`), radius 4/6/8/12 (`rounded-sm|md|lg|xl`), elevation `shadow-sm|md|lg` (cards
+  use `--elev-card`: a hairline, no drop in dark mode), motion `--ease-out`, `--ease-drawer`,
+  `--dur-*`, plus `.num`, `.kbd`, `.surface-card`, `.live-dot`, `.pending-line`, `.reveal-delayed`.
+  `src/lib/utils.ts` teaches `cn` the custom font sizes so `text-ui` never removes a text colour.
+- **Shell** — `(app)/layout.tsx` renders the sidebar (`components/app-sidebar.tsx`: workspace
+  switcher, search, Overview/Live, Analyze, CRM, setup ring, settings, help, account; `[` or Ctrl/⌘ B
+  toggles the icon rail, remembered in the `sidebar_state` cookie) and the phone tab bar
+  (`mobile-nav.tsx`). `components/app-shell.tsx` holds the shell context (demo pill), the 2px
+  pending line and the window events `adledger:open-palette` / `adledger:open-shortcuts` that the
+  search and help buttons dispatch.
+- **Page header + filters** — `page-header.tsx` (52px, title, demo pill, controls) and
+  `report-controls.tsx`: date presets, compare and model in the URL (`range`, `from`/`to`,
+  `compare=prev|year|none`, `model`, `platform`), resolved server-side by `lib/period.ts`
+  (`resolvePeriodParams` returns `comparison`; `comparisonParams()` gives report params for it).
+  Preset maths is pure and shared with the client in `lib/period-presets.ts`.
+
 ## Decisions
 
 - **2026-09-26 — single app instead of 7 services.** FastAPI + Celery + Redis + Next.js + a

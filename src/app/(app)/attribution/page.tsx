@@ -23,11 +23,11 @@ import { moneyDelta, moneyKpi, moneyShort, num, pct, plural, roas } from "@/lib/
 import { resolvePeriodParams } from "@/lib/period";
 import { modelComparison, ROLE_THRESHOLD } from "@/lib/reports-advanced";
 
-export const metadata = { title: "Model comparison" };
+export const metadata = { title: "Attribution" };
 
-export default async function ModelComparisonPage({
+export default async function AttributionPage({
   searchParams,
-}: PageProps<"/reports/models">) {
+}: PageProps<"/attribution">) {
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const p = await resolvePeriodParams(db, ws, await searchParams);
@@ -45,7 +45,7 @@ export default async function ModelComparisonPage({
   return (
     <>
       <PageHeader
-        title="Model comparison"
+        title="Attribution"
         description="How first-touch, last-touch and linear credit change each campaign's revenue"
       >
         <ReportControls
@@ -111,7 +111,7 @@ export default async function ModelComparisonPage({
             <ModelComparisonTable report={r} currency={c} />
           </CardContent>
         </Card>
-        <div className="flex flex-col gap-3 border-t pt-4 text-xs text-muted-foreground lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 border-t pt-4 text-caption text-muted-foreground lg:flex-row lg:items-start lg:justify-between">
           <p className="max-w-3xl">
             Bars left of centre earn more under last touch (closers); bars right
             of centre earn more under first touch (starters). Revenue is
@@ -120,7 +120,7 @@ export default async function ModelComparisonPage({
           </p>
           <Link
             href="/performance"
-            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-lg border bg-card px-3 font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9"
+            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-md border bg-surface px-3 text-ui font-medium text-foreground transition-colors duration-100 outline-none hover:border-border-strong hover:bg-fill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-8"
           >
             Campaign performance{" "}
             <ChevronRightIcon aria-hidden className="size-3.5" />

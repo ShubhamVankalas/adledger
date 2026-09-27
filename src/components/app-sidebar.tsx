@@ -1,32 +1,38 @@
 "use client";
 
 import {
+  AudioWaveformIcon,
   BarChart3Icon,
   BookOpenIcon,
-  CableIcon,
   CheckIcon,
   ChevronsUpDownIcon,
-  GitCompareArrowsIcon,
-  LayoutDashboardIcon,
-  ListChecksIcon,
+  CircleHelpIcon,
+  FileTextIcon,
+  GitForkIcon,
+  KanbanIcon,
+  LayoutGridIcon,
+  ListTodoIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
-  PiggyBankIcon,
   PlusIcon,
+  SearchIcon,
   SettingsIcon,
   SparklesIcon,
   SunIcon,
   UserIcon,
+  UserRoundIcon,
   UsersIcon,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useTransition } from "react";
+import { useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 import { switchOrganizationAction, switchWorkspaceAction } from "@/app/actions/account";
 import { logoutAction } from "@/app/actions/auth";
+import { openPalette, openShortcuts } from "@/components/app-shell";
 import { OrgLogo, UserAvatar } from "@/components/avatars";
 import {
   DropdownMenu,
@@ -48,20 +54,43 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/", label: "Overview", icon: LayoutDashboardIcon },
-  { href: "/performance", label: "Performance", icon: BarChart3Icon },
-  { href: "/reports/models", label: "Model comparison", icon: GitCompareArrowsIcon },
-  { href: "/reports/ltv", label: "Customer LTV", icon: PiggyBankIcon },
-  { href: "/contacts", label: "Contacts", icon: UsersIcon },
-  { href: "/insights", label: "AI insights", icon: SparklesIcon },
+type NavItem = { href: string; label: string; icon: LucideIcon; keys?: string };
+
+// Brief §3.1. `keys` are the G-then-letter shortcuts from the hotkey registry, shown on hover.
+const NAV: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [
+      { href: "/", label: "Overview", icon: LayoutGridIcon, keys: "G O" },
+      { href: "/live", label: "Live", icon: AudioWaveformIcon, keys: "G V" },
+    ],
+  },
+  {
+    label: "Analyze",
+    items: [
+      { href: "/performance", label: "Performance", icon: BarChart3Icon, keys: "G P" },
+      { href: "/attribution", label: "Attribution", icon: GitForkIcon, keys: "G A" },
+      { href: "/customers", label: "Customers", icon: UserRoundIcon, keys: "G R" },
+      { href: "/reports", label: "Reports", icon: FileTextIcon },
+      { href: "/insights", label: "Insights", icon: SparklesIcon, keys: "G I" },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { href: "/contacts", label: "Contacts", icon: UsersIcon, keys: "G C" },
+      { href: "/pipeline", label: "Pipeline", icon: KanbanIcon, keys: "G D" },
+      { href: "/tasks", label: "My tasks", icon: ListTodoIcon, keys: "G T" },
+    ],
+  },
 ];
+
+export type SetupProgress = { done: number; total: number; next: string | null };
 
 type Props = {
   user: { id: string; email: string; name: string | null; avatarUrl: string | null; roleLabel: string };
@@ -70,18 +99,39 @@ type Props = {
   workspace: { id: string; name: string; isDemo: boolean };
   workspaces: { id: string; name: string; isDemo: boolean }[];
   can: { settings: boolean; members: boolean; workspaces: boolean };
-  setupLeft: number;
+  /** Required setup steps; null hides the ring (setup complete, demo workspace or no permission). */
+  setup: SetupProgress | null;
 };
 
-export function AppSidebar({ user, organization, organizations, workspace, workspaces, can, setupLeft }: Props) {
+const isActive = (pathname: string, href: string) =>
+  href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+
+/** ⌘K on Apple devices, Ctrl K elsewhere. The server (and first paint) says Ctrl K. */
+function usePaletteHint() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
+}
+
+function Kbd({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <kbd translate="no" className={cn("kbd", className)}>
+      {children}
+    </kbd>
+  );
+}
+
+export function AppSidebar({ user, organization, organizations, workspace, workspaces, can, setup }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [pending, start] = useTransition();
+  const paletteHint = usePaletteHint();
   // Don't repeat the name when the workspace is named after the organization (the default).
   const sameName = organization.name.trim().toLowerCase() === workspace.name.trim().toLowerCase();
-  const subtitle = [sameName ? null : organization.name, workspace.isDemo ? "Demo data" : null].filter(Boolean).join(" · ");
-  const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const subtitle = [sameName ? null : organization.name, workspace.isDemo ? "Sample data" : null].filter(Boolean).join(" · ");
 
   const switchTo = (fn: () => Promise<{ ok: boolean; message?: string }>) =>
     start(async () => {
@@ -92,32 +142,36 @@ export function AppSidebar({ user, organization, organizations, workspace, works
     });
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="gap-1.5 pb-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="data-popup-open:bg-sidebar-accent" />} disabled={pending}>
-                <OrgLogo id={organization.id} name={organization.name} src={organization.logoUrl} size="md" />
-                <div className="grid min-w-0 flex-1 text-left leading-tight">
-                  <span className="truncate font-semibold">{workspace.name}</span>
-                  {subtitle ? <span className="truncate text-xs text-muted-foreground">{subtitle}</span> : null}
-                </div>
-                <ChevronsUpDownIcon className="ml-auto size-4" />
+              <DropdownMenuTrigger
+                render={<SidebarMenuButton size="lg" className="h-11 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Workspace: ${workspace.name}`} />}
+                disabled={pending}
+              >
+                <OrgLogo id={organization.id} name={organization.name} src={organization.logoUrl} size="sm" />
+                <span className="grid min-w-0 flex-1 text-left leading-tight">
+                  <span className="truncate text-ui font-medium text-foreground">{workspace.name}</span>
+                  {subtitle ? <span className="truncate text-caption text-muted-foreground">{subtitle}</span> : null}
+                </span>
+                <ChevronsUpDownIcon aria-hidden className="ml-auto size-3.5! text-fg-faint" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-64">
+              <DropdownMenuContent align="start" className="w-(--anchor-width) min-w-60">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Workspaces in {organization.name}</DropdownMenuLabel>
                   {workspaces.map((w) => (
                     <DropdownMenuItem key={w.id} onClick={() => w.id !== workspace.id && switchTo(() => switchWorkspaceAction(w.id))}>
                       <OrgLogo id={w.id} name={w.name} size="sm" />
-                      <span className="min-w-0 truncate">{w.name}</span>
-                      {w.id === workspace.id ? <CheckIcon className="ml-auto" /> : null}
+                      <span className="min-w-0 flex-1 truncate">{w.name}</span>
+                      {w.isDemo ? <span className="text-caption text-fg-faint">Sample</span> : null}
+                      {w.id === workspace.id ? <CheckIcon aria-label="Current" className="text-foreground" /> : null}
                     </DropdownMenuItem>
                   ))}
                   {can.workspaces ? (
                     <DropdownMenuItem render={<Link href="/settings/organization" />}>
-                      <PlusIcon /> New workspace
+                      <PlusIcon /> Create workspace…
                     </DropdownMenuItem>
                   ) : null}
                 </DropdownMenuGroup>
@@ -129,8 +183,8 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                       {organizations.map((o) => (
                         <DropdownMenuItem key={o.id} onClick={() => o.id !== organization.id && switchTo(() => switchOrganizationAction(o.id))}>
                           <OrgLogo id={o.id} name={o.name} src={o.logoUrl} size="sm" />
-                          <span className="min-w-0 truncate">{o.name}</span>
-                          {o.id === organization.id ? <CheckIcon className="ml-auto" /> : null}
+                          <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                          {o.id === organization.id ? <CheckIcon aria-label="Current" className="text-foreground" /> : null}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>
@@ -139,97 +193,115 @@ export function AppSidebar({ user, organization, organizations, workspace, works
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={openPalette}
+              tooltip={`Search (${paletteHint})`}
+              className="mt-1 h-8 border border-sidebar-border bg-surface text-fg-faint shadow-none hover:border-border-strong hover:bg-surface hover:text-muted-foreground group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
+            >
+              <SearchIcon />
+              <span className="flex-1">Search…</span>
+              <Kbd className="bg-fill group-data-[collapsible=icon]:hidden in-data-[mobile=true]:hidden">{paletteHint}</Kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Reports</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton isActive={active(item.href)} tooltip={item.label} render={<Link href={item.href} />}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {can.settings ? (
-                <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={active("/onboarding")} tooltip="Setup checklist" render={<Link href="/onboarding" />}>
-                      <ListChecksIcon />
-                      <span>Setup checklist</span>
-                    </SidebarMenuButton>
-                    {setupLeft > 0 ? <SidebarMenuBadge className="bg-primary/15 text-primary tabular-nums">{setupLeft}</SidebarMenuBadge> : null}
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={active("/settings/workspace/integrations")} tooltip="Integrations" render={<Link href="/settings/workspace/integrations" />}>
-                      <CableIcon />
-                      <span>Integrations</span>
+        {NAV.map((group, i) => (
+          <SidebarGroup key={group.label ?? i} className={i === 0 ? "pt-1.5" : undefined}>
+            {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton isActive={isActive(pathname, item.href)} tooltip={item.label} render={<Link href={item.href} />}>
+                      <item.icon strokeWidth={1.75} />
+                      <span className="flex-1">{item.label}</span>
+                      {item.keys ? (
+                        <span
+                          aria-hidden
+                          translate="no"
+                          className="hidden text-micro tracking-wide text-fg-faint opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline"
+                        >
+                          {item.keys}
+                        </span>
+                      ) : null}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                </>
-              ) : null}
-              {can.members ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={active("/settings/organization/members")} tooltip="Team" render={<Link href="/settings/organization/members" />}>
-                    <UsersIcon />
-                    <span>Team</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : null}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={active("/settings") && !active("/settings/workspace/integrations") && !active("/settings/organization/members")}
-                  tooltip="Settings"
-                  render={<Link href="/settings/workspace" />}
-                >
-                  <SettingsIcon />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Docs" render={<a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs" target="_blank" rel="noreferrer" />}>
-                  <BookOpenIcon />
-                  <span>Docs</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
-      <SidebarFooter>
+
+      <SidebarFooter className="gap-0.5 pt-1">
         <SidebarMenu>
+          {setup ? (
+            <SidebarMenuItem className="mb-1.5">
+              <SidebarMenuButton
+                render={<Link href="/onboarding" />}
+                isActive={pathname === "/onboarding"}
+                tooltip={`Setup ${setup.done} of ${setup.total}`}
+                className="h-auto gap-2.5 rounded-lg border border-sidebar-border bg-surface px-2 py-2 hover:bg-surface hover:shadow-sm data-active:bg-surface group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
+              >
+                <SetupRing done={setup.done} total={setup.total} />
+                <span className="grid min-w-0 flex-1 leading-tight">
+                  <span className="truncate font-medium text-foreground">
+                    Setup {setup.done} of {setup.total}
+                  </span>
+                  {setup.next ? <span className="truncate text-caption text-muted-foreground">Next: {setup.next}</span> : null}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : null}
           <SidebarMenuItem>
+            <SidebarMenuButton isActive={isActive(pathname, "/settings")} tooltip="Settings" render={<Link href="/settings/workspace" />}>
+              <SettingsIcon strokeWidth={1.75} />
+              <span className="flex-1">Settings</span>
+              <span aria-hidden translate="no" className="hidden text-micro tracking-wide text-fg-faint opacity-0 transition-opacity duration-150 group-hover/menu-button:opacity-100 lg:inline">
+                G S
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={openShortcuts} tooltip="Help & shortcuts (?)">
+              <CircleHelpIcon strokeWidth={1.75} />
+              <span className="flex-1">Help &amp; shortcuts</span>
+              <Kbd className="group-data-[collapsible=icon]:hidden in-data-[mobile=true]:hidden">?</Kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem className="mt-1">
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
-                <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="md" />
-                <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name || user.email}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.roleLabel}</span>
-                </div>
-                <ChevronsUpDownIcon className="ml-auto size-4" />
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="h-10 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Account: ${user.name || user.email}`} />}>
+                <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="sm" />
+                <span className="grid min-w-0 flex-1 text-left leading-tight">
+                  <span className="truncate text-ui font-medium text-foreground">{user.name || user.email}</span>
+                  <span className="truncate text-caption text-muted-foreground">{user.roleLabel}</span>
+                </span>
+                <ChevronsUpDownIcon aria-hidden className="ml-auto size-3.5! text-fg-faint" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="min-w-56">
+              <DropdownMenuContent side="top" align="start" className="w-(--anchor-width) min-w-56">
                 <DropdownMenuGroup>
-                  <div className="flex items-center gap-2.5 px-2 py-1.5">
+                  <div className="flex items-center gap-2.5 px-2 py-2">
                     <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="md" />
                     <div className="grid min-w-0 leading-tight">
-                      <span className="truncate text-sm font-medium">{user.name || user.email}</span>
-                      {user.name ? <span className="truncate text-xs text-muted-foreground">{user.email}</span> : null}
+                      <span className="truncate text-ui font-medium">{user.name || user.email}</span>
+                      {user.name ? <span className="truncate text-caption text-muted-foreground">{user.email}</span> : null}
                     </div>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem render={<Link href="/settings/account" />}>
                     <UserIcon /> Account settings
+                  </DropdownMenuItem>
+                  {can.members ? (
+                    <DropdownMenuItem render={<Link href="/settings/organization/members" />}>
+                      <UsersIcon /> Team
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem render={<a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs" target="_blank" rel="noreferrer" />}>
+                    <BookOpenIcon /> Documentation
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -258,5 +330,28 @@ export function AppSidebar({ user, organization, organizations, workspace, works
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+/** 20px progress ring for the setup checklist. */
+function SetupRing({ done, total }: { done: number; total: number }) {
+  const r = 8;
+  const c = 2 * Math.PI * r;
+  const frac = total > 0 ? Math.min(1, done / total) : 0;
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden className="size-5! shrink-0 -rotate-90">
+      <circle cx="10" cy="10" r={r} fill="none" strokeWidth="2.5" className="stroke-fill-active" />
+      <circle
+        cx="10"
+        cy="10"
+        r={r}
+        fill="none"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - frac)}
+        className="stroke-brand transition-[stroke-dashoffset] duration-(--dur-slow) ease-out"
+      />
+    </svg>
   );
 }

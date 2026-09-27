@@ -1,31 +1,65 @@
-import { Separator } from "@/components/ui/separator";
+import { ChevronRightIcon } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
+import { DemoPill, HeaderSearchButton, PendingBar } from "@/components/app-shell";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
+type Crumb = { href: string; label: string };
+
 /**
- * Sticky page title bar. On phones the sidebar toggle is dropped (the bottom tab bar's "More"
- * opens navigation) so the title and a compact control, e.g. the report filters, share one row.
+ * The 52px sticky bar at the top of every page: sidebar toggle, breadcrumb or title (16/600), the
+ * demo pill, then the page's controls (the report filter bar) on the right. A 2px line runs along
+ * the bottom edge while a navigation or filter change is pending. On phones the search button sits
+ * at the right edge and the bottom tab bar replaces the sidebar toggle.
  */
-export function PageHeader({ title, description, children }: { title: string; description?: string; children?: React.ReactNode }) {
+export function PageHeader({
+  title,
+  description,
+  breadcrumbs,
+  children,
+}: {
+  title: string;
+  /** One line of context, shown after the title on wide screens (and as the title's tooltip). */
+  description?: string;
+  /** Parent pages, e.g. [{ href: "/contacts", label: "Contacts" }]. */
+  breadcrumbs?: Crumb[];
+  children?: React.ReactNode;
+}) {
   return (
     <header
       data-slot="page-header"
-      className="sticky top-[env(safe-area-inset-top)] z-20 flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/85 px-4 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 md:min-h-16 md:px-6 md:py-3 2xl:px-8"
+      className="sticky top-[env(safe-area-inset-top)] z-20 flex min-h-[52px] items-center gap-2 border-b bg-background/90 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 md:gap-3 md:px-6"
     >
-      <div className="hidden items-center gap-3 md:flex">
-        <SidebarTrigger className="-ml-1.5" />
-        <Separator orientation="vertical" className="h-5 self-center" />
-      </div>
-      <div className="min-w-0 flex-1 basis-24">
-        <h1 className="truncate text-lg leading-tight font-semibold tracking-tight md:text-xl" title={title}>
+      <SidebarTrigger className="-ml-1.5 hidden text-muted-foreground hover:text-foreground md:inline-flex" />
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {breadcrumbs?.length ? (
+          <nav aria-label="Breadcrumb" className="hidden min-w-0 shrink items-center gap-1 text-ui text-muted-foreground sm:flex">
+            {breadcrumbs.map((c) => (
+              <span key={c.href} className="flex min-w-0 items-center gap-1">
+                <Link href={c.href} className="truncate rounded-sm transition-colors duration-100 hover:text-foreground">
+                  {c.label}
+                </Link>
+                <ChevronRightIcon aria-hidden className="size-3.5 shrink-0 text-fg-faint" />
+              </span>
+            ))}
+          </nav>
+        ) : null}
+        <h1 className="min-w-0 truncate text-title-sm" title={description ? `${title}: ${description}` : title}>
           {title}
         </h1>
-        {description ? <p className="mt-0.5 hidden truncate text-[13px] text-muted-foreground md:block">{description}</p> : null}
+        {description ? <p className="hidden min-w-0 truncate text-ui text-fg-faint 2xl:block">{description}</p> : null}
+        <DemoPill />
       </div>
-      {children ? <div className="flex max-w-full flex-wrap items-center gap-2">{children}</div> : null}
+      {children ? <div className="flex shrink-0 items-center gap-1.5">{children}</div> : null}
+      <HeaderSearchButton />
+      <Suspense fallback={null}>
+        <PendingBar />
+      </Suspense>
     </header>
   );
 }
 
+/** Page content: 1440px max, 24px gutters on desktop and 16px on phones. */
 export function PageBody({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-[1760px] space-y-4 p-4 sm:space-y-6 md:p-6 2xl:px-8">{children}</div>;
+  return <div className="mx-auto w-full max-w-[1440px] space-y-4 px-4 pt-4 pb-8 md:space-y-5 md:px-6 md:pt-5 md:pb-12">{children}</div>;
 }

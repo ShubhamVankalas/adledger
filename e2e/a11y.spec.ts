@@ -70,8 +70,9 @@ async function audit(page: Page, label: string, width: number) {
 const APP_PAGES: [string, () => string][] = [
   ["overview", () => "/"],
   ["performance", () => "/performance?range=90d"],
-  ["model comparison", () => "/reports/models?range=90d"],
-  ["customer LTV", () => "/reports/ltv"],
+  ["attribution", () => "/attribution?range=90d"],
+  ["customers", () => "/customers"],
+  ["live (placeholder)", () => "/live"],
   ["contacts", () => "/contacts?lifecycle=customer"],
   ["contact journey", () => contactPath],
   ["insights", () => "/insights"],

@@ -40,7 +40,7 @@ test("bottom tab bar navigates between pages", async ({ page }) => {
   const pages = [
     { tab: "Performance", path: "/performance" },
     { tab: "Contacts", path: "/contacts" },
-    { tab: "Insights", path: "/insights" },
+    { tab: "Live", path: "/live" },
     { tab: "Overview", path: "/" },
   ];
   for (const { tab, path } of pages) {
@@ -53,8 +53,8 @@ test("bottom tab bar navigates between pages", async ({ page }) => {
   await nav.getByRole("button", { name: "More" }).click();
   const sheet = page.getByRole("dialog");
   await expect(sheet).toBeVisible();
-  await sheet.getByRole("link", { name: "Integrations" }).click();
-  await page.waitForURL(/\/settings\/workspace\/integrations/);
+  await sheet.getByRole("link", { name: "Settings" }).click();
+  await page.waitForURL(/\/settings\/workspace/);
   await expect(sheet).toBeHidden();
   await expect(nav.getByRole("button", { name: "More" })).toBeVisible();
 });
@@ -98,7 +98,7 @@ test("report filters collapse into one button that opens a bottom sheet", async 
   // The inline desktop pickers are hidden; one summary button replaces them.
   await expect(page.getByRole("combobox", { name: "Date range" })).toBeHidden();
   const filters = page.getByRole("button", { name: /^Filters:/ });
-  await expect(filters).toHaveAccessibleName(/30 days · Linear/);
+  await expect(filters).toHaveAccessibleName(/Last 30 days · vs prev · Linear/);
   await filters.click();
   const sheet = page.getByRole("dialog", { name: "Filters" });
   await expect(sheet).toBeVisible();
@@ -110,7 +110,7 @@ test("report filters collapse into one button that opens a bottom sheet", async 
   await expect(page).toHaveURL(/range=90d/);
   await expect(page).toHaveURL(/model=first_touch/);
   await expect(page).toHaveURL(/platform=meta/);
-  await expect(filters).toHaveAccessibleName(/90 days · Meta · First touch/);
+  await expect(filters).toHaveAccessibleName(/Last 90 days · vs prev · Meta · First touch/);
 });
 
 test("tab bar is hidden on desktop widths", async ({ page }) => {

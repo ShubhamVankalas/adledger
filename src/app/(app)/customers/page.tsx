@@ -27,11 +27,11 @@ import { dateRange, longDate, MODEL_LABELS, moneyKpi, moneyShort, num } from "@/
 import { resolvePeriodParams } from "@/lib/period";
 import { ltv } from "@/lib/reports-advanced";
 
-export const metadata = { title: "Customer LTV" };
+export const metadata = { title: "Customers" };
 
-export default async function LtvPage({
+export default async function CustomersPage({
   searchParams,
-}: PageProps<"/reports/ltv">) {
+}: PageProps<"/customers">) {
   const { workspace: ws } = await requireUser();
   const db = await getDb();
   const sp = await searchParams;
@@ -51,7 +51,7 @@ export default async function LtvPage({
   return (
     <>
       <PageHeader
-        title="Customer LTV"
+        title="Customers"
         description="What a customer is worth over time, and what it cost to acquire them"
       >
         <ReportControls
@@ -125,7 +125,7 @@ export default async function LtvPage({
             </CardContent>
           </Card>
         </div>
-        <div className="flex flex-col gap-3 border-t pt-4 text-xs text-muted-foreground lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 border-t pt-4 text-caption text-muted-foreground lg:flex-row lg:items-start lg:justify-between">
           <p className="max-w-3xl">
             Revenue is every payment minus refunds in {c} up to {longDate(p.end)}.
             Customers are counted in the month of their first payment (workspace
@@ -135,7 +135,7 @@ export default async function LtvPage({
           </p>
           <Link
             href="/performance"
-            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-lg border bg-card px-3 font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 md:h-9"
+            className="inline-flex h-10 shrink-0 items-center gap-1 self-start rounded-md border bg-surface px-3 text-ui font-medium text-foreground transition-colors duration-100 outline-none hover:border-border-strong hover:bg-fill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:h-8"
           >
             Campaign performance{" "}
             <ChevronRightIcon aria-hidden className="size-3.5" />
