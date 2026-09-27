@@ -1,10 +1,15 @@
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
+// A slow (1.6s), low-contrast shimmer; static under reduced motion (globals.css stops animations).
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("animate-pulse rounded-md bg-muted dark:bg-foreground/[0.07]", className)}
+      aria-hidden
+      className={cn(
+        "animate-skeleton rounded-md bg-fill bg-[linear-gradient(90deg,var(--fill)_30%,var(--fill-hover)_50%,var(--fill)_70%)] bg-size-[200%_100%]",
+        className
+      )}
       {...props}
     />
   )

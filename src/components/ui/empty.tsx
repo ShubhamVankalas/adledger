@@ -1,12 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 function Empty({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="empty"
       className={cn(
-        "flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border-dashed p-6 text-center text-balance",
+        "flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-5 rounded-xl border-dashed p-8 text-center text-balance",
         className
       )}
       {...props}
@@ -30,7 +30,7 @@ const emptyMediaVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent",
-        icon: "flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-foreground/5 [&_svg:not([class*='size-'])]:size-4.5",
+        icon: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground shadow-sm [&_svg:not([class*='size-'])]:size-4.5",
       },
     },
     defaultVariants: {
@@ -59,7 +59,7 @@ function EmptyTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="empty-title"
       className={cn(
-        "font-heading text-sm font-semibold tracking-tight text-balance",
+        "font-heading text-title-sm text-balance",
         className
       )}
       {...props}
@@ -72,7 +72,7 @@ function EmptyDescription({ className, ...props }: React.ComponentProps<"p">) {
     <div
       data-slot="empty-description"
       className={cn(
-        "text-[0.8125rem]/relaxed text-pretty text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
+        "text-ui text-pretty text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-foreground",
         className
       )}
       {...props}
@@ -85,7 +85,7 @@ function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="empty-content"
       className={cn(
-        "flex w-full max-w-sm min-w-0 flex-col items-center gap-2.5 text-sm text-balance",
+        "flex w-full max-w-sm min-w-0 flex-col items-center gap-2.5 text-ui text-balance",
         className
       )}
       {...props}

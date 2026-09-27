@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
 
@@ -192,7 +192,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-32 items-start gap-2 rounded-lg bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg ring-1 ring-foreground/10 dark:shadow-black/40",
+        "grid min-w-32 items-start gap-2 rounded-lg bg-popover px-3 py-2 text-caption text-popover-foreground shadow-lg",
         className
       )}
     >
