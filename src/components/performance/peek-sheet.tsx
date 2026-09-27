@@ -82,6 +82,7 @@ export function PeekSheet(props: Props) {
 }
 
 const cache = new Map<string, PerformancePeek | null>();
+const CACHE_MAX = 40;
 
 function PeekBody({ id, level, row: tableRow, period, currency, targets, childLabel, childHref, grandchildHref, onStep, position }: Props & { id: string }) {
   const cacheKey = `${level}:${id}:${period.start}:${period.end}:${period.model}:${period.comparison?.start ?? ""}`;
@@ -99,6 +100,8 @@ function PeekBody({ id, level, row: tableRow, period, currency, targets, childLa
         if (!active) return;
         if (!res.ok) return setLoad({ status: "error", message: res.message ?? "Couldn't load the details." });
         cache.set(cacheKey, res.peek ?? null);
+        // A small window is enough for J/K back and forth; older entries go first.
+        if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value!);
         setLoad({ status: "ready", peek: res.peek ?? null });
       })
       .catch(() => {
