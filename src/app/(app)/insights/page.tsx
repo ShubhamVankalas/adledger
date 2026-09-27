@@ -141,7 +141,7 @@ async function AlertsTab({ user }: { user: SessionUser }) {
           emptyHint={active.length || view.anomaly.enabled ? "Your alerts are watching. Anything that fires will show up here." : "Set up an alert and anything that fires will show up here."}
         />
       </section>
-      <aside className="space-y-3 lg:sticky lg:top-24">
+      <aside aria-label="What is being watched" className="space-y-3 lg:sticky lg:top-24 lg:mt-9">
         <div className="rounded-xl bg-card p-4 shadow-(--elev-card)">
           <p className="text-ui font-medium">Watching</p>
           {active.length || view.anomaly.enabled ? (

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { generateText, stepCountIs, tool, type LanguageModel, type ModelMessage } from "ai";
 import { z } from "zod";
 import { AD_PLATFORMS, type Platform } from "../connectors/types";
@@ -519,7 +519,8 @@ export async function askHistory(db: DB, workspaceId: string, userId: string, li
     .select()
     .from(schema.askMessages)
     .where(and(eq(schema.askMessages.workspaceId, workspaceId), eq(schema.askMessages.userId, userId)))
-    .orderBy(desc(schema.askMessages.createdAt), desc(schema.askMessages.role))
+    // Newest first; on a tie the answer ("assistant") is newer than its question ("user").
+    .orderBy(desc(schema.askMessages.createdAt), asc(schema.askMessages.role))
     .limit(limit);
   return latest.reverse();
 }

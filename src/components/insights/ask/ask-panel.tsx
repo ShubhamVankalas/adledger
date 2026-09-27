@@ -48,11 +48,14 @@ export function AskPanel({
   const [pending, start] = useTransition();
   const [clearing, startClear] = useTransition();
   const input = useRef<HTMLTextAreaElement>(null);
-  const end = useRef<HTMLDivElement>(null);
 
   useHotkeys([{ id: "insights.ask.focus", keys: "a", label: "Ask a question", group: "Insights", run: () => input.current?.focus() }]);
 
-  const scrollToEnd = () => requestAnimationFrame(() => end.current?.scrollIntoView({ block: "end", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
+  // Scroll the window itself (scrollIntoView would also nudge clipped ancestors like the sidebar inset).
+  const scrollToEnd = (smooth = true) =>
+    requestAnimationFrame(() =>
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: smooth && !matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "auto" }),
+    );
 
   const send = (text: string) => {
     const q = text.trim();
@@ -104,7 +107,7 @@ export function AskPanel({
   }, []);
 
   useEffect(() => {
-    if (initial.length) end.current?.scrollIntoView({ block: "end" });
+    if (initial.length) scrollToEnd(false);
     // Only on first paint: later messages scroll in send().
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -212,7 +215,7 @@ export function AskPanel({
           ) : null}
         </ol>
       )}
-      <div ref={end} className="h-4" />
+      <div aria-hidden className="h-4" />
 
       <form
         onSubmit={(e) => {

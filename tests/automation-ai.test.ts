@@ -356,6 +356,13 @@ describe("Ask", () => {
     ]);
     expect((await askHistory(db, ws.id, u1.id)).map((m) => m.content)).toEqual(["hello"]);
     expect(await askHistory(db, other.id, u1.id)).toEqual([]);
+    // A question and its answer stamped in the same millisecond still read in order.
+    const at = new Date(Date.now() + 60_000);
+    await db.insert(schema.askMessages).values([
+      { workspaceId: ws.id, userId: u2.id, role: "assistant", content: "answer", createdAt: at },
+      { workspaceId: ws.id, userId: u2.id, role: "user", content: "question", createdAt: at },
+    ]);
+    expect((await askHistory(db, ws.id, u2.id)).slice(-2).map((m) => m.content)).toEqual(["question", "answer"]);
   });
 });
 

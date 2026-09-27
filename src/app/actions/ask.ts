@@ -19,11 +19,12 @@ export async function askAction(question: string): Promise<ActionResult> {
     const db = await getDb();
     const ws = user.workspace;
     const history = (await askHistory(db, ws.id, user.id, 6)).map((m) => ({ role: m.role, content: m.content }));
+    const askedAt = new Date();
     const answer = await answerQuestion(db, ws, q, { history });
     const [, saved] = await db
       .insert(schema.askMessages)
       .values([
-        { workspaceId: ws.id, userId: user.id, role: "user", content: q },
+        { workspaceId: ws.id, userId: user.id, role: "user", content: q, createdAt: askedAt },
         {
           workspaceId: ws.id,
           userId: user.id,
@@ -32,8 +33,8 @@ export async function askAction(question: string): Promise<ActionResult> {
           tables: answer.tables,
           unverifiedNumbers: answer.unverifiedNumbers,
           modelName: answer.modelName,
-          // One millisecond later, so the answer always sorts after its question.
-          createdAt: new Date(Date.now() + 1),
+          // Both stamped here (not by the database clock), so the answer always sorts right after its question.
+          createdAt: new Date(askedAt.getTime() + 1),
         },
       ])
       .returning();
