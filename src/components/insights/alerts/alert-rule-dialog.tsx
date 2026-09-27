@@ -75,7 +75,6 @@ export function AlertRuleDialog({
   useEffect(() => {
     if (open) runPreview();
     return () => clearTimeout(timer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const submit = (data: FormData) =>

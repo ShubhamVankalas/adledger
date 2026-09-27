@@ -5,7 +5,7 @@ import { getDb, schema, type DB } from "./db";
 import type { AttributionModel, ShareFilters, ShareRange } from "./db/schema";
 import { dateRange, MODEL_LABELS, platformLabel } from "./format";
 import { resolvePeriodParams } from "./period";
-import { compare, performance, platforms, timeseries, type ReportParams } from "./reports";
+import { overview, performance, platforms, previousPeriod, timeseries, type Overview, type ReportParams } from "./reports";
 
 // Share links: a read-only, aggregate-only view of the Overview for someone without an account
 // (an agency client, an investor). The link's filters are locked when it is created; nothing in
@@ -78,7 +78,8 @@ export async function createShareLink(
 export async function revokeShareLink(db: DB, workspaceId: string, id: string, now = new Date()) {
   const [row] = await db
     .update(schema.shareLinks)
-    .set({ revokedAt: now })
+    // Revoking twice keeps the first revocation time.
+    .set({ revokedAt: sql`coalesce(${schema.shareLinks.revokedAt}, ${now.toISOString()}::timestamptz)` })
     .where(and(eq(schema.shareLinks.workspaceId, workspaceId), eq(schema.shareLinks.id, id)))
     .returning();
   return row ?? null;
@@ -110,10 +111,34 @@ export async function findActiveShare(db: DB, token: string, now = new Date()) {
 /** URL parameters a viewer might add to try to change the view. They are always ignored. */
 const FILTER_PARAMS = ["from", "to", "range", "model", "platform", "start", "end", "level", "campaign"];
 
+export type SharedKpis = {
+  spendMinor: number;
+  /** Total revenue, or only the revenue credited to the locked platform's ads. */
+  revenueMinor: number;
+  roas: number | null;
+  leads: number;
+  customers: number;
+  cacMinor: number | null;
+};
+
+function kpis(o: Overview, platformLocked: boolean): SharedKpis {
+  return {
+    spendMinor: o.spendMinor,
+    revenueMinor: platformLocked ? o.attributedRevenueMinor : o.revenueMinor,
+    roas: o.roas,
+    leads: platformLocked ? o.paidLeads : o.leads,
+    customers: platformLocked ? o.paidCustomers : o.customers,
+    cacMinor: o.cacMinor,
+  };
+}
+
 /**
  * Everything the public share page shows, computed from the link's locked filters only.
  * `requested` (the page's search params) never changes the result; the names of any filter
  * parameters it contained are returned so the page can say the filters are locked.
+ *
+ * The result is an explicit allow-list of aggregates (no ids, no contacts, no other platforms'
+ * revenue when a platform is locked), so nothing extra can reach the page by accident.
  */
 export async function loadSharedReport(token: string, requested: Record<string, string | string[] | undefined> = {}, opts: { db?: DB; now?: Date } = {}) {
   const db = opts.db ?? (await getDb());
@@ -130,29 +155,55 @@ export async function loadSharedReport(token: string, requested: Record<string, 
           model: f.model,
           platform: f.platform,
         }));
+  const prev = previousPeriod(params);
+  const locked = Boolean(params.platform);
 
-  const [cmp, series, campaigns, byPlatform] = await Promise.all([
-    compare(db, ws, params),
+  const [current, previous, series, prevSeries, campaigns, byPlatform] = await Promise.all([
+    overview(db, ws, params),
+    overview(db, ws, prev),
     timeseries(db, ws, params),
+    timeseries(db, ws, prev),
     performance(db, ws, { ...params, level: "campaign" }),
-    f.platform ? Promise.resolve([]) : platforms(db, ws, params),
+    locked ? Promise.resolve([]) : platforms(db, ws, params),
   ]);
   return {
-    link: { id: link.id, label: link.label, expiresAt: link.expiresAt, filters: f },
-    workspace: { id: ws.id, name: ws.name, currency: ws.reportingCurrency, timezone: ws.timezone, organizationId: ws.organizationId },
+    link: { id: link.id, label: link.label, expiresAt: link.expiresAt.toISOString(), filters: f },
+    workspace: { id: ws.id, name: ws.name, currency: ws.reportingCurrency, timezone: ws.timezone, organizationId: ws.organizationId, isDemo: ws.isDemo },
     organizationName,
-    params,
-    current: cmp.current,
-    previous: cmp.previous,
-    series,
+    period: { start: params.start, end: params.end, model: params.model, platform: params.platform ?? null },
+    previousPeriod: { start: prev.start, end: prev.end },
+    current: kpis(current, locked),
+    previous: kpis(previous, locked),
+    // Spend against revenue credited to ads (only the locked platform's when one is locked), with
+    // the previous period's revenue from ads aligned day by day.
+    series: series.map((d, i) => ({
+      date: d.date,
+      spendMinor: d.spendMinor,
+      attributedRevenueMinor: d.attributedRevenueMinor,
+      prevAttributedRevenueMinor: prevSeries[i]?.attributedRevenueMinor ?? null,
+    })),
+    attributedRevenueMinor: current.attributedRevenueMinor,
+    prevAttributedRevenueMinor: previous.attributedRevenueMinor,
     // Aggregates only: campaign names and totals, never people.
-    campaigns: campaigns.filter((c) => !params.platform || c.platform === params.platform).slice(0, 10),
-    platforms: byPlatform,
+    campaigns: campaigns
+      .filter((c) => !locked || c.platform === params.platform)
+      .sort((a, b) => b.revenueMinor - a.revenueMinor || b.spendMinor - a.spendMinor)
+      .slice(0, 10)
+      .map((c) => ({ name: c.name, platform: c.platform, spendMinor: c.spendMinor, revenueMinor: c.revenueMinor, roas: c.roas, customers: c.customers })),
+    platforms: byPlatform.map((r) => ({ platform: r.platform, spendMinor: r.spendMinor, revenueMinor: r.revenueMinor, roas: r.roas })),
     ignoredParams: Object.keys(requested).filter((k) => FILTER_PARAMS.includes(k)),
   };
 }
 
 export type SharedReport = NonNullable<Awaited<ReturnType<typeof loadSharedReport>>>;
+
+/** Drop the host part of an IP for the view log: 203.0.113.0 / 2001:db8:85a3::. */
+export function truncateIp(ip: string): string {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(ip.replace(/^::ffff:/, ""));
+  if (v4) return `${v4[1]}.${v4[2]}.${v4[3]}.0`;
+  if (ip.includes(":")) return `${ip.split(":").slice(0, 3).join(":")}::`;
+  return "unknown";
+}
 
 /** Count a view (the page also writes an audit entry with the truncated IP). */
 export async function recordShareView(db: DB, linkId: string, now = new Date()) {
