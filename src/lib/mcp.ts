@@ -7,6 +7,7 @@ import { AD_PLATFORMS } from "./connectors/types";
 import { templateReport } from "./ai/report";
 import { getDb, rows, schema } from "./db";
 import { formatMoney } from "./money";
+import { storedStages } from "./pipeline";
 import {
   compare,
   dataBounds,
@@ -21,6 +22,7 @@ import {
   wastedSpend,
   type ReportParams,
 } from "./reports";
+import { stageFunnel } from "./reports-pipeline";
 import type { Workspace } from "./settings";
 
 // Read-only MCP server. Every tool only reads through lib/reports (no writes).
@@ -59,6 +61,7 @@ export const MCP_TOOL_NAMES = [
   "list_integrations",
   "get_timeseries",
   "search_campaigns",
+  "contact_stage_funnel",
 ] as const;
 
 const DAY_MS = 86_400_000;
@@ -509,6 +512,37 @@ export function buildMcpHandler(ws: Workspace) {
                 const r = perf.get(c.id);
                 return `- ${c.id} · ${c.name} (${c.platform}${c.status ? `, ${c.status}` : ""}) · spend ${money(r?.spendMinor ?? 0)} · revenue ${money(r?.revenueMinor ?? 0)} · ROAS ${x(r?.roas ?? null)} · leads ${r?.leads ?? 0} · customers ${r?.customers ?? 0}`;
               }),
+            ].join("\n"),
+          );
+        },
+      );
+
+      server.registerTool(
+        "contact_stage_funnel",
+        {
+          title: "Pipeline stage funnel",
+          description:
+            "How many contacts reached each pipeline stage (New lead, Qualified, Call booked, Proposal, Won, Lost by default), the step conversion, and the ad cost per contact reaching each stage. Optionally only contacts first seen in a date range. Counts only, no personal data.",
+          inputSchema: z.object({
+            start: period.start.describe("Only contacts first seen on or after this date (YYYY-MM-DD, workspace timezone). Omit for all contacts."),
+            end: period.end.describe("Only contacts first seen on or before this date (YYYY-MM-DD, inclusive). Omit for all contacts."),
+          }),
+          annotations: ro,
+        },
+        async (args) => {
+          const db = await getDb();
+          if (args.start && args.end && args.start > args.end) return { ...text(`Invalid period ${args.start} → ${args.end}: start must be on or before end.`), isError: true };
+          if ((await storedStages(db, ws.id)).length === 0) return text("This workspace has no pipeline yet: nobody has opened the Pipeline page or received a payment.");
+          const f = await stageFunnel(db, ws, { start: args.start, end: args.end });
+          const pctOf = (v: number | null) => (v === null ? "n/a" : `${(v * 100).toFixed(1)}%`);
+          return text(
+            [
+              `${f.start || f.end ? `Contacts first seen ${f.start ?? "any time"} → ${f.end ?? "today"} (${ws.timezone})` : "All contacts"} · ${f.total} contacts · ad spend in the period ${money(f.spendMinor)} · currency ${ws.reportingCurrency}`,
+              "Reached = the contact is in this stage now or got at least this far (lost stages count the contacts currently in them). Cost = ad spend ÷ contacts from paid ads that reached the stage.",
+              "",
+              "| Stage | Kind | Reached | Step conversion | Of all contacts | From ads | Cost per contact |",
+              "|---|---|---|---|---|---|---|",
+              ...f.steps.map((s) => `| ${s.name} | ${s.kind} | ${s.reached} | ${pctOf(s.conversion)} | ${pctOf(s.ofTotal)} | ${s.paidReached} | ${money(s.costMinor)} |`),
             ].join("\n"),
           );
         },

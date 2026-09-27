@@ -102,6 +102,7 @@ describe("MCP server", () => {
           union all select 'insights', count(*) from ad_insights_daily union all select 'runs', count(*) from sync_runs
           union all select 'campaigns', count(*) from campaigns union all select 'events', count(*) from events
           union all select 'connections', count(*) from connections
+          union all select 'stages', count(*) from pipeline_stages union all select 'stage_events', count(*) from contact_stage_events
           union all select 'last_synced', coalesce(extract(epoch from max(last_synced_at)), 0)::bigint from connections`),
       ).sort((a, b) => a.t.localeCompare(b.t));
     const before = await snapshot();
@@ -119,6 +120,7 @@ describe("MCP server", () => {
       ["list_integrations", {}],
       ["get_timeseries", { platform: "meta" }],
       ["search_campaigns", { query: "retargeting" }],
+      ["contact_stage_funnel", {}],
     ];
     // Every registered tool must be exercised here.
     expect(calls.map(([n]) => n).sort()).toEqual([...MCP_TOOL_NAMES].sort());

@@ -140,6 +140,33 @@ export async function pipelineBoard(db: DB, ws: Workspace, opts: { perStage?: nu
   };
 }
 
+export type PipelineSummary = {
+  open: number;
+  openWeightedMinor: number;
+  won: number;
+  wonValueMinor: number;
+  lost: number;
+  rotting: number;
+};
+
+/** Board-wide totals, summed from the SQL column totals (open stages, won stages, lost stages). */
+export function pipelineSummary(board: Pick<PipelineBoard, "columns">): PipelineSummary {
+  const s: PipelineSummary = { open: 0, openWeightedMinor: 0, won: 0, wonValueMinor: 0, lost: 0, rotting: 0 };
+  for (const c of board.columns) {
+    if (c.kind === "open") {
+      s.open += c.count;
+      s.openWeightedMinor += c.weightedMinor;
+      s.rotting += c.rotting;
+    } else if (c.kind === "won") {
+      s.won += c.count;
+      s.wonValueMinor += c.valueMinor;
+    } else {
+      s.lost += c.count;
+    }
+  }
+  return s;
+}
+
 // ---------------------------------------------------------------- funnel + cost per stage
 
 export type FunnelParams = { start?: string; end?: string };
@@ -295,17 +322,23 @@ export async function costPerStage(
           ${p.platform ? sql`and platform = ${p.platform}` : sql``}
         group by 1
       ),
+      reached as (
+        select r.entity_id, s.id stage_id, count(*) n
+        from reach r join st s on s.kind <> 'lost' and r.reach_pos >= s.position
+        where r.entity_id is not null
+        group by 1, 2
+      ),
       entities as (
         select entity_id from spend union select entity_id from reach where entity_id is not null
       )
-      select e.entity_id id, x.name, x.platform, coalesce(sp.spend, 0) spend, s.id stage_id,
-        (select count(*) from reach r where r.entity_id = e.entity_id and r.reach_pos >= s.position) reached
+      select e.entity_id id, x.name, x.platform, coalesce(sp.spend, 0) spend, s.id stage_id, coalesce(rc.n, 0) reached
       from entities e
       join ${table} x on x.id = e.entity_id and x.workspace_id = ${ws.id}
       left join spend sp on sp.entity_id = e.entity_id
       cross join st s
+      left join reached rc on rc.entity_id = e.entity_id and rc.stage_id = s.id
       where s.kind <> 'lost' ${p.platform ? sql`and x.platform = ${p.platform}` : sql``}
-      order by coalesce(sp.spend, 0) desc, x.name, s.position`),
+      order by coalesce(sp.spend, 0) desc, x.name, x.id, s.position`),
   );
   const out = new Map<string, CostPerStageRow>();
   for (const x of r) {

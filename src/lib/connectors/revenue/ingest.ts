@@ -107,7 +107,8 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
           name = before?.name ?? before?.email ?? null;
           if (isNew && before?.lifecycle !== "customer") alerts.push({ kind: "new_customer", e, contactId, name });
           await markCustomer(tx, contactId, source, e.customer.externalCustomerId);
-          if (amount > 0) await autoWinOnPayment(tx, workspaceId, contactId, e.occurredAt);
+          // Only a new payment wins the deal: a replayed webhook or re-sync must not undo a later manual move.
+          if (isNew && amount > 0) await autoWinOnPayment(tx, workspaceId, contactId, e.occurredAt);
         }
         if (isNew) alerts.push({ kind: "big_payment", e, contactId, name });
       }

@@ -57,6 +57,9 @@ async function selectStages(q: Q, workspaceId: string) {
   return r.map(toStage);
 }
 
+/** The workspace's stages as stored, without creating defaults (for read-only callers such as MCP). */
+export const storedStages = (q: Q, workspaceId: string) => selectStages(q, workspaceId);
+
 /** The workspace's stages in board order, creating the defaults on first use (idempotent, race-safe). */
 export async function listStages(q: Q, workspaceId: string): Promise<Stage[]> {
   const existing = await selectStages(q, workspaceId);
