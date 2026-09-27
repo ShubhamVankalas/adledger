@@ -1,9 +1,21 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { NotificationMessage } from "./connectors/types";
+import { AD_PLATFORMS, type NotificationMessage } from "./connectors/types";
 import { getDb, schema, type DB } from "./db";
+import {
+  ALERT_METRIC_IDS,
+  ANOMALY_LOOKBACK_DAYS,
+  ANOMALY_METRICS,
+  ANOMALY_MIN_ACTIVE_DAYS,
+  COOLDOWN_HOUR_OPTIONS,
+  WINDOW_DAY_OPTIONS,
+  metricDef,
+  windowLabel,
+  type AnomalyMetric,
+} from "./alerts-meta";
 import type { AlertComparator, AlertMetric, AlertScope } from "./db/schema";
 import { credit, longDate, moneyWhole, platformLabel, roas as roasX, signedPct } from "./format";
 import { log } from "./log";
+import { fromDecimalString } from "./money";
 import { appUrl, sendToChannel } from "./notify";
 import { overview, performance, timeseries, type ReportParams } from "./reports";
 import type { Workspace } from "./settings";
@@ -20,30 +32,7 @@ import type { Workspace } from "./settings";
 
 export type AlertRule = typeof schema.alertRules.$inferSelect;
 export type AlertEvent = typeof schema.alertEvents.$inferSelect;
-export type MetricUnit = "money" | "ratio" | "count";
-
-export const ALERT_METRICS: { id: AlertMetric; label: string; unit: MetricUnit; description: string }[] = [
-  { id: "cac", label: "CAC", unit: "money", description: "Ad spend per customer won from ads" },
-  { id: "cpl", label: "CPL", unit: "money", description: "Ad spend per lead from ads" },
-  { id: "roas", label: "ROAS", unit: "ratio", description: "Revenue credited to ads ÷ ad spend" },
-  { id: "spend", label: "Ad spend", unit: "money", description: "Total ad spend" },
-  { id: "revenue", label: "Revenue", unit: "money", description: "Revenue (credited to ads when scoped to a platform or campaign)" },
-  { id: "leads", label: "Leads", unit: "count", description: "New leads (from ads when scoped to a platform or campaign)" },
-];
-export const ALERT_METRIC_IDS = ALERT_METRICS.map((m) => m.id) as [AlertMetric, ...AlertMetric[]];
-export const metricDef = (id: string) => ALERT_METRICS.find((m) => m.id === id) ?? ALERT_METRICS[0];
-
-export const ANOMALY_METRICS = ["revenue", "spend", "leads"] as const;
-export type AnomalyMetric = (typeof ANOMALY_METRICS)[number];
-/** Sensitivity presets for the anomaly rule (z-score threshold). */
-export const ANOMALY_SENSITIVITY = [
-  { z: 2.5, label: "High", description: "More alerts, including smaller swings" },
-  { z: 3, label: "Medium", description: "Clear outliers only (recommended)" },
-  { z: 4, label: "Low", description: "Only extreme days" },
-] as const;
-export const ANOMALY_LOOKBACK_DAYS = 28;
-/** Days of history with activity needed before the anomaly rule speaks up. */
-export const ANOMALY_MIN_ACTIVE_DAYS = 14;
+export * from "./alerts-meta";
 
 /** The attribution model alerts use (the dashboard default). */
 const MODEL = "linear" as const;
@@ -76,9 +65,6 @@ export function ruleThreshold(rule: Pick<AlertRule, "metric" | "thresholdMinor" 
   return rule.thresholdValue === null ? null : Number(rule.thresholdValue);
 }
 
-export function windowLabel(days: number) {
-  return days === 1 ? "yesterday" : `over the last ${days} days`;
-}
 
 /** "CAC above $80 over the last 2 days" (+ scope label separately). */
 export function describeRule(rule: Pick<AlertRule, "metric" | "comparator" | "thresholdMinor" | "thresholdValue" | "windowDays">, currency: string) {
@@ -127,6 +113,84 @@ export async function measure(
     leads: scoped ? o.paidLeads : o.leads,
   };
   return values[q.metric];
+}
+
+// ---------------------------------------------------------------- input (Settings → Alerts form)
+
+
+export type AlertRuleInput = {
+  name: string;
+  metric: AlertMetric;
+  comparator: AlertComparator;
+  thresholdMinor: number | null;
+  thresholdValue: string | null;
+  windowDays: number;
+  scope: AlertScope;
+  scopeId: string | null;
+  channels: string[];
+  cooldownHours: number;
+  enabled: boolean;
+};
+
+/**
+ * Validate the rule form. Money thresholds are typed in major units ("80" or "79.50") and stored
+ * as integer minor units; ROAS and leads are stored as decimals. Throws a message the form shows.
+ * Campaign ownership is checked by the caller (it needs the database).
+ */
+export function parseAlertRuleInput(
+  raw: { name?: string; metric?: string; comparator?: string; threshold?: string; windowDays?: string; scope?: string; scopeId?: string; channels?: string[]; cooldownHours?: string; enabled?: boolean },
+  currency: string,
+  availableChannels: string[],
+): AlertRuleInput {
+  const metric = ALERT_METRIC_IDS.find((m) => m === raw.metric);
+  if (!metric) throw new Error("Choose a metric.");
+  const def = metricDef(metric);
+  const comparator: AlertComparator = raw.comparator === "lt" ? "lt" : "gt";
+  const t = String(raw.threshold ?? "")
+    .replace(/[,\s]/g, "")
+    .replace(/[x×]$/i, "");
+  if (!/^\d+(\.\d+)?$/.test(t)) throw new Error(`Enter a threshold for ${def.label}, for example ${def.unit === "money" ? "80" : def.unit === "ratio" ? "1.5" : "10"}.`);
+  let thresholdMinor: number | null = null;
+  let thresholdValue: string | null = null;
+  if (def.unit === "money") {
+    thresholdMinor = fromDecimalString(t, currency);
+    if (!Number.isSafeInteger(thresholdMinor) || thresholdMinor > 1e13) throw new Error("That threshold is too large.");
+  } else {
+    const n = Number(t);
+    if (n > 1e9) throw new Error("That threshold is too large.");
+    thresholdValue = def.unit === "count" ? String(Math.round(n)) : n.toFixed(4);
+  }
+  const windowDays = Number(raw.windowDays);
+  if (!(WINDOW_DAY_OPTIONS as readonly number[]).includes(windowDays)) throw new Error("Choose how many days to look at.");
+  const cooldownHours = Number(raw.cooldownHours ?? 24);
+  if (!(COOLDOWN_HOUR_OPTIONS as readonly number[]).includes(cooldownHours)) throw new Error("Choose how often this alert may repeat.");
+  const scope: AlertScope = raw.scope === "platform" || raw.scope === "campaign" ? raw.scope : "workspace";
+  let scopeId: string | null = null;
+  if (scope === "platform") {
+    if (!(AD_PLATFORMS as readonly string[]).includes(raw.scopeId ?? "")) throw new Error("Choose an ad platform.");
+    scopeId = raw.scopeId!;
+  } else if (scope === "campaign") {
+    if (!/^[0-9a-f-]{36}$/i.test(raw.scopeId ?? "")) throw new Error("Choose a campaign.");
+    scopeId = raw.scopeId!;
+  }
+  const channels = [...new Set((raw.channels ?? []).filter((c) => availableChannels.includes(c)))];
+  const name = (raw.name ?? "").trim().slice(0, 80) || `${def.label} ${comparator === "gt" ? "above" : "below"} ${t}`;
+  return { name, metric, comparator, thresholdMinor, thresholdValue, windowDays, scope, scopeId, channels, cooldownHours, enabled: raw.enabled !== false };
+}
+
+/** The built-in anomaly rule of a workspace, created (disabled) on first use. */
+export async function anomalyRule(db: DB, workspaceId: string): Promise<AlertRule> {
+  const [existing] = await db
+    .select()
+    .from(schema.alertRules)
+    .where(and(eq(schema.alertRules.workspaceId, workspaceId), eq(schema.alertRules.kind, "anomaly")))
+    .limit(1);
+  if (existing) return existing;
+  const [row] = await db
+    .insert(schema.alertRules)
+    .values({ workspaceId, kind: "anomaly", name: "Unusual days", metric: "anomaly", thresholdValue: "3", windowDays: ANOMALY_LOOKBACK_DAYS, enabled: false })
+    .returning();
+  return row;
 }
 
 export function isBreached(value: number | null, comparator: AlertComparator, threshold: number | null) {
