@@ -378,6 +378,51 @@ not provided). Headless installs can set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (+ `DEMO
 - Security headers (CSP, frame/sniff/referrer/permissions policies, HSTS over HTTPS) on dashboard
   routes; CORS open only on the pixel endpoint.
 
+### 7.1 Trust core (`src/lib/security/`)
+
+The honest, user-facing version is [docs/SECURITY.md](SECURITY.md). Implementation map:
+
+- **Permissions.** `contacts.pii` (owner/admin/analyst) gates unmasked emails; `export.csv`,
+  `export.contacts` (owner/admin) and `reports.pdf` split exports; `security.manage` (owner) gates
+  the org policy. `policyCan()` in `security/policy.ts` narrows the role matrix by the org's
+  `organizations.security` jsonb (zod-parsed with defaults: `require2fa`, `sessionIdleMinutes`,
+  `sessionMaxDays`, `clientsCanDownloadPdf`). `SessionUser.can` uses it.
+- **Masking.** Pages always render `maskEmail()` output; `revealContactEmailsAction` returns raw
+  emails to `contacts.pii` holders and audits `contact.pii_revealed` (ids and count only). API
+  responses use `security/pii.ts` (`canSeePii(principal)`): contacts list, journey, search and the
+  contacts CSV. Without PII access, contact search matches names and whole emails only.
+- **API key scopes.** `api_keys.scopes text[]` (`reports:read` default, `mcp`, `contacts:read`,
+  `contacts:pii`, `ingest:write`), `expires_at`, `last_used_ip_trunc`. `withAuth({ scope })` and
+  `authorize(req, permission, { scope })` enforce them; `Caller.can()` maps role permissions to
+  scopes for follow-up decisions. The migration gives pre-existing keys every scope but
+  `contacts:pii`.
+- **2FA.** `security/totp.ts` (RFC 4226/6238 on `node:crypto`, base32, ±1 step, replay guard via
+  `users.totp_last_step`), `recovery.ts` (10 scrypt-hashed single-use codes), `two-factor.ts`
+  (enrol/confirm/disable; secret AES-GCM encrypted in `users.totp_secret_enc`), `mfa.ts` (signed
+  10-minute `al_mfa` challenge cookie between password and code), `qr.ts` (`uqr` → SVG path).
+  `login()` returns `{ mfa: true }` and `/login/verify` completes it. With `require2fa`, members
+  without 2FA get `needs2fa`: `requireUser` redirects to `/two-factor/setup`, `guard()` refuses,
+  and API calls with that session are unauthenticated. `ADLEDGER_BREAK_GLASS=<owner email>` resets
+  an owner's 2FA at boot (`break-glass.ts`, called from `boot.ts`).
+- **Sessions.** `sessions.ip_trunc`, `user_agent`, `last_seen_at` (stamped at most every 5 min),
+  `auth_method`. `sessionExpired()` applies the org's idle timeout and max lifetime on every
+  request. A sign-in from an unseen `deviceKey` audits `auth.new_device` (security alert) and emails
+  the member (`new-device.ts`).
+- **Passwords.** `password-policy.ts` (NIST SP 800-63B-4) with `common-passwords.txt`, traced into
+  the standalone build by `outputFileTracingIncludes` in `next.config.ts`.
+- **Audit log v2.** `audit()` → `appendAudit()` (`audit-chain.ts`): per-org `seq` + `prev_hash` +
+  `hash` = sha256(prev + canonical JSON), serialized with `pg_advisory_xact_lock`; rows written
+  before the chain existed are sealed on the next append or verify. `verifyAuditChain()` reports
+  the first broken `seq`. Filters and CSV (`/api/v1/exports/audit`, `audit.view` + `export.csv`)
+  share `audit-query.ts`.
+- **Alerts.** Actions in `ALERTING_ACTIONS` (auth.ts) raise the `security_alert` notify event via
+  `alerts.ts` (names and counts only; contact exports alert above 1,000 rows).
+- **Posture.** `posture.ts` builds the checklist on Settings → Organization → Security policy
+  (key storage, HTTPS, 2FA coverage, idle sessions, audit verify, PII keys, backups).
+- **Disclosure.** `/.well-known/security.txt` (RFC 9116, `security-txt.ts`; `SECURITY_CONTACT`
+  adds the operator's contact). CI: dependency review + `pnpm audit` on PRs, CodeQL, Trivy on the
+  image; Dependabot; SBOM + provenance on release images.
+
 ## 8. Testing
 
 `pnpm test` runs vitest against an in-memory embedded Postgres with `CONNECTOR_MODE=mock`:

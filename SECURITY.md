@@ -12,12 +12,18 @@ installs you don't own.
 
 What to expect:
 
-- An acknowledgement within 3 working days, and an assessment within 10.
+- An acknowledgement within 3 working days, and a triage (severity and plan) within 10.
+- Safe harbour: good-faith research on your own install, reported privately, won't be pursued
+  legally.
 - A fix on `main` and a patched release as soon as it's ready; critical issues first.
 - Credit in the release notes if you'd like it. We don't run a paid bounty.
 
 Supported versions: the latest release and `main`. Self-hosters should update regularly
 (`docker compose pull && docker compose up -d`).
+
+Every install also serves `/.well-known/security.txt` (RFC 9116). Set `SECURITY_CONTACT` to list
+your own contact there for problems with your install. For how AdLedger handles data and what it
+does and doesn't claim, read [docs/SECURITY.md](docs/SECURITY.md) (Trust & security).
 
 ## Hardening notes for self-hosters
 
@@ -25,7 +31,11 @@ Supported versions: the latest release and `main`. Self-hosters should update re
   or your own reverse proxy that sets `X-Forwarded-Proto`. Session cookies become `Secure` and HSTS
   is sent automatically; force it with `COOKIE_SECURE=true`.
 - **Set `APP_SECRET`** (`openssl rand -base64 32`) and keep it out of the database backup it
-  protects. It encrypts every stored credential.
+  protects. It encrypts every stored credential and 2FA secret. On an install that already runs
+  without it, copy the generated key instead of making a new one
+  ([docs/SECURITY.md → Encryption key](docs/SECURITY.md#encryption-key)).
+- **Require two-factor sign-in** (Settings → Organization → Security policy) once every owner has
+  it on. A locked-out owner can be reset with `ADLEDGER_BREAK_GLASS` (see docs/SECURITY.md).
 - **Put AdLedger behind a proxy that sets the client IP** (`X-Forwarded-For`, `X-Real-IP` or
   `CF-Connecting-IP`). Per-IP rate limits trust these headers; per-account login lockouts do not
   depend on them.
@@ -42,8 +52,10 @@ Supported versions: the latest release and `main`. Self-hosters should update re
 - **Give people the smallest role that works.** Owners and admins manage integrations and members;
   analysts can create API keys; viewers and clients are read-only, clients only for the workspaces
   you pick.
-- **Treat API keys like passwords.** A key reads the reports of its one workspace, can push
-  spend/conversions into it and trigger syncs. Revoke keys you no longer use in Settings → API.
+- **Treat API keys like passwords.** A key works on its one workspace and only within its scopes
+  (`reports:read` by default; `mcp`, `contacts:read`, `contacts:pii` and `ingest:write` on request).
+  Give out `contacts:pii` sparingly, set an expiry, and revoke keys you no longer use in
+  Settings → API & MCP.
 
 ## How AdLedger protects itself
 
@@ -51,12 +63,22 @@ Supported versions: the latest release and `main`. Self-hosters should update re
   check it on the server. Ids coming from the browser are always scoped to the caller's workspace
   or organization. REST/MCP calls with a dashboard session are held to the member's role; writes
   need the same permission as the matching screen and must come from the same origin (CSRF).
-  API keys are scoped to one workspace. The MCP server is read-only.
+  API keys are scoped to one workspace and carry explicit scopes. The MCP server is read-only.
+  Viewers and clients see masked contact emails; revealing one is audited.
 - **Sessions.** 256-bit random tokens, stored as SHA-256 hashes, in `httpOnly`, `SameSite=Lax`
   cookies. A new token is issued on every sign-in (the old one is revoked), sign-out deletes it,
   and changing the password signs out every device. Removing a member ends their access at once.
-- **Passwords.** scrypt (N=2^15). Sign-in and password checks are rate limited per IP and locked
+  Sessions expire when idle (default 7 days) and after a maximum lifetime (default 30 days); each
+  one records a truncated IP and browser and can be revoked from Settings → Account → Security.
+- **Two-factor sign-in.** TOTP (RFC 6238) with ten single-use recovery codes; codes can't be
+  replayed. The secret is encrypted like other credentials. Organizations can require it.
+- **Passwords.** scrypt (N=2^15), NIST SP 800-63B-4 rules (15 characters, or 8 with 2FA; common
+  passwords refused). Sign-in and password checks are rate limited per IP and locked
   per account after repeated failures (5 per IP and email, 20 per email, 15 minutes).
+- **Audit log.** Security-relevant actions are logged with a truncated IP and browser, chained by
+  SHA-256 hashes per organization (Verify finds edited or removed entries), and raise
+  `security_alert` notifications where it matters (new API key, role change, 2FA off, bulk export,
+  erasure, new-device sign-in).
 - **Invitations.** Single-use (claimed atomically), expire after 7 days, and bound to the invited
   email. Admins can't invite owners, an invitation is void if the inviter can no longer grant the
   role, and it never demotes an existing owner.

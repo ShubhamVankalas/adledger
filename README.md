@@ -171,7 +171,10 @@ Stack: Next.js 16 · TypeScript · PostgreSQL (Drizzle ORM) · Tailwind + shadcn
 - IPs are truncated before storage. The pixel honors `adledger.consent(false)`, Global Privacy Control and optional Do-Not-Track, and can wait for consent before storing or sending anything (`data-consent="required"`, for EU and UK visitors). Its cookie lasts 13 months.
 - Conversions sent back to Meta and Google carry consent signals (Google `adUserData`/`adPersonalization`, Meta Limited Data Use for GPC visitors); people who said no are never uploaded.
 - Connector credentials are encrypted at rest (AES-256-GCM) and never shown again.
-- API keys and sessions are stored hashed. The MCP server is read-only.
+- API keys and sessions are stored hashed. API keys carry scopes (read-only reports by default). The MCP server is read-only.
+- Free two-factor sign-in (authenticator app + recovery codes), which owners can require for everyone; session list with sign-out everywhere and idle timeouts.
+- Viewers and clients see masked contact emails; revealing one is logged. The audit log is hash-chained so edits show up when you verify it, and security events (new API key, role change, bulk export, new-device sign-in) alert your team.
+- Honest trust page: [docs/SECURITY.md](docs/SECURITY.md). No certification badges; what AdLedger does and doesn't do, named precisely.
 - Your data is yours: export contacts as CSV, download the whole workspace as JSON (Settings → Workspace), and set a retention period for raw website events.
 - Erasure and access requests (GDPR/CCPA): **Delete contact** / **Export data** on a contact, or `DELETE /api/v1/contacts/{id}` and `GET /api/v1/contacts/{id}/export` with an API key. Erasure removes the email everywhere and keeps the revenue anonymously, so totals don't change.
 - Found a vulnerability? See [SECURITY.md](SECURITY.md) for how to report it and for hardening notes.

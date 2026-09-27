@@ -40,6 +40,10 @@ services:
       LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
       ALLOW_PRIVATE_URLS: ${ALLOW_PRIVATE_URLS:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-}
+      # Security (docs/SECURITY.md): your own vulnerability contact for /.well-known/security.txt,
+      # and the one-time 2FA reset for a locked-out owner (remove it again after signing in).
+      SECURITY_CONTACT: ${SECURITY_CONTACT:-}
+      ADLEDGER_BREAK_GLASS: ${ADLEDGER_BREAK_GLASS:-}
     extra_hosts:
       # Lets AdLedger reach Ollama / LM Studio running on your computer.
       - "host.docker.internal:host-gateway"
