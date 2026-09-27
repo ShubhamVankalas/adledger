@@ -592,3 +592,57 @@ describe("security alerts", () => {
     }
   });
 });
+
+describe("security posture", () => {
+  it("warns while the encryption key sits in the database, and after APP_SECRET until the copy is gone", async () => {
+    const { securityPosture } = await import("@/lib/security/posture");
+    const { parsePolicy } = await import("@/lib/security/policy");
+    const { db, org } = await setupWorkspace();
+    const keyItem = async () => (await securityPosture(db, org.id, parsePolicy({}), { https: true })).find((i) => i.id === "key")!;
+    const before = process.env.APP_SECRET;
+    try {
+      delete process.env.APP_SECRET;
+      await db.insert(schema.appMeta).values({ key: "app_secret", value: "generated" }).onConflictDoNothing();
+      expect(await keyItem()).toMatchObject({ status: "warn", label: "Encryption key is stored next to the data" });
+      process.env.APP_SECRET = "from-the-environment";
+      expect(await keyItem()).toMatchObject({ status: "warn", label: "An old encryption key is still in the database" });
+      await db.delete(schema.appMeta).where(eq(schema.appMeta.key, "app_secret"));
+      expect((await keyItem()).status).toBe("ok");
+    } finally {
+      if (before === undefined) delete process.env.APP_SECRET;
+      else process.env.APP_SECRET = before;
+    }
+  });
+});
+
+describe("security.txt (RFC 9116)", () => {
+  it("lists the project's reporting form, a policy and an Expires under a year away", async () => {
+    const { securityTxt } = await import("@/lib/security/security-txt");
+    const now = new Date("2026-09-27T12:00:00Z");
+    const txt = securityTxt(undefined, now);
+    expect(txt).toMatch(/^Contact: https:\/\/github\.com\/.+\/security\/advisories\/new$/m);
+    expect(txt).toMatch(/^Policy: https:\/\/.+SECURITY\.md$/m);
+    const expires = new Date(/^Expires: (.+)$/m.exec(txt)![1]);
+    expect(expires.getTime()).toBeGreaterThan(now.getTime());
+    expect(expires.getTime() - now.getTime()).toBeLessThan(365 * 86_400_000);
+  });
+
+  it("puts a valid operator contact first and ignores anything else", async () => {
+    const { contactUri, securityTxt } = await import("@/lib/security/security-txt");
+    expect(contactUri("security@example.com")).toBe("mailto:security@example.com");
+    expect(contactUri("https://example.com/security")).toBe("https://example.com/security");
+    expect(contactUri("http://example.com/security")).toBeNull();
+    expect(contactUri("javascript:alert(1)")).toBeNull();
+    expect(contactUri("a@b.co\nContact: https://evil.test")).toBeNull();
+    const contacts = securityTxt("security@example.com").match(/^Contact: .+$/gm)!;
+    expect(contacts[0]).toBe("Contact: mailto:security@example.com");
+    expect(contacts).toHaveLength(2);
+  });
+
+  it("is served at /.well-known/security.txt as plain text", async () => {
+    const { GET } = await import("@/app/.well-known/security.txt/route");
+    const res = GET();
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    expect(await res.text()).toContain("Expires: ");
+  });
+});

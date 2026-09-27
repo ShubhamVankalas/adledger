@@ -13,6 +13,8 @@ export type PostureItem = {
   action?: { href: string; label: string };
 };
 
+const KEY_DOCS = "https://github.com/ShubhamVankalas/adledger/blob/main/docs/SECURITY.md#encryption-key";
+
 export type TwoFactorCoverage = { total: number; enabled: number; ownersWithout: number };
 
 export async function twoFactorCoverage(db: DB, organizationId: string): Promise<TwoFactorCoverage> {
@@ -45,17 +47,29 @@ export async function securityPosture(db: DB, organizationId: string, policy: Se
         .where(and(inArray(schema.apiKeys.workspaceId, workspaceIds), isNull(schema.apiKeys.revokedAt), isNotNull(schema.apiKeys.scopes), sql`'contacts:pii' = any(${schema.apiKeys.scopes})`))
     : [{ n: 0 }];
 
+  const [storedKey] = await db.select({ key: schema.appMeta.key }).from(schema.appMeta).where(eq(schema.appMeta.key, "app_secret"));
+  const keyDocs = { href: KEY_DOCS, label: "How to move it" };
+
   const items: PostureItem[] = [];
   items.push(
-    process.env.APP_SECRET
-      ? { id: "key", label: "Encryption key kept outside the database", status: "ok", detail: "APP_SECRET is set on the server, so a copy of the database alone can't decrypt stored credentials." }
-      : {
+    !process.env.APP_SECRET
+      ? {
           id: "key",
           label: "Encryption key is stored next to the data",
           status: "warn",
-          detail: "APP_SECRET isn't set, so the key that encrypts connector credentials and 2FA secrets was generated and saved in the database. Anyone holding a database backup can decrypt them. Set APP_SECRET on the server and restart.",
-          action: { href: "https://github.com/ShubhamVankalas/adledger/blob/main/docs/SECURITY.md#encryption-key", label: "How to set it" },
-        },
+          detail:
+            "APP_SECRET isn't set, so the key that encrypts connector credentials and 2FA secrets was generated and saved in the database. Anyone holding a database backup can decrypt them. Copy that key into APP_SECRET on the server (a new, different value would make saved credentials unreadable).",
+          action: keyDocs,
+        }
+      : storedKey
+        ? {
+            id: "key",
+            label: "An old encryption key is still in the database",
+            status: "warn",
+            detail: "APP_SECRET is set, but the key generated before it is still saved in the database. Once APP_SECRET holds that same value and everything works, delete the stored copy.",
+            action: keyDocs,
+          }
+        : { id: "key", label: "Encryption key kept outside the database", status: "ok", detail: "APP_SECRET is set on the server, so a copy of the database alone can't decrypt stored credentials." },
   );
   items.push(
     opts.https
