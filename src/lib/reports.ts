@@ -20,11 +20,11 @@ const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ratio = (a: number, b: number) => (b > 0 ? a / b : null);
 
 /** Local-midnight bounds of [start, end] in the workspace timezone (end inclusive). */
-function tsRange(col: SQL, ws: Workspace, p: ReportParams) {
+export function tsRange(col: SQL, ws: Workspace, p: ReportParams) {
   return sql`${col} >= (${p.start}::date)::timestamp at time zone ${ws.timezone}
     and ${col} < ((${p.end}::date + 1))::timestamp at time zone ${ws.timezone}`;
 }
-const platformFilter = (col: string, p: ReportParams) => (p.platform ? sql`and ${sql.raw(col)} = ${p.platform}` : sql``);
+export const platformFilter = (col: string, p: ReportParams) => (p.platform ? sql`and ${sql.raw(col)} = ${p.platform}` : sql``);
 
 export function previousPeriod(p: ReportParams): ReportParams {
   const s = Date.parse(`${p.start}T00:00:00Z`);
@@ -113,7 +113,7 @@ export async function overview(db: DB, ws: Workspace, p: ReportParams): Promise<
   };
 }
 
-async function currencyWarnings(db: DB, ws: Workspace, p: ReportParams): Promise<string[]> {
+export async function currencyWarnings(db: DB, ws: Workspace, p: ReportParams): Promise<string[]> {
   const out: string[] = [];
   const spendOther = rows<{ currency: string }>(
     await db.execute(sql`select distinct currency from ad_insights_daily
@@ -280,8 +280,13 @@ export async function channels(db: DB, ws: Workspace, p: ReportParams): Promise<
 /** Campaigns/ads with meaningful spend and no attributed revenue. */
 export async function wastedSpend(db: DB, ws: Workspace, p: ReportParams & { level?: PerfLevel; minSpendMinor?: number }) {
   const all = await performance(db, ws, { ...p, level: p.level ?? "campaign" });
+  return pickWastedSpend(all, p.minSpendMinor);
+}
+
+/** The wasted-spend rule on rows already fetched by `performance()`: ≥ 2% of spend and ROAS < 0.5. */
+export function pickWastedSpend(all: PerfRow[], minSpendMinor?: number): PerfRow[] {
   const total = all.reduce((s, r) => s + r.spendMinor, 0);
-  const min = p.minSpendMinor ?? Math.max(1, Math.round(total * 0.02));
+  const min = minSpendMinor ?? Math.max(1, Math.round(total * 0.02));
   return all
     .filter((r) => r.spendMinor >= min && (r.roas === null || r.roas < 0.5))
     .sort((a, b) => b.spendMinor - a.spendMinor);

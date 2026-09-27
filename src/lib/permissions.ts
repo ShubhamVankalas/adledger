@@ -22,7 +22,8 @@ export type Permission =
   | "members.manage"
   | "audit.view"
   | "org.branding"
-  | "org.manage";
+  | "org.manage"
+  | "dashboard.edit";
 
 const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
@@ -36,6 +37,8 @@ const MATRIX: Record<Permission, Role[]> = {
   "audit.view": ["owner", "admin"],
   "org.branding": ["owner", "admin"],
   "org.manage": ["owner"],
+  // Personal Overview layouts: everyone. Editing the workspace default also needs workspace.settings.
+  "dashboard.edit": ["owner", "admin", "analyst", "viewer", "client"],
 };
 
 export function roleCan(role: Role, permission: Permission): boolean {

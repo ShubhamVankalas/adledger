@@ -45,6 +45,7 @@ end to end in that form. Status below.
 | WordPress/WooCommerce plugin, Shopify pixel, GTM tag, site-builder guides | ✅ | `integrations/`, `docs/integrations/` |
 | First-run choice + guided setup checklist with live checks | ✅ | |
 | Real brand logos | ✅ | Simple Icons (CC0) + drawn marks |
+| Redesign phase 1c: Overview widget board | ✅ | Metric + widget registries, widgets 1–15, briefing sentence, KPI sparklines, Metric explorer, presets, edit mode (drag, sizes, sections), pinning, personal view / workspace default (`dashboards`). Next: widgets 16–24 (phase 2+), target settings UI, per-widget range override, mobile accordions |
 
 ## Redesign ("Quiet Ledger", docs/redesign/BRIEF.md)
 
