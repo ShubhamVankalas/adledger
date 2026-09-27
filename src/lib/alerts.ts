@@ -1,4 +1,5 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, like } from "drizzle-orm";
+import { allIntegrations } from "./connectors/registry";
 import { AD_PLATFORMS, type NotificationMessage } from "./connectors/types";
 import { getDb, schema, type DB } from "./db";
 import {
@@ -15,7 +16,7 @@ import {
 import type { AlertComparator, AlertMetric, AlertScope } from "./db/schema";
 import { credit, longDate, moneyWhole, platformLabel, roas as roasX, signedPct } from "./format";
 import { log } from "./log";
-import { fromDecimalString } from "./money";
+import { fromDecimalString, toDecimalString } from "./money";
 import { appUrl, sendToChannel } from "./notify";
 import { overview, performance, timeseries, type ReportParams } from "./reports";
 import type { Workspace } from "./settings";
@@ -428,4 +429,86 @@ export async function recentAlertEvents(db: DB, workspaceId: string, limit = 30)
     .where(eq(schema.alertEvents.workspaceId, workspaceId))
     .orderBy(desc(schema.alertEvents.createdAt))
     .limit(limit);
+}
+
+// ---------------------------------------------------------------- views (Settings → Alerts, Insights → Alerts)
+
+/** The threshold as the form shows it: "80" or "79.5" for money, "1.5" for ROAS, "10" for leads. */
+export function thresholdInput(rule: Pick<AlertRule, "metric" | "thresholdMinor" | "thresholdValue">, currency: string): string {
+  if (metricDef(rule.metric).unit === "money") {
+    if (rule.thresholdMinor === null) return "";
+    const s = toDecimalString(rule.thresholdMinor, currency);
+    return s.includes(".") ? s.replace(/0+$/, "").replace(/\.$/, "") : s;
+  }
+  return rule.thresholdValue === null ? "" : String(Number(rule.thresholdValue));
+}
+
+/** Symbol for the threshold field prefix ("$", "₹", "€"), falling back to the ISO code. */
+export function currencySymbol(currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).formatToParts(0).find((p) => p.type === "currency")?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+/** Everything the alerts screens render, already formatted (no numbers are computed in the UI). */
+export async function alertsView(db: DB, ws: Workspace, opts: { historyLimit?: number } = {}) {
+  const [rules, events, conns, campaigns] = await Promise.all([
+    db.select().from(schema.alertRules).where(eq(schema.alertRules.workspaceId, ws.id)).orderBy(schema.alertRules.createdAt),
+    recentAlertEvents(db, ws.id, opts.historyLimit ?? 30),
+    db
+      .select({ provider: schema.connections.provider, enabled: schema.connections.enabled })
+      .from(schema.connections)
+      .where(and(eq(schema.connections.workspaceId, ws.id), like(schema.connections.provider, "notify_%"))),
+    db
+      .select({ id: schema.campaigns.id, name: schema.campaigns.name, platform: schema.campaigns.platform })
+      .from(schema.campaigns)
+      .where(eq(schema.campaigns.workspaceId, ws.id))
+      .orderBy(schema.campaigns.name),
+  ]);
+  const channelNames: Record<string, string> = Object.fromEntries(allIntegrations().filter((i) => i.category === "notifications").map((i) => [i.provider, i.name]));
+  const channels = conns.filter((c) => c.enabled).map((c) => ({ provider: c.provider as string, name: channelNames[c.provider] ?? c.provider }));
+  const campaignName = new Map(campaigns.map((c) => [c.id, c.name]));
+  const anomaly = rules.find((r) => r.kind === "anomaly") ?? null;
+  return {
+    channels,
+    channelNames,
+    campaigns: campaigns.map((c) => ({ id: c.id, name: c.name, platform: c.platform as string })),
+    anomaly: anomaly
+      ? { enabled: anomaly.enabled, z: anomaly.thresholdValue === null ? 3 : Number(anomaly.thresholdValue), channels: anomaly.channels }
+      : { enabled: false, z: 3, channels: channels.map((c) => c.provider) },
+    rules: rules
+      .filter((r) => r.kind === "threshold")
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        metric: r.metric,
+        comparator: r.comparator,
+        threshold: thresholdInput(r, ws.reportingCurrency),
+        windowDays: r.windowDays,
+        scope: r.scope,
+        scopeId: r.scopeId,
+        channels: r.channels,
+        cooldownHours: r.cooldownHours,
+        enabled: r.enabled,
+        state: r.state,
+        summary: describeRule(r, ws.reportingCurrency),
+        scopeLabel: scopeLabel(r, r.scope === "campaign" ? (campaignName.get(r.scopeId ?? "") ?? null) : null),
+        lastValue: r.lastEvaluatedAt ? formatMetric(r.metric, r.lastValue === null ? null : Number(r.lastValue), ws.reportingCurrency) : null,
+        lastEvaluatedAt: r.lastEvaluatedAt?.toISOString() ?? null,
+        lastTriggeredAt: r.lastTriggeredAt?.toISOString() ?? null,
+      })),
+    history: events.map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      status: e.status,
+      title: e.title,
+      detail: e.detail,
+      periodStart: e.periodStart,
+      periodEnd: e.periodEnd,
+      delivered: e.delivered,
+      createdAt: e.createdAt.toISOString(),
+    })),
+  };
 }
