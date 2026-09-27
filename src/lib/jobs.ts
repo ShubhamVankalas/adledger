@@ -1,6 +1,6 @@
 import { recomputeAttribution } from "./attribution";
-import { sql } from "drizzle-orm";
-import { getDb, isEmbeddedDb, rows } from "./db";
+import { eq, sql } from "drizzle-orm";
+import { getDb, isEmbeddedDb, rows, schema } from "./db";
 import { log } from "./log";
 
 // In-process background work. AdLedger runs as a single app container, so there
@@ -42,7 +42,8 @@ type Scheduled = { name: string; everyMs: number; run: () => Promise<unknown> };
 
 /**
  * Jobs that always run alongside the ones boot() passes in. Their modules load lazily so the
- * PDF renderer stays out of every request path that imports this file.
+ * PDF renderer stays out of every request path that imports this file (and jobs.ts stays free of
+ * import cycles: alerts → notify → reports).
  */
 export const BUILTIN_JOBS: Scheduled[] = [
   {
@@ -55,7 +56,22 @@ export const BUILTIN_JOBS: Scheduled[] = [
       if (ran) log.info(`scheduled reports: ${ran} delivered or skipped`);
     },
   },
+  {
+    // Insights → Alerts: threshold rules and anomaly detection over the last complete days.
+    name: "alerts",
+    everyMs: 3_600_000,
+    run: async () => (await import("./alerts")).runAlertsAll(),
+  },
 ];
+
+/** Re-check alert rules soon for one workspace (e.g. right after a sync brought new numbers). */
+export function requestAlertCheck(workspaceId: string) {
+  return debounce(`alerts:${workspaceId}`, 30_000, async () => {
+    const [{ runAlerts }, db] = await Promise.all([import("./alerts"), getDb()]);
+    const [ws] = await db.select().from(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+    if (ws) await runAlerts(db, ws);
+  });
+}
 
 /** Start interval jobs; each tick takes a cluster-wide advisory lock. */
 export function startScheduler(jobs: Scheduled[]) {

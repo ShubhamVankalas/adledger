@@ -89,7 +89,7 @@ Rules:
 | App | `node server.js` (Next.js standalone output) on port 3000 |
 | Database | PostgreSQL 16 via `DATABASE_URL`; if unset, embedded PGlite in `DATA_DIR` (dev, single-container trials) |
 | Migrations | Applied automatically at startup (`src/lib/db/index.ts`) |
-| Background jobs | `src/lib/jobs.ts`: ad sync every `SYNC_INTERVAL_HOURS` (6), weekly insights check hourly, conversion uploads hourly, debounced attribution recompute after webhooks/leads/syncs. Scheduled jobs take a Postgres advisory lock, so running several replicas is safe. |
+| Background jobs | `src/lib/jobs.ts`: ad sync every `SYNC_INTERVAL_HOURS` (6), weekly insights check hourly, conversion uploads hourly, alert rules hourly, debounced attribution recompute after webhooks/leads/syncs. Scheduled jobs take a Postgres advisory lock, so running several replicas is safe. |
 | HTTPS | Optional Caddy container (`docker compose --profile https`) or any reverse proxy |
 
 ## 4. Data model (PostgreSQL)
@@ -145,6 +145,13 @@ stage ids with names snapshotted, source manual|payment|system, user, occurred_a
 the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
 nulls not distinct).
 
+**Automation, sharing, Ask** — `alert_rules` (kind threshold|anomaly, metric cac|cpl|roas|spend|revenue|leads,
+comparator, `threshold_minor` for money or `threshold_value` for ratios/counts/z-score, window_days, scope
+workspace|platform|campaign + scope_id, channels jsonb, cooldown_hours, enabled, state ok|breached, last value
+and times), `alert_events` (history: triggered|resolved, title, detail, value, period, channels delivered),
+`share_links` (SHA-256 of the token, label, page, locked filters jsonb, expires_at, revoked_at, view_count,
+last_viewed_at, created_by), `ask_messages` (per-user Ask history: role, content, the SQL result tables it
+cites, unverified numbers, model name).
 **Reports** — `report_schedules` (report kind, params {model, compare}, weekly/monthly cadence, weekday,
 local hour, recipients {all | user ids}, skip_empty, last run status), `export_log` (one row per PDF:
 user / API key / schedule id, kind, params, unique fingerprint, data hash, bytes, pages, recipients,
@@ -495,9 +502,51 @@ filled from the merged one, the email moves over only if the kept contact has no
 is deleted, and attribution is recomputed. Merging needs `workspace.data`, importing and dismissing
 `workspace.settings`; all three write `audit()` with IDs only.
 
-**Notifications.** `src/lib/notify` delivers events (weekly report, daily digest, wasted spend, sync
+**Notifications.** `src/lib/notify` delivers events (weekly report, KPI digest, wasted spend, sync
 failed, new customer, large payment) to the channels selected in `notification_rules`. Scheduled
 events run hourly and respect the workspace timezone; delivery failures are logged, never thrown.
+The KPI digest (`daily_digest` event) has a per-channel cadence stored in the rule's settings
+(`cadence`: daily = yesterday, weekly = the 7 days to Sunday sent on Mondays, monthly = last month
+sent on the 1st; `digestPeriod()` in `notify/index.ts`).
+
+**Alerts.** `src/lib/alerts.ts` (client-safe constants in `alerts-meta.ts`). A threshold rule reads one
+metric for the last N complete days (workspace timezone, linear model) through `reports.ts`
+(`overview()` for the workspace or a platform, `performance()` for a campaign; platform/campaign
+revenue and leads are the ones credited to ads). It notifies once per breach: state goes `ok → breached`
+when it fires and back to `ok` (with a "resolved" event) when the metric recovers, and it never fires
+again within `cooldown_hours` of the last notification. A metric that can't be measured (CAC with no
+customers) never fires. The built-in anomaly rule (one per workspace, off by default) z-scores
+yesterday's revenue, spend and leads against the previous 28 days (needs 14 active days and some
+variation) and logs each metric at most once per day. Rules run hourly as the `alerts` job, which
+`jobs.ts` appends to the scheduler (`BUILTIN_JOBS`); `requestAlertCheck(workspaceId)` re-checks one
+workspace soon after new data. Settings → Alerts (`/settings/workspace/alerts`, `alerts.manage`) has
+the rule builder with a live "right now" preview, the anomaly toggle and the history.
+
+**Share links.** `src/lib/share.ts`. A link is a 256-bit random token shown once; only its SHA-256 is
+stored. Its filters (rolling range or fixed dates, model, optional platform) are locked at creation:
+`/share/[token]` computes everything from the stored filters and ignores every URL parameter.
+`loadSharedReport()` returns an explicit allow-list of aggregates (KPIs vs the previous period, spend
+vs revenue from ads by day, top 10 campaigns, platforms), never ids, contacts or emails; with a platform
+locked, revenue, leads and customers are only those credited to that platform and the platform table
+is dropped. Unknown, expired and revoked tokens all 404 the same way. The page is `noindex`,
+rate-limited per IP (60/min), counts views and writes `share_link.view` to the audit log with a
+truncated IP. Settings → Sharing (`/settings/workspace/sharing`, `reports.share`) creates and revokes.
+
+**Insights v2.** `/insights` has three tabs in the URL (`?tab=`): Reports (action cards from
+`reports-insights.ts` above the weekly report), Ask and Alerts (history + what's being watched).
+Action cards are read-only rules over `performance()`/`overview()` rows (move budget from the biggest
+ROAS < 0.5× campaign to the best ≥ 1.5×, a strong campaign with a small share of spend, the biggest
+revenue drop, CAC up ≥ 20%, ≥ 40% of revenue unattributed); every figure is a chip that links to the
+row it came from (`/performance?level=ad_group&parent=<campaign>` or the Overview with the same period).
+**Ask** (`src/lib/ai/ask.ts`, `insights.ask`) answers with read-only tools that run the same
+`reports.ts` functions as the dashboard, REST API and MCP server (`get_overview`, `get_performance`,
+`get_platform_breakdown`, `compare_periods`, `find_wasted_spend`, `get_timeseries`,
+`search_campaigns`; nothing person-level). The model sees pre-formatted values (`ai/ask-format.ts`, the
+same formatter the UI uses), writes one to three sentences, and any number it writes that no tool
+returned is flagged; answers render the tool tables with a link to the matching dashboard view.
+Without a model (or when it fails, or a local model skips the tools) a rule-based router
+(`planQuestion`) picks one tool and describes the result from the table's own values. History is
+per user (last 200 kept). The command palette's "?" questions arrive through `sessionStorage`.
 
 **Command palette & shortcuts.** `src/lib/hotkeys.ts` is the single shortcut registry (no dependency):
 key strings like `"g o"` (G then O within 1 s), `"mod+k"` (⌘K / Ctrl K) or `"?"`, matched on `event.key`,
@@ -560,6 +609,8 @@ not provided). Headless installs can set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (+ `DEMO
 - Passwords: scrypt (N=2^15). Credentials: AES-256-GCM.
 - Security headers (CSP, frame/sniff/referrer/permissions policies, HSTS over HTTPS) on dashboard
   routes; CORS open only on the pixel endpoint.
+- Share links (`/share/[token]`): hashed 256-bit tokens, aggregates only, filters locked server-side,
+  expiring and revocable, `noindex`, rate-limited, every view audited with a truncated IP.
 
 ### 7.1 Trust core (`src/lib/security/`)
 

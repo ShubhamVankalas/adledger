@@ -763,6 +763,140 @@ export const dashboards = pgTable(
   (t) => [unique("dashboards_scope_uq").on(t.workspaceId, t.userId).nullsNotDistinct()],
 );
 
+// ---------------------------------------------------------------- alerts (Insights → Alerts)
+
+export type AlertMetric = "cac" | "cpl" | "roas" | "spend" | "revenue" | "leads";
+export type AlertComparator = "gt" | "lt";
+export type AlertScope = "workspace" | "platform" | "campaign";
+
+/**
+ * Threshold rules ("CAC above $80 over the last 2 days on Meta") and the built-in anomaly rule
+ * (kind = "anomaly": z-score on daily revenue, spend and leads). Evaluated hourly by the
+ * `alerts` job; a rule notifies once per breach and never more often than `cooldown_hours`.
+ * Money thresholds are integer minor units in `threshold_minor`; ratios, counts and the anomaly
+ * z-score use `threshold_value`.
+ */
+export const alertRules = pgTable(
+  "alert_rules",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    kind: text("kind").$type<"threshold" | "anomaly">().notNull().default("threshold"),
+    name: text("name").notNull(),
+    metric: text("metric").$type<AlertMetric | "anomaly">().notNull(),
+    comparator: text("comparator").$type<AlertComparator>().notNull().default("gt"),
+    thresholdMinor: bigint("threshold_minor", { mode: "number" }),
+    thresholdValue: numeric("threshold_value", { precision: 14, scale: 4 }),
+    windowDays: integer("window_days").notNull().default(1),
+    scope: text("scope").$type<AlertScope>().notNull().default("workspace"),
+    /** Platform id (scope = platform) or campaigns.id (scope = campaign). */
+    scopeId: text("scope_id"),
+    /** notify_* connection providers that receive this alert. */
+    channels: jsonb("channels").$type<string[]>().notNull().default([]),
+    cooldownHours: integer("cooldown_hours").notNull().default(24),
+    enabled: boolean("enabled").notNull().default(true),
+    state: text("state").$type<"ok" | "breached">().notNull().default("ok"),
+    /** Last observed value: minor units for money metrics, otherwise the ratio / count. */
+    lastValue: numeric("last_value", { precision: 20, scale: 4 }),
+    lastEvaluatedAt: tstz("last_evaluated_at"),
+    lastTriggeredAt: tstz("last_triggered_at"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.kind)],
+);
+
+/** Alert history: every trigger and resolution, and each anomaly. */
+export const alertEvents = pgTable(
+  "alert_events",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    ruleId: uuid("rule_id").references(() => alertRules.id, { onDelete: "set null" }),
+    kind: text("kind").$type<"threshold" | "anomaly">().notNull(),
+    status: text("status").$type<"triggered" | "resolved">().notNull(),
+    metric: text("metric").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull().default(""),
+    /** Observed value: minor units for money metrics, otherwise the ratio / count. */
+    value: numeric("value", { precision: 20, scale: 4 }),
+    periodStart: date("period_start", { mode: "string" }).notNull(),
+    periodEnd: date("period_end", { mode: "string" }).notNull(),
+    /** Channels the message reached (failed deliveries are left out). */
+    delivered: jsonb("delivered").$type<string[]>().notNull().default([]),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.createdAt), index().on(t.ruleId)],
+);
+
+// ---------------------------------------------------------------- share links (/share/[token])
+
+export type ShareRange = "7d" | "14d" | "30d" | "90d";
+export type ShareFilters = {
+  /** Rolling window ending on the latest day with data, or a fixed `start`–`end`. */
+  range?: ShareRange;
+  start?: string;
+  end?: string;
+  model: AttributionModel;
+  platform?: Platform;
+};
+
+/** Read-only, aggregate-only links for clients. The token is shown once; only its SHA-256 is stored. */
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    tokenHash: text("token_hash").notNull(),
+    label: text("label").notNull(),
+    page: text("page").$type<"overview">().notNull().default("overview"),
+    filters: jsonb("filters").$type<ShareFilters>().notNull(),
+    expiresAt: tstz("expires_at").notNull(),
+    revokedAt: tstz("revoked_at"),
+    viewCount: integer("view_count").notNull().default(0),
+    lastViewedAt: tstz("last_viewed_at"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("share_links_token_uq").on(t.tokenHash), index().on(t.workspaceId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------- Ask (Insights → Ask)
+
+export type AskColumnKind = "text" | "platform" | "money" | "ratio" | "count" | "credit" | "pct" | "date";
+export type AskTableColumn = { key: string; label: string; kind: AskColumnKind };
+export type AskTable = {
+  title: string;
+  /** Period, model and scope in words, e.g. "Aug 3 – Sep 1, 2026 · Linear attribution". */
+  caption: string;
+  currency: string;
+  columns: AskTableColumn[];
+  /** Raw values from reports.ts: money in minor units, ratios as numbers. */
+  rows: Record<string, string | number | null>[];
+  /** Dashboard page with the same filters, where the numbers can be checked. */
+  source: string;
+};
+
+/** Per-user Ask history. Answers carry the SQL result tables they cite. */
+export const askMessages = pgTable(
+  "ask_messages",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").$type<"user" | "assistant">().notNull(),
+    content: text("content").notNull(),
+    tables: jsonb("tables").$type<AskTable[]>().notNull().default([]),
+    /** Numbers in the answer that no tool result contains (shown as a warning). */
+    unverifiedNumbers: jsonb("unverified_numbers").$type<string[]>().notNull().default([]),
+    modelName: text("model_name"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.userId, t.createdAt)],
+);
+
 // ---------------------------------------------------------------- reports & exports
 
 /**

@@ -4,6 +4,7 @@ import { BellOffIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { saveNotificationRulesAction } from "@/app/actions/notifications";
 import { useFormAction } from "@/components/action-button";
+import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,13 @@ import { timeAgo } from "@/lib/format";
 import { IntegrationDialog, StatusBadge, type IntegrationState } from "./integration-dialog";
 import { IntegrationLogo } from "./integration-logo";
 
-type EventDef = { event: string; label: string; description: string; defaults: Record<string, string | number> };
+type EventDef = {
+  event: string;
+  label: string;
+  description: string;
+  defaults: Record<string, string | number>;
+  perChannel?: { key: string; options: { value: string; label: string }[] };
+};
 type Rule = { event: string; channel: string; settings: Record<string, string | number>; lastSentAt: string | null };
 
 const SETTING_LABELS: Record<string, { label: string; suffix?: string; max?: number }> = {
@@ -121,6 +128,35 @@ export function NotificationsPanel({
                       <div className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2 @2xl/settings:contents">
                         {connected.map((c) => {
                           const r = rule(e.event, c.provider);
+                          if (e.perChannel) {
+                            const pc = e.perChannel;
+                            return (
+                              <label
+                                key={c.provider}
+                                className="flex min-w-0 flex-col gap-1 text-sm @2xl/settings:items-center @2xl/settings:pt-0.5"
+                              >
+                                <span className="truncate text-xs text-muted-foreground @2xl/settings:sr-only">{c.name}</span>
+                                <NativeSelect
+                                  name={`choice:${e.event}:${c.provider}`}
+                                  defaultValue={r ? String(r.settings[pc.key] ?? pc.options[0]?.value) : "off"}
+                                  aria-label={`${e.label} via ${c.name}`}
+                                  className="w-full @2xl/settings:w-[6.5rem]"
+                                >
+                                  <option value="off">Off</option>
+                                  {pc.options.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                      {o.label}
+                                    </option>
+                                  ))}
+                                </NativeSelect>
+                                {r?.lastSentAt ? (
+                                  <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
+                                    sent {timeAgo(r.lastSentAt)}
+                                  </span>
+                                ) : null}
+                              </label>
+                            );
+                          }
                           return (
                             <label
                               key={c.provider}

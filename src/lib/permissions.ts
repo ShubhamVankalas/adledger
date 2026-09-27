@@ -25,6 +25,8 @@ export type Permission =
   | "contacts.edit"
   | "contacts.notes"
   | "insights.generate"
+  | "insights.ask"
+  | "alerts.manage"
   | "apikeys.manage"
   | "workspace.settings"
   | "workspace.data"
@@ -60,6 +62,9 @@ const MATRIX: Record<Permission, Role[]> = {
   "contacts.edit": ["owner", "admin", "analyst"],
   "contacts.notes": ["owner", "admin", "analyst", "viewer"],
   "insights.generate": ["owner", "admin", "analyst"],
+  // Ask reads aggregates only; clients are left out so an agency's AI model isn't spent by client seats.
+  "insights.ask": ["owner", "admin", "analyst", "viewer"],
+  "alerts.manage": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],
   "workspace.data": ["owner", "admin"],
