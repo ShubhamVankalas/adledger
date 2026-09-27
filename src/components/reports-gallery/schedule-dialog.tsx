@@ -199,7 +199,7 @@ function ScheduleForm({ report, onOpenChange, model, timezone, members, currentU
         <legend className="mb-2 text-sm font-medium">Send to</legend>
         <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-sm">
           <input type="radio" name={`${id}-who`} value="all" checked={who === "all"} onChange={() => setWho("all")} className="size-4 accent-foreground" />
-          Everyone in this workspace
+          Everyone with PDF access
           <span className="text-muted-foreground tabular-nums">({members.length})</span>
         </label>
         <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-sm">

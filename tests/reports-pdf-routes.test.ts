@@ -75,6 +75,9 @@ describe("GET /api/v1/reports/{kind}/pdf", () => {
       const r = await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users[role]!.id)}` });
       expect(r.status, role).toBe(403);
     }
+    // A cross-site page can't make a signed-in browser render (and log) a report.
+    const cross = await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users.analyst!.id)}`, "sec-fetch-site": "cross-site" });
+    expect(cross.status).toBe(403);
     const res = await call("executive-summary", { cookie: `${SESSION_COOKIE}=${await token(users.analyst!.id)}` });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/pdf");
@@ -223,7 +226,8 @@ describe("scheduled reports", () => {
       expect(outcome.status).toBe("sent");
       expect(mail.sent).toHaveLength(1);
       const m = mail.sent[0] as { bcc: string; to: string; subject: string; attachments: { filename: string; content: Buffer; contentType: string }[]; html: string };
-      expect(m.bcc.split(", ").sort()).toEqual(["admin@pdf.test", "analyst@pdf.test", "client@pdf.test", "owner@pdf.test", "viewer@pdf.test"]);
+      // Viewers and clients can't download PDFs, so the schedule doesn't email them one either.
+      expect(m.bcc.split(", ").sort()).toEqual(["admin@pdf.test", "analyst@pdf.test", "owner@pdf.test"]);
       expect(m.to).toBe("AdLedger <reports@pdf.test>");
       expect(m.subject).toBe("Weekly performance · Route Test · 21 – 27 Sep 2026");
       expect(m.attachments).toHaveLength(1);
@@ -231,7 +235,7 @@ describe("scheduled reports", () => {
       expect(m.attachments[0].content.subarray(0, 5).toString("latin1")).toBe("%PDF-");
       expect(m.html).toContain("$123");
       const [row] = await db.select().from(schema.exportLog).where(eq(schema.exportLog.id, outcome.exportId!));
-      expect(row).toMatchObject({ scheduleId: s.id, via: "schedule", recipients: 5, status: "ok", params: { start: "2026-09-21", end: "2026-09-27", model: "linear", compare: "previous" } });
+      expect(row).toMatchObject({ scheduleId: s.id, via: "schedule", recipients: 3, status: "ok", params: { start: "2026-09-21", end: "2026-09-27", model: "linear", compare: "previous" } });
       [after] = await db.select().from(schema.reportSchedules).where(eq(schema.reportSchedules.id, s.id));
       expect(after).toMatchObject({ lastStatus: "sent", lastError: null });
 

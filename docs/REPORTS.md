@@ -51,7 +51,8 @@ Reports → **Schedule** on any report:
 
 - **Weekly** on a chosen day and hour, covering the seven days before each send, or **monthly** on
   the 1st, covering the previous calendar month. Times are in the workspace timezone.
-- **Send to** everyone who can open the workspace, or only the people you choose.
+- **Send to** everyone who can open the workspace and download PDFs (owners, admins and analysts;
+  viewers and clients never receive one), or only the people you choose among them.
 - **Skip quiet periods** (on by default): nothing is sent when the period had no ad spend and no revenue.
 
 Scheduled reports go out by email through the workspace's **Email** channel (Settings →

@@ -31,6 +31,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ report: 
   if (principal.kind === "session" && !principal.user.can("reports.pdf")) {
     return json({ error: "forbidden", hint: "Your role can't download PDF reports. Ask an admin." }, { status: 403, headers: NO_STORE });
   }
+  // Downloads render and log an export: a cross-site link or form must not trigger one with the
+  // visitor's cookie. (Plain GETs without Sec-Fetch-Site, e.g. curl with a cookie, still work.)
+  const site = req.headers.get("sec-fetch-site");
+  if (principal.kind === "session" && site && site !== "same-origin" && site !== "none") {
+    return json({ error: "cross-site request blocked" }, { status: 403, headers: NO_STORE });
+  }
   const ws = principal.workspace;
   if (!rateLimit(`pdf:${ws.id}`, 30)) return json({ error: "rate limited", hint: "Slow down and retry in a minute." }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
 

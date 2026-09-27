@@ -57,7 +57,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     name: s.name,
     reportTitle: isReportKindId(s.reportKind) ? REPORT_CATALOG[s.reportKind].title : s.reportKind,
     cadence: cadenceLabel(s),
-    recipients: s.recipients.all ? "everyone in the workspace" : `${s.recipients.userIds.length} ${s.recipients.userIds.length === 1 ? "person" : "people"}`,
+    recipients: s.recipients.all ? "everyone with PDF access" : `${s.recipients.userIds.length} ${s.recipients.userIds.length === 1 ? "person" : "people"}`,
     enabled: s.enabled,
     lastStatus: s.lastStatus ?? null,
     lastError: s.lastError,
