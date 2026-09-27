@@ -39,9 +39,10 @@ export function KpiCard({
       className={cn(
         "@container/kpi relative h-full gap-0 overflow-hidden p-3.5 transition-[box-shadow,background-color] sm:p-4",
         hint && "hover:ring-foreground/20",
-        accent && "bg-gradient-to-br from-primary/10 via-card to-card ring-primary/30 dark:from-primary/12 dark:ring-primary/35",
+        accent && "bg-gradient-to-br from-brand/8 via-card to-card ring-brand/35 dark:from-brand/12 dark:ring-brand/40",
       )}
     >
+      {accent ? <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-brand-gradient" /> : null}
       <div className="flex items-center justify-between gap-2">
         <span className={cn("label-caps min-w-0 truncate", hint && "underline decoration-dotted decoration-muted-foreground/50 underline-offset-4")}>
           {label}
@@ -52,7 +53,7 @@ export function KpiCard({
             "hidden size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-foreground/5",
             // Long labels ("Journey starters") keep the icon only when the card has room for both.
             label.length > 12 ? "@[12rem]/kpi:flex" : "@[8rem]/kpi:flex",
-            accent && "bg-primary/15 text-primary ring-primary/20",
+            accent && "bg-brand-soft text-brand-foreground ring-brand/20",
           )}
         >
           <Icon className="size-3.5" />

@@ -62,6 +62,8 @@ export const organizations = pgTable("organizations", {
   security: jsonb("security").$type<OrgSecurity>().notNull().default({}),
   /** PNG copy of the logo for PDF reports (react-pdf reads only PNG/JPEG), written at upload. */
   logoPng: bytea("logo_png"),
+  /** Accent theme picked in Settings → Organization → Appearance (lib/themes.ts); null = default. */
+  theme: jsonb("theme").$type<{ kind: "solid" | "gradient"; id: string }>(),
   createdAt: createdAt(),
 });
 /** Stored shape of organizations.security; every field is optional and parsed with defaults. */

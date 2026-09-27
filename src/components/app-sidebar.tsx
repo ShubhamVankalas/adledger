@@ -400,6 +400,13 @@ function SetupRing({ done, total }: { done: number; total: number }) {
   const frac = total > 0 ? Math.min(1, done / total) : 0;
   return (
     <svg viewBox="0 0 20 20" aria-hidden className="size-5! shrink-0 -rotate-90">
+      {/* Follows the organization theme: a gradient when it has one, else the solid brand colour. */}
+      <defs>
+        <linearGradient id="setup-ring-brand" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" style={{ stopColor: "var(--brand)" }} />
+          <stop offset="100%" style={{ stopColor: "var(--brand-2, var(--brand))" }} />
+        </linearGradient>
+      </defs>
       <circle cx="10" cy="10" r={r} fill="none" strokeWidth="2.5" className="stroke-fill-active" />
       <circle
         cx="10"
@@ -410,7 +417,8 @@ function SetupRing({ done, total }: { done: number; total: number }) {
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={c * (1 - frac)}
-        className="stroke-brand transition-[stroke-dashoffset] duration-(--dur-slow) ease-out"
+        stroke="url(#setup-ring-brand)"
+        className="transition-[stroke-dashoffset] duration-(--dur-slow) ease-out"
       />
     </svg>
   );

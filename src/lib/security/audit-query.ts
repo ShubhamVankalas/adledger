@@ -45,6 +45,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "security.2fa_reset": "reset two-factor sign-in for",
   "organization.logo_updated": "uploaded a new logo for",
   "organization.logo_removed": "removed the logo of",
+  "organization.theme_updated": "changed the colour theme of",
   "contact.erased": "deleted a contact (erasure request)",
   "contact.exported": "exported a contact’s data",
   "contact.pii_revealed": "revealed contact emails",

@@ -13,6 +13,7 @@ import { getDb, schema } from "@/lib/db";
 import { roleLabel } from "@/lib/permissions";
 import { overdueTaskCount } from "@/lib/reports-crm";
 import { livePulse } from "@/lib/reports-live";
+import { themeCss } from "@/lib/themes";
 import { listPinnedViews } from "@/lib/views";
 
 export const dynamic = "force-dynamic";
@@ -42,10 +43,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     status && !status.complete
       ? { done: required.filter((s) => s.done).length, total: required.length, next: required.find((s) => !s.done)?.label ?? null }
       : null;
+  // The organization's accent theme, rendered with the page so the default colour never flashes.
+  const orgThemeCss = themeCss(user.organization.theme);
 
   return (
     // Tablets (md–lg) start with the icon rail so reports get the width; "[" or the toggle expands it.
     <SidebarProvider defaultOpen={open} collapseBelow={1024}>
+      {/* Catalog CSS only (lib/themes.ts): stored ids are validated, never interpolated. */}
+      {orgThemeCss ? <style id="org-theme" dangerouslySetInnerHTML={{ __html: orgThemeCss }} /> : null}
       <ShellProvider
         value={{
           workspaceId: user.workspace.id,

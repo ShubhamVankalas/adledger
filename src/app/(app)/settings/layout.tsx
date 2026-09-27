@@ -20,6 +20,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
           canMembers={user.can("members.manage")}
           canAudit={user.can("audit.view")}
           canAlerts={user.can("alerts.manage")}
+          canBrand={user.can("org.branding")}
           canShare={user.can("reports.share")}
         />
         {/* Container queries (@…/settings) let each page adapt to the width it actually gets. */}

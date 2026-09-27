@@ -103,7 +103,7 @@ export function PendingBar() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 overflow-hidden">
       {pending ? (
-        <div className="pending-line h-full w-full bg-brand" />
+        <div className="pending-line h-full w-full bg-brand-gradient" />
       ) : null}
     </div>
   );

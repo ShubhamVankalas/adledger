@@ -161,6 +161,10 @@
   --brand-soft: oklch(0.55 0.13 162 / 0.09);
   --brand-fg: oklch(0.42 0.1 162);
   --ring: oklch(0.55 0.13 162 / 0.45);
+  /* Second stop of a gradient accent (Settings → Appearance); the same as --brand unless an organization
+     picks a gradient theme. Themes override these tokens server-side, see lib/themes.ts. */
+  --brand-2: var(--brand);
+  --brand-gradient: linear-gradient(135deg, var(--brand), var(--brand-2));
 
   /* semantic: green only for money in, red for loss */
   /* 0.49 (brief: 0.52) keeps small green text AA on its own soft tint. */
@@ -502,6 +506,19 @@
     animation: delayed-reveal var(--dur-fast) linear 120ms both !important;
     opacity: 0.7;
   }
+}
+/* Accent surfaces (logo dot, active indicators, progress line, KPI accent): the organization's gradient,
+   or the solid brand colour when its theme is a solid. */
+@utility bg-brand-gradient {
+  background-color: var(--brand);
+  background-image: var(--brand-gradient);
+}
+@utility text-brand-gradient {
+  color: var(--brand-fg);
+  background-image: linear-gradient(135deg, var(--brand-fg), color-mix(in oklch, var(--brand-2) 70%, var(--brand-fg)));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 /* Loading placeholders wait 200ms before they fade in. */
 @utility reveal-delayed {

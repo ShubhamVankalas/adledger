@@ -15,6 +15,7 @@ import {
   FileClockIcon,
   LockKeyholeIcon,
   MousePointerClickIcon,
+  PaletteIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   UploadIcon,
@@ -38,6 +39,7 @@ export function SettingsNav({
   canAudit,
   canAlerts,
   canShare,
+  canBrand = false,
 }: {
   workspaceName: string;
   organizationName: string;
@@ -47,6 +49,7 @@ export function SettingsNav({
   canAudit: boolean;
   canAlerts: boolean;
   canShare: boolean;
+  canBrand?: boolean;
 }) {
   const pathname = usePathname();
   const strip = useRef<HTMLDivElement>(null);
@@ -82,6 +85,7 @@ export function SettingsNav({
       subtitle: organizationName,
       items: [
         { href: "/settings/organization", label: "Organization & workspaces", short: "Organization", icon: Building2Icon },
+        { href: "/settings/organization/appearance", label: "Appearance", icon: PaletteIcon, show: canBrand },
         { href: "/settings/organization/members", label: "Members & roles", short: "Members", icon: UsersIcon, show: canMembers },
         { href: "/settings/organization/security", label: "Security policy", short: "Policy", icon: ShieldCheckIcon, show: canAudit },
         { href: "/settings/organization/audit", label: "Audit log", icon: FileClockIcon, show: canAudit },
@@ -153,7 +157,7 @@ export function SettingsNav({
                         aria-current={on ? "page" : undefined}
                         className={cn(
                           "relative flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-                          on && "bg-muted font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary",
+                          on && "bg-muted font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand-gradient",
                         )}
                       >
                         <i.icon className={cn("size-4 shrink-0", on && "text-primary")} />
