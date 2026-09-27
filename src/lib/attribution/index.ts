@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { rows, schema, type DB } from "../db";
 import type { AttributionModel, Channel, ConversionType, Platform } from "../db/schema";
 import { allocate } from "../money";
+import { refreshContactStats } from "../reports-crm";
 
 export const MODELS: AttributionModel[] = ["first_touch", "last_touch", "linear"];
 
@@ -202,5 +203,7 @@ export async function recomputeAttribution(db: DB, workspaceId: string): Promise
       await tx.insert(schema.attributionCredits).values(credits.slice(i, i + 1000));
     }
   });
+  // The Contacts table reads its revenue, touches and first touch from this roll-up.
+  await refreshContactStats(db, workspaceId);
   return { credits: credits.length };
 }

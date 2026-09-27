@@ -14,6 +14,8 @@ export const ROLES: { role: Role; label: string; description: string }[] = [
 export type Permission =
   | "reports.view"
   | "reports.export"
+  | "contacts.edit"
+  | "contacts.notes"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -28,6 +30,9 @@ export type Permission =
 const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   "reports.export": ["owner", "admin", "analyst"],
+  // CRM: tags, owner, lifecycle, notes, tasks and saved views. Notes and tasks are internal: clients never see them.
+  "contacts.edit": ["owner", "admin", "analyst"],
+  "contacts.notes": ["owner", "admin", "analyst", "viewer"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],
