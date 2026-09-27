@@ -1,18 +1,18 @@
 "use client";
 
-import { LaptopIcon, Loader2Icon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { ChevronRightIcon, LaptopIcon, Loader2Icon, MoonIcon, ShieldCheckIcon, ShieldIcon, SunIcon } from "lucide-react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
-import { changePasswordAction, revokeOtherSessionsAction, revokeSessionAction, updateProfileAction } from "@/app/actions/account";
+import { updateProfileAction } from "@/app/actions/account";
 import { removeAvatarAction, setAvatarAction } from "@/app/actions/media";
-import { ActionButton, useFormAction } from "@/components/action-button";
+import { useFormAction } from "@/components/action-button";
 import { OrgLogo, UserAvatar } from "@/components/avatars";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "./image-upload";
 
@@ -22,17 +22,18 @@ export function AccountForms({
   email,
   avatarUrl,
   memberships,
-  sessions,
+  has2fa,
+  otherSessions,
 }: {
   id: string;
   name: string;
   email: string;
   avatarUrl: string | null;
   memberships: { id: string; org: string; logoUrl: string | null; role: string }[];
-  sessions: { id: string; createdAt: string; workspace: string; current: boolean }[];
+  has2fa: boolean;
+  otherSessions: number;
 }) {
   const profile = useFormAction(updateProfileAction);
-  const pw = useFormAction(changePasswordAction);
   const { theme: activeTheme, setTheme } = useTheme();
   // The theme, locale and timezone are only known in the browser: render a neutral version on the
   // server (no theme selected, UTC dates) to avoid a hydration mismatch.
@@ -42,7 +43,6 @@ export function AccountForms({
     () => false,
   );
   const theme = mounted ? activeTheme : undefined;
-  const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
   return (
     <div className="grid grid-cols-1 gap-5 md:gap-6 @4xl/settings:grid-cols-2">
@@ -75,31 +75,6 @@ export function AccountForms({
               <Button type="submit" disabled={profile.pending}>
                 {profile.pending ? <Loader2Icon className="animate-spin" /> : null}
                 {profile.pending ? "Saving…" : "Save profile"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Password</CardTitle>
-          <CardDescription>Changing it signs you out everywhere else.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={pw.submit} className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="pw-current">Current password</Label>
-              <Input id="pw-current" name="current" type="password" autoComplete="current-password" required />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="pw-next">New password</Label>
-              <Input id="pw-next" name="next" type="password" autoComplete="new-password" minLength={8} required />
-            </div>
-            <div>
-              <Button type="submit" variant="outline" disabled={pw.pending}>
-                {pw.pending ? <Loader2Icon className="animate-spin" /> : null}
-                {pw.pending ? "Changing password…" : "Change password"}
               </Button>
             </div>
           </form>
@@ -152,42 +127,22 @@ export function AccountForms({
         </CardContent>
       </Card>
 
-      <Card className="@4xl/settings:col-span-2">
-        <CardHeader>
-          <CardTitle>Signed-in devices</CardTitle>
-          <CardDescription>Sessions last 30 days. Sign out any you don&rsquo;t recognise.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="divide-y rounded-lg border">
-            {sessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    <MonitorIcon className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                      <span>Signed in {mounted ? fmt.format(new Date(s.createdAt)) : longDate(s.createdAt)}</span>
-                      {s.current ? <Badge>This device</Badge> : null}
-                    </div>
-                    <div className="truncate text-xs text-muted-foreground">Last workspace: {s.workspace}</div>
-                  </div>
-                </div>
-                {!s.current ? (
-                  <ActionButton action={() => revokeSessionAction(s.id)} variant="ghost" size="sm">
-                    Sign out
-                  </ActionButton>
-                ) : null}
-              </div>
-            ))}
-          </div>
-          {sessions.length > 1 ? (
-            <ActionButton action={revokeOtherSessionsAction} variant="outline" size="sm" confirm="Sign out of every other device?">
-              Sign out of all other devices
-            </ActionButton>
-          ) : null}
-        </CardContent>
-      </Card>
+      <Link
+        href="/settings/account/security"
+        className="group flex items-center gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-[box-shadow,background-color] outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          {has2fa ? <ShieldCheckIcon className="size-4" /> : <ShieldIcon className="size-4" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">Password, two-factor sign-in and devices</span>
+          <span className="block text-sm text-pretty text-muted-foreground">
+            Two-factor sign-in is {has2fa ? "on" : "off"}.{" "}
+            {otherSessions ? `Signed in on ${otherSessions} other device${otherSessions === 1 ? "" : "s"}.` : "Signed in on this device only."}
+          </span>
+        </span>
+        <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
     </div>
   );
 }

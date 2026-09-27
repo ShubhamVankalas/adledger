@@ -4,7 +4,7 @@
     "title": "AdLedger API",
     "version": "0.1.0",
     "summary": "Self-hosted ad attribution: which ad actually made you money.",
-    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. A dashboard session cookie also works for same-origin calls. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
+    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -130,7 +130,7 @@
         ],
         "operationId": "getReport",
         "summary": "Run a report",
-        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform.",
+        "description": "`overview` → KPI totals · `performance` → rows per campaign / ad group / ad · `timeseries` → one point per day · `channels` → credit per channel · `wasted-spend` → rows with meaningful spend and ROAS < 0.5 · `compare` → this period vs the previous period of equal length. · `model-comparison` → the three attribution models side by side (`model` is ignored) · `ltv` → customer lifetime value by first-payment cohort and LTV:CAC per acquiring platform. API keys need `reports:read`.",
         "parameters": [
           {
             "name": "report",
@@ -244,7 +244,7 @@
         ],
         "operationId": "listContacts",
         "summary": "List contacts",
-        "description": "Leads and customers, newest first. Returns raw emails: treat responses as personal data.",
+        "description": "Leads and customers, newest first. API keys need `contacts:read`. Emails are masked (`p•••@gmail.com`, `emailsMasked: true`) unless the key has `contacts:pii` or the member's role may see contact PII (owner, admin, analyst). Without that, `search` matches names and complete email addresses only.",
         "parameters": [
           {
             "name": "search",
@@ -335,7 +335,7 @@
         ],
         "operationId": "getContactJourney",
         "summary": "Contact journey",
-        "description": "Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives.",
+        "description": "Ordered touchpoints, leads and payments for one contact plus the revenue credit each attribution model gives. API keys need `contacts:read`; the email is masked unless the caller may see contact PII.",
         "parameters": [
           {
             "name": "id",
@@ -464,7 +464,7 @@
         ],
         "operationId": "eraseContact",
         "summary": "Erase a contact",
-        "description": "Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key, or a dashboard session with `workspace.data` (owners and admins).",
+        "description": "Right to erasure. Deletes the contact and its leads, unlinks its visitors and keeps its revenue as unattributed, so totals do not change. API key with `ingest:write`, or a dashboard session with `workspace.data` (owners and admins).",
         "parameters": [
           {
             "name": "id",
@@ -538,7 +538,7 @@
         ],
         "operationId": "exportContact",
         "summary": "Export a contact",
-        "description": "Subject-access request: everything stored about one contact, as a JSON download. API key, or a dashboard session with `reports.export`.",
+        "description": "Subject-access request: everything stored about one contact, raw email included, as a JSON download. API key with `contacts:pii`, or a dashboard session with `export.contacts` (owners and admins).",
         "parameters": [
           {
             "name": "id",
@@ -578,6 +578,96 @@
         }
       }
     },
+    "/api/v1/exports/audit": {
+      "get": {
+        "tags": [
+          "Privacy"
+        ],
+        "operationId": "exportAuditLog",
+        "summary": "Export the audit log",
+        "description": "The organization's audit log as a streamed CSV download, newest first, with each entry's `seq`, `prev_hash` and `hash` so the tamper-evident chain can be checked outside AdLedger. Accepts the same filters as the audit log page. Dashboard session only, with `audit.view` and `export.csv` (owners and admins); API keys get 403. The export itself is logged.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Kind of activity.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "signin",
+                "security",
+                "members",
+                "data",
+                "settings",
+                "integrations"
+              ]
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "description": "A member's user id, or `system` for entries without a member (API keys, jobs).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "description": "Workspace id.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "How far back to go.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d",
+                "90d",
+                "all"
+              ],
+              "default": "90d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV (attachment).",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
     "/api/v1/exports/contacts": {
       "get": {
         "tags": [
@@ -585,7 +675,7 @@
         ],
         "operationId": "exportContactsCsv",
         "summary": "Export contacts as CSV",
-        "description": "The Contacts list (optionally filtered) as a streamed CSV download. API key, or a dashboard session with `reports.export`.",
+        "description": "The Contacts list (optionally filtered) as a streamed CSV download. API key with `contacts:read`, or a dashboard session with `export.csv`. Emails are raw only for keys with `contacts:pii` and members with `export.contacts` (owners, admins); everyone else gets them masked. Exports of more than 1,000 rows raise a security alert.",
         "parameters": [
           {
             "name": "q",
@@ -678,7 +768,7 @@
         ],
         "operationId": "syncProvider",
         "summary": "Sync a connector now",
-        "description": "Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`.",
+        "description": "Runs a sync for a connected provider immediately (scheduled syncs also run automatically). A provider that isn't connected or is disabled returns `status: skipped`. API keys need `ingest:write`.",
         "parameters": [
           {
             "name": "provider",
@@ -732,7 +822,7 @@
         ],
         "operationId": "pushSpend",
         "summary": "Push ad spend",
-        "description": "Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request.",
+        "description": "Daily spend rows from any ad platform (Zapier, Make, n8n, scripts). Campaigns, ad groups and ads are created on the fly; re-sending the same day/entity replaces it. Up to 20,000 rows per request. API keys need `ingest:write`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -795,7 +885,7 @@
         ],
         "operationId": "pushConversions",
         "summary": "Push payments, refunds and leads",
-        "description": "Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request.",
+        "description": "Conversions from any tool (WooCommerce plugin, Zapier, Make, your backend). Idempotent on `source` + `external_id`. Up to 5,000 events per request. API keys need `ingest:write`.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1808,7 +1898,7 @@
         ],
         "operationId": "mcpGet",
         "summary": "MCP event stream (not supported)",
-        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1824,7 +1914,7 @@
         ],
         "operationId": "mcp",
         "summary": "MCP endpoint (Streamable HTTP)",
-        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own.",
+        "description": "Model Context Protocol server for AI agents (Claude, Cursor, …). JSON-RPC 2.0 over Streamable HTTP; all tools are read-only. See docs/MCP.md for the tool list and client setup. The server is stateless: every request is handled on its own. API keys need the `mcp` scope.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1863,7 +1953,7 @@
         ],
         "operationId": "mcpDelete",
         "summary": "End an MCP session (not supported)",
-        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST.",
+        "description": "Part of the Streamable HTTP transport. AdLedger's MCP server is stateless, so after authentication this always answers 405; clients fall back to POST. API keys need the `mcp` scope.",
         "responses": {
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1988,7 +2078,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "al_...",
-        "description": "API key from Settings → API & MCP."
+        "description": "API key from Settings → API & MCP. Limited to its scopes (see the introduction)."
       },
       "sessionCookie": {
         "type": "apiKey",

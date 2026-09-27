@@ -9,7 +9,33 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  supply-chain:
+    # Pull requests: block new dependencies with known high-severity advisories or
+    # licences that don't fit AGPL-3.0, and audit the production dependency tree.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: SSPL-1.0, BUSL-1.1
+          comment-summary-in-pr: on-failure
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: pnpm audit (production dependencies)
+        run: pnpm audit --prod --audit-level high
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -90,6 +116,13 @@ jobs:
           tags: ghcr.io/shubhamvankalas/adledger:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Scan the image (Trivy, fixable high and critical)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/shubhamvankalas/adledger:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
       - name: Smoke test (docker compose up)
         run: |
           ADLEDGER_VERSION=ci docker compose -f docker-compose.yml up -d --no-build

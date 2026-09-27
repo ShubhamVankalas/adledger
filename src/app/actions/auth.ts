@@ -6,9 +6,12 @@ import { z } from "zod";
 import {
   acceptInvitation,
   audit,
+  auditForUser,
   clearPasswordFailures,
+  completeSignIn,
   createOrganizationWithOwner,
   createUser,
+  defaultWorkspaceFor,
   endSession,
   findInvitation,
   getSessionUser,
@@ -16,16 +19,21 @@ import {
   InvitationError,
   login,
   passwordAttemptsLocked,
+  pendingChallengeUser,
   recordPasswordFailure,
   startSession,
+  verifySecondFactor,
 } from "@/lib/auth";
 import { verifyPassword } from "@/lib/crypto";
 import { getDb, schema } from "@/lib/db";
 import { seedDemo } from "@/lib/demo/seed";
 import { ipFromHeaders, rateLimit } from "@/lib/http";
 import { log } from "@/lib/log";
+import { MFA_COOKIE } from "@/lib/security/mfa";
+import { passwordProblem } from "@/lib/security/password-policy";
 import { safeRedirectPath } from "@/lib/url";
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 
 export type FormState = { error?: string; fieldErrors?: Record<string, string>; values?: Record<string, string> } | undefined;
 
@@ -33,7 +41,7 @@ const setupSchema = z.object({
   organizationName: z.string().trim().min(1, "Give your business or agency a name").max(80),
   name: z.string().trim().max(80).optional(),
   email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(8, "Use at least 8 characters").max(200),
+  password: z.string().max(1000),
   currency: z.string().regex(/^[A-Z]{3}$/, "Pick a currency"),
   timezone: z.string().min(1).max(64),
   start: z.enum(["demo", "setup"]).default("demo"),
@@ -52,6 +60,8 @@ export async function setupAction(_prev: FormState, form: FormData): Promise<For
   const values = Object.fromEntries(["organizationName", "name", "email", "currency", "timezone", "start"].map((k) => [k, String(form.get(k) ?? "")]));
   if (!parsed.success) return { values, fieldErrors: fieldErrors(parsed.error.issues) };
   const v = parsed.data;
+  const weak = passwordProblem(v.password, { email: v.email, name: v.name });
+  if (weak) return { values, fieldErrors: { password: weak } };
   try {
     Intl.DateTimeFormat("en-US", { timeZone: v.timezone });
   } catch {
@@ -81,7 +91,7 @@ export async function setupAction(_prev: FormState, form: FormData): Promise<For
       log.error("demo seed failed", err);
     }
   }
-  await startSession(user.id, workspace.id);
+  await startSession(user.id, workspace.id, "setup");
   redirect(v.start === "demo" ? "/" : "/onboarding");
 }
 
@@ -99,10 +109,42 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   if (!rateLimit(`login:${ip}`, 20)) return { error: TOO_MANY, values: { email } };
   const r = await login(email, password, ip);
   if (!r.ok) return { error: r.error, values: { email } };
+  const next = safeRedirectPath(form.get("next"));
+  if (r.mfa) redirect(next === "/" ? "/login/verify" : `/login/verify?next=${encodeURIComponent(next)}`);
+  redirect(next);
+}
+
+/** Second step of sign-in: a code from the authenticator app, or a recovery code. */
+export async function verifyLoginAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const pending = await pendingChallengeUser();
+  if (!pending) return { error: "This sign-in took too long. Start again with your email and password." };
+  const ip = await clientIp();
+  // Same lockout as passwords, keyed on the account: 5 wrong codes per IP, 20 overall, per 15 minutes.
+  if (!rateLimit(`login:${ip}`, 20) || passwordAttemptsLocked(`2fa:${pending.email}`, ip)) return { error: TOO_MANY };
+  const code = String(form.get("code") ?? "").slice(0, 40);
+  const r = await verifySecondFactor(pending.id, code);
+  if (!r.ok) {
+    recordPasswordFailure(`2fa:${pending.email}`, ip);
+    await auditForUser(pending.id, "auth.login_failed", { reason: "code" });
+    return { error: "That code didn't work. Enter the 6-digit code your app shows now, or a recovery code." };
+  }
+  clearPasswordFailures(`2fa:${pending.email}`, ip);
+  const workspaceId = await defaultWorkspaceFor(pending.id);
+  if (!workspaceId) return { error: "Your account isn't part of any workspace yet. Ask an admin to invite you again." };
+  await completeSignIn(pending.id, workspaceId, r.method === "recovery" ? "password+recovery" : "password+totp");
+  if (r.method === "recovery") await auditForUser(pending.id, "account.recovery_code_used", { remaining: r.remaining ?? 0 });
   redirect(safeRedirectPath(form.get("next")));
 }
 
+/** Abandon a pending 2FA challenge and go back to the email + password step. */
+export async function cancelLoginAction() {
+  (await cookies()).delete(MFA_COOKIE);
+  redirect("/login");
+}
+
 export async function logoutAction() {
+  const user = await getSessionUser();
+  if (user) await audit(user, "auth.logout", null);
   await endSession();
   redirect("/login");
 }
@@ -111,7 +153,7 @@ export async function logoutAction() {
 
 const acceptNewSchema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(80),
-  password: z.string().min(8, "Use at least 8 characters").max(200),
+  password: z.string().max(1000),
 });
 
 /** Accept an invitation: creates the account if needed (or verifies the existing password). */
@@ -144,6 +186,8 @@ export async function acceptInviteAction(token: string, _prev: FormState, form: 
     } else {
       const parsed = acceptNewSchema.safeParse({ name: form.get("name"), password: form.get("password") });
       if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error.issues), values: { name: String(form.get("name") ?? "") } };
+      const weak = passwordProblem(parsed.data.password, { email: invitation.email, name: parsed.data.name });
+      if (weak) return { fieldErrors: { password: weak }, values: { name: parsed.data.name } };
       newUser = parsed.data;
     }
   }
@@ -161,6 +205,6 @@ export async function acceptInviteAction(token: string, _prev: FormState, form: 
   const { userId, workspaceId } = accepted;
   if (!workspaceId) return { error: "You were invited, but no workspace is shared with you yet. Ask the admin to grant access." };
   await audit({ id: userId, organizationId: invitation.organizationId, workspaceId }, "member.joined", invitation.email, { role: invitation.role });
-  await startSession(userId, workspaceId);
+  await startSession(userId, workspaceId, "invite");
   redirect("/");
 }

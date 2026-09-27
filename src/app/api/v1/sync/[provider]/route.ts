@@ -10,5 +10,5 @@ export const POST = withAuth<{ params: Promise<{ provider: string }> }>(
     const result = await syncProvider(db, ws.id, provider);
     return json(result, result.status === "error" ? 502 : 200);
   },
-  { permission: "workspace.settings", perMinute: 10 },
+  { permission: "workspace.settings", scope: "ingest:write", perMinute: 10 },
 );

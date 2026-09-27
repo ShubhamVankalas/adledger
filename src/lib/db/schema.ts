@@ -1,4 +1,5 @@
 import type { Platform } from "../connectors/types";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -56,8 +57,17 @@ export const organizations = pgTable("organizations", {
   logo: bytea("logo"),
   logoType: text("logo_type"),
   logoUpdatedAt: tstz("logo_updated_at"),
+  /** Organization-wide security policy (2FA requirement, session limits…), see lib/security/policy.ts. */
+  security: jsonb("security").$type<OrgSecurity>().notNull().default({}),
   createdAt: createdAt(),
 });
+/** Stored shape of organizations.security; every field is optional and parsed with defaults. */
+export type OrgSecurity = {
+  require2fa?: boolean;
+  sessionIdleMinutes?: number;
+  sessionMaxDays?: number;
+  clientsCanDownloadPdf?: boolean;
+};
 
 export const workspaces = pgTable("workspaces", {
   id: id(),
@@ -88,6 +98,13 @@ export const users = pgTable(
     avatar: bytea("avatar"),
     avatarType: text("avatar_type"),
     avatarUpdatedAt: tstz("avatar_updated_at"),
+    /** TOTP secret (AES-GCM, app secret). Set without totp_enabled_at = enrolment not confirmed yet. */
+    totpSecretEnc: text("totp_secret_enc"),
+    totpEnabledAt: tstz("totp_enabled_at"),
+    /** Last accepted 30-second step: a code is never accepted twice. */
+    totpLastStep: bigint("totp_last_step", { mode: "number" }),
+    /** scrypt hashes of the unused recovery codes (each works once). */
+    recoveryCodes: text("recovery_codes").array().notNull().default(sql`'{}'::text[]`),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_uq").on(t.email)],
@@ -142,9 +159,20 @@ export const auditLog = pgTable(
     action: text("action").notNull(),
     target: text("target"),
     meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+    ipTrunc: text("ip_trunc"),
+    userAgent: text("user_agent"),
+    /**
+     * Tamper-evident chain per organization: hash = sha256(prev_hash + canonical entry), see
+     * lib/security/audit-chain.ts. `refs` keeps the actor and workspace ids as written, so the
+     * hash still verifies after user_id / workspace_id are set to null by a deletion.
+     */
+    refs: jsonb("refs").$type<{ u: string | null; w: string | null }>(),
+    seq: bigint("seq", { mode: "number" }),
+    prevHash: text("prev_hash"),
+    hash: text("hash"),
     createdAt: createdAt(),
   },
-  (t) => [index().on(t.organizationId, t.createdAt)],
+  (t) => [index().on(t.organizationId, t.createdAt), uniqueIndex("audit_log_org_seq_uq").on(t.organizationId, t.seq)],
 );
 
 export const sessions = pgTable(
@@ -157,10 +185,17 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
     expiresAt: tstz("expires_at").notNull(),
+    ipTrunc: text("ip_trunc"),
+    userAgent: text("user_agent"),
+    lastSeenAt: tstz("last_seen_at"),
+    /** "password" or "password+totp" / "password+recovery". */
+    authMethod: text("auth_method"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("sessions_token_uq").on(t.tokenHash), index().on(t.userId)],
 );
+
+export type ApiScope = "reports:read" | "contacts:read" | "contacts:pii" | "ingest:write" | "mcp";
 
 export const apiKeys = pgTable(
   "api_keys",
@@ -170,7 +205,11 @@ export const apiKeys = pgTable(
     name: text("name").notNull(),
     prefix: text("prefix").notNull(),
     keyHash: text("key_hash").notNull(),
+    /** What the key may do, see lib/security/scopes.ts. New keys default to read-only reports. */
+    scopes: text("scopes").array().$type<ApiScope[]>().notNull().default(sql`'{reports:read}'::text[]`),
+    expiresAt: tstz("expires_at"),
     lastUsedAt: tstz("last_used_at"),
+    lastUsedIpTrunc: text("last_used_ip_trunc"),
     revokedAt: tstz("revoked_at"),
     createdAt: createdAt(),
   },
@@ -262,7 +301,7 @@ export const notificationRules = pgTable(
   },
   (t) => [uniqueIndex("notification_rules_uq").on(t.workspaceId, t.channel, t.event)],
 );
-export type NotificationEvent = "weekly_report" | "daily_digest" | "wasted_spend" | "sync_failed" | "new_customer" | "big_payment";
+export type NotificationEvent = "weekly_report" | "daily_digest" | "wasted_spend" | "sync_failed" | "new_customer" | "big_payment" | "security_alert";
 
 export const campaigns = pgTable(
   "campaigns",

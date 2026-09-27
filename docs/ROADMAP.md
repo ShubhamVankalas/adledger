@@ -55,6 +55,7 @@ end to end in that form. Status below.
 | 1a Tokens + shell | ✅ | OKLCH tokens, ink primary, restyled primitives; sidebar groups, workspace switcher, setup ring, `[` rail; 52px header with demo pill and pending line; date presets + compare in the URL; floating phone tab bar; `/attribution`, `/customers` (old URLs redirect); `/live`, `/pipeline`, `/tasks` placeholders |
 | 1b ⌘K + hotkeys | ⏳ | The sidebar already dispatches `adledger:open-palette` / `adledger:open-shortcuts` |
 | 1c Overview v2 | ⏳ | |
+| A Trust core (ADDENDUM §1.3 #4–14) | ✅ | PII masking by role + audited reveal; split export permissions; API key scopes + expiry; TOTP 2FA + recovery codes + Require 2FA + `ADLEDGER_BREAK_GLASS`; sessions (device, idle timeout, max lifetime, revoke, sign out everywhere, new-device email); NIST password policy; audit log v2 (hash chain + Verify, filters, CSV); `security_alert`; security posture checklist + key-storage warning; `security.txt`, CodeQL, dependency review, `pnpm audit`, Trivy, Dependabot, SBOM + provenance; `TRADEMARKS.md`, `docs/SECURITY.md`. Next: `export_log` + row caps + export reason (with the PDF slice), key rotation (`APP_SECRET_PREVIOUS`), actions pinned by SHA, OpenSSF Scorecard, DCO, per-client "sees contact details" toggle, audit feed to webhook/syslog |
 
 ## Next (v0.3)
 - One-click OAuth “Connect with Meta / Google / TikTok / LinkedIn” (needs registered, approved apps).

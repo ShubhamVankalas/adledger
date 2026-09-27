@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { recomputeAttribution } from "@/lib/attribution";
 import { hashEmail, sha256 } from "@/lib/crypto";
@@ -237,7 +237,10 @@ describe("privacy routes and actions", () => {
     expect((await DELETE(req(), { params })).status).toBe(403);
     session.token = undefined;
 
-    const { key } = await createApiKey(ws.id, "privacy");
+    // Erasure is a write: a key needs the ingest:write scope (new keys are read-only).
+    const { key: readOnly } = await createApiKey(ws.id, "read-only");
+    expect((await DELETE(req({ authorization: `Bearer ${readOnly}` }), { params })).status).toBe(403);
+    const { key } = await createApiKey(ws.id, "privacy", ["ingest:write"]);
     const r = await DELETE(req({ authorization: `Bearer ${key}` }), { params });
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ deleted: true, id, leads: 1 });
@@ -249,11 +252,13 @@ describe("privacy routes and actions", () => {
     expect(JSON.stringify(entry)).not.toContain("eve@example.test");
   });
 
-  it("GET /api/v1/contacts/{id}/export works with an API key", async () => {
+  it("GET /api/v1/contacts/{id}/export works with an API key that has contacts:pii", async () => {
     const { GET } = await import("@/app/api/v1/contacts/[id]/export/route");
     const { createApiKey } = await import("@/lib/auth");
-    const { key } = await createApiKey(ws.id, "sar");
     const id = (await contactId(BOB))!;
+    const { key: masked } = await createApiKey(ws.id, "sar-masked", ["contacts:read"]);
+    expect((await GET(new Request(`http://localhost/x`, { headers: { authorization: `Bearer ${masked}` } }), { params: Promise.resolve({ id }) })).status).toBe(403);
+    const { key } = await createApiKey(ws.id, "sar", ["contacts:pii"]);
     const r = await GET(new Request(`http://localhost/x`, { headers: { authorization: `Bearer ${key}` } }), { params: Promise.resolve({ id }) });
     expect(r.status).toBe(200);
     expect(r.headers.get("content-disposition")).toMatch(/attachment/);
@@ -262,7 +267,7 @@ describe("privacy routes and actions", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("contacts CSV needs reports.export; workspace export needs a session with workspace.data", async () => {
+  it("contacts CSV needs export.csv (emails raw only with export.contacts); workspace export needs a session with workspace.data", async () => {
     const { GET: contactsCsvRoute } = await import("@/app/api/v1/exports/contacts/route");
     const { GET: workspaceExport } = await import("@/app/api/v1/exports/workspace/route");
     const { createApiKey } = await import("@/lib/auth");
@@ -271,14 +276,28 @@ describe("privacy routes and actions", () => {
     expect((await contactsCsvRoute(new Request("http://localhost/api/v1/exports/contacts"))).status).toBe(403);
     expect((await workspaceExport(new Request("http://localhost/api/v1/exports/workspace"))).status).toBe(403);
 
+    // Analysts can export, but get masked emails.
     session.token = await member("analyst");
     const csv = await contactsCsvRoute(new Request("http://localhost/api/v1/exports/contacts?lifecycle=customer"));
     expect(csv.status).toBe(200);
     expect(csv.headers.get("content-type")).toMatch(/text\/csv/);
-    expect(await csv.text()).toContain(BOB);
+    expect(csv.headers.get("content-disposition")).toMatch(/contacts-masked/);
+    const maskedText = await csv.text();
+    expect(maskedText).not.toContain(BOB);
+    expect(maskedText).toContain("b••@example.test");
     expect((await workspaceExport(new Request("http://localhost/api/v1/exports/workspace"))).status).toBe(403);
 
     session.token = await member("admin");
+    const raw = await contactsCsvRoute(new Request("http://localhost/api/v1/exports/contacts?lifecycle=customer"));
+    expect(await raw.text()).toContain(BOB);
+    const [logged] = await db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.action, "contacts.exported"))
+      .orderBy(desc(schema.auditLog.createdAt))
+      .limit(1);
+    expect(logged.meta).toMatchObject({ masked: false, complete: true });
+    expect(logged.meta.rows).toBeGreaterThan(0);
     const full = await workspaceExport(new Request("http://localhost/api/v1/exports/workspace"));
     expect(full.status).toBe(200);
     expect(JSON.parse(await full.text()).workspace.id).toBe(ws.id);

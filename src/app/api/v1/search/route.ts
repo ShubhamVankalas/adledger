@@ -2,6 +2,7 @@ import { z } from "zod";
 import { authenticatePrincipal } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { BodyTooLargeError, isSameOriginRequest, json, rateLimit, readTextLimited } from "@/lib/http";
+import { canSeePii } from "@/lib/security/pii";
 import { SEARCH_KINDS, SEARCH_QUERY_MAX, searchWorkspace } from "@/lib/search";
 
 // POST /api/v1/search: find contacts, campaigns, ad sets and ads in the caller's workspace.
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
   if (principal.kind === "session") {
     if (!principal.user.can("reports.view")) return json({ error: "forbidden", hint: "Your role doesn't allow this." }, 403);
     if (!isSameOriginRequest(req)) return json({ error: "cross-site request blocked" }, 403);
+  } else if (!principal.key.scopes.includes("reports:read")) {
+    return json({ error: "forbidden", hint: 'This API key lacks the "reports:read" scope. Create a key with it in Settings → API & MCP.' }, 403);
   }
   const who = principal.kind === "session" ? `u:${principal.user.id}` : "key";
   if (!rateLimit(`search:${principal.workspace.id}:${who}`, PER_MINUTE)) {
@@ -40,12 +43,18 @@ export async function POST(req: Request) {
   // Report which field is wrong without echoing its value (it may be an email address).
   if (!parsed.success) return json({ error: "invalid parameters", fields: [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "body"))] }, 400);
 
+  // API keys find contacts only with contacts:read (or contacts:pii); reports:read covers campaigns, ad sets and ads.
+  const contactsAllowed =
+    principal.kind === "session" || principal.key.scopes.includes("contacts:read") || principal.key.scopes.includes("contacts:pii");
+  const kinds = (parsed.data.kinds?.length ? parsed.data.kinds : SEARCH_KINDS).filter((k) => k !== "contact" || contactsAllowed);
+  if (!kinds.length) return json({ results: [] }, { headers: { "Cache-Control": "private, no-store" } });
+
   const db = await getDb();
   const results = await searchWorkspace(db, principal.workspace, parsed.data.q, {
-    kinds: parsed.data.kinds,
+    kinds,
     limit: parsed.data.limit,
-    // Agency clients see masked contact emails; members and API keys see them in full.
-    maskEmails: principal.kind === "session" && principal.user.role === "client",
+    // Contact emails are masked unless the member holds contacts.pii or the key carries contacts:pii.
+    maskEmails: !canSeePii(principal),
   });
   return json({ results }, { headers: { "Cache-Control": "private, no-store" } });
 }
