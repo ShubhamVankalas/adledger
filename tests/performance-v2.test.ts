@@ -1,9 +1,11 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { recomputeAttribution } from "@/lib/attribution";
+import { mockMetaInsights, parseMetaInsights } from "@/lib/connectors/ads";
 import { schema, type DB } from "@/lib/db";
 import type { Channel, Platform } from "@/lib/db/schema";
-import { comparePeriod, parseCompare, performancePeek, performanceReport, quadrantOf } from "@/lib/reports-performance";
+import { comparisonRange } from "@/lib/period-presets";
+import { performancePeek, performanceReport, quadrantOf } from "@/lib/reports-performance";
 import type { Workspace } from "@/lib/settings";
 import { upsertAdRows } from "@/lib/sync";
 import { setupWorkspace } from "./helpers";
@@ -152,23 +154,15 @@ describe("performance v2 metrics", () => {
 
   it("compares against the previous period", async () => {
     const aug = { start: "2026-08-01", end: "2026-08-31", model: "last_touch" as const };
-    const r = await performanceReport(db, ws, { ...aug, level: "campaign", compare: "previous" });
-    expect(r.compare).toEqual({ mode: "previous", start: "2026-07-01", end: "2026-07-31" });
+    const r = await performanceReport(db, ws, { ...aug, level: "campaign", comparison: comparisonRange(aug.start, aug.end, "prev") });
+    expect(r.compare).toEqual({ start: "2026-07-01", end: "2026-07-31" });
     const meta = r.rows.find((x) => x.name === "Prospecting")!;
     expect(meta.revenueMinor).toBe(3_000);
     expect(meta.delta!.revenueMinor).toBeCloseTo((3_000 - 9_000) / 9_000, 6);
     // No spend in August: nothing to compare the ratio with.
     expect(meta.delta!.roas).toBeNull();
     expect(r.totalsDelta!.revenueMinor).toBeCloseTo((3_000 - 15_000) / 15_000, 6);
-    expect((await performanceReport(db, ws, { ...aug, level: "campaign", compare: "none" })).compare).toBeNull();
-  });
-
-  it("builds comparison periods", () => {
-    expect(comparePeriod({ ...JUL_SEP, start: "2026-09-01", end: "2026-09-30" }, "previous")).toMatchObject({ start: "2026-08-02", end: "2026-08-31" });
-    expect(comparePeriod({ ...JUL_SEP, start: "2024-02-29", end: "2024-03-10" }, "year")).toMatchObject({ start: "2023-03-01", end: "2023-03-10" });
-    expect(comparePeriod(JUL_SEP, "none")).toBeNull();
-    expect(parseCompare("year")).toBe("year");
-    expect(parseCompare("bogus")).toBe("previous");
+    expect((await performanceReport(db, ws, { ...aug, level: "campaign", comparison: comparisonRange(aug.start, aug.end, "none") })).compare).toBeNull();
   });
 
   it("splits rows into Scale / Test / Fix / Kill", async () => {
@@ -185,22 +179,24 @@ describe("performance v2 metrics", () => {
     expect(mine.totals.spendMinor).toBe(15_000);
     const theirs = await performanceReport(db, other, { ...JUL_SEP, level: "campaign" });
     expect(theirs.totals).toMatchObject({ count: 1, spendMinor: 900_000, revenueMinor: 500_000 });
-    // Peeking at another workspace's campaign returns nothing.
-    const leak = await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: otherIds.meta.campaignId });
-    expect(leak.contacts).toHaveLength(0);
-    expect(leak.children).toHaveLength(0);
-    expect(leak.trend.every((d) => d.spendMinor === 0 && d.revenueMinor === 0)).toBe(true);
+    // Peeking at another workspace's campaign (or a bogus id) returns nothing at all.
+    expect(await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: otherIds.meta.campaignId })).toBeNull();
+    expect(await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: "not-a-uuid" })).toBeNull();
+    // An ad set id isn't a campaign.
+    expect(await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: ids.meta.adGroupId })).toBeNull();
   });
 });
 
 describe("performance peek", () => {
   it("returns the trend, child rows and the contacts a campaign brought", async () => {
-    const peek = await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: ids.meta.campaignId });
+    const peek = (await performancePeek(db, ws, { ...JUL_SEP, level: "campaign", id: ids.meta.campaignId }))!;
+    expect(peek.row).toMatchObject({ name: "Prospecting", platform: "meta", spendMinor: 10_000, revenueMinor: 12_000, roas: 1.2, delta: null });
     expect(peek.trend).toHaveLength(92);
     expect(peek.trend[0]).toEqual({ date: "2026-07-01", spendMinor: 10_000, revenueMinor: 0 });
     expect(peek.trend.find((d) => d.date === "2026-07-05")!.revenueMinor).toBe(9_000);
     expect(peek.childLevel).toBe("ad_group");
     expect(peek.children.map((c) => [c.name, c.spendMinor])).toEqual([["Prospecting group", 10_000]]);
+    expect(peek.childCount).toBe(1);
     expect(peek.contactCount).toBe(2);
     expect(peek.contacts.map((c) => [c.label, c.revenueMinor])).toEqual([
       ["Alice", 12_000],
@@ -211,9 +207,51 @@ describe("performance peek", () => {
   });
 
   it("has no children at the ad level", async () => {
-    const peek = await performancePeek(db, ws, { ...JUL_SEP, level: "ad", id: ids.google.adId });
+    const peek = (await performancePeek(db, ws, { ...JUL_SEP, level: "ad", id: ids.google.adId }))!;
+    expect(peek.row).toMatchObject({ name: "Brand ad", parentName: "Brand group" });
     expect(peek.childLevel).toBeNull();
     expect(peek.children).toEqual([]);
     expect(peek.contacts.map((c) => c.label)).toEqual(["Cara"]);
+  });
+
+  it("compares the peeked entity with the previous period and shows zeros when it was idle", async () => {
+    const aug = { start: "2026-08-01", end: "2026-08-31", model: "last_touch" as const };
+    const comparison = comparisonRange(aug.start, aug.end, "prev");
+    const peek = (await performancePeek(db, ws, { ...aug, level: "campaign", id: ids.meta.campaignId, comparison }))!;
+    expect(peek.row).toMatchObject({ spendMinor: 0, revenueMinor: 3_000, roas: null });
+    expect(peek.row.delta!.revenueMinor).toBeCloseTo(-2 / 3, 6);
+    const idle = (await performancePeek(db, ws, { start: "2026-01-01", end: "2026-01-31", model: "last_touch", level: "campaign", id: ids.google.campaignId }))!;
+    expect(idle.row).toMatchObject({ name: "Brand", spendMinor: 0, revenueMinor: 0, roas: null, platformGap: null });
+    expect(idle.contacts).toEqual([]);
+    expect(idle.contactCount).toBe(0);
+  });
+});
+
+describe("platform gap in mock mode", () => {
+  it("puts what Meta reports next to what AdLedger verified", async () => {
+    const [w] = await db
+      .insert(schema.workspaces)
+      .values({ organizationId: ws.organizationId, name: "Mock Meta", slug: `mock-${Date.now()}`, reportingCurrency: "USD", timezone: "UTC" })
+      .returning();
+    const mock = mockMetaInsights({ since: "2026-07-01", until: "2026-07-07" }, "USD");
+    await upsertAdRows(db, w.id, mock.flatMap((a) => parseMetaInsights(a.rows, a.account)));
+    const campaigns = await performanceReport(db, w as Workspace, { start: "2026-07-01", end: "2026-07-07", model: "last_touch", level: "campaign" });
+    const reported = mock.flatMap((a) => a.rows).reduce((s, r) => s + Number(r.actions?.[0]?.value ?? 0), 0);
+    expect(campaigns.rows.length).toBeGreaterThan(0);
+    expect(campaigns.totals.platformConversions).toBeCloseTo(reported, 1);
+    // Nothing verified yet: the gap stays empty rather than claiming an infinite over-count.
+    expect(campaigns.totals.platformGap).toBeNull();
+
+    // One verified lead on the biggest campaign: now the gap is platform ÷ verified − 1.
+    const top = campaigns.rows[0];
+    const [a] = await db.select().from(schema.ads).where(eq(schema.ads.campaignId, top.id)).limit(1);
+    const e: Record<string, Ids> = { meta: { campaignId: a.campaignId, adGroupId: a.adGroupId, adId: a.id } };
+    await person(w as Workspace, e, "Dana", { at: "2026-07-02T09:00:00Z", key: "meta" }, "2026-07-02T09:30:00Z", []);
+    await recomputeAttribution(db, w.id);
+    const after = await performanceReport(db, w as Workspace, { start: "2026-07-01", end: "2026-07-07", model: "last_touch", level: "campaign" });
+    const row = after.rows.find((r) => r.id === top.id)!;
+    expect(row.verifiedConversions).toBe(1);
+    expect(row.platformConversions).toBeGreaterThan(1);
+    expect(row.platformGap).toBeCloseTo(row.platformConversions! - 1, 6);
   });
 });

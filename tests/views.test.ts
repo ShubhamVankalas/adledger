@@ -4,7 +4,7 @@ import { sha256 } from "@/lib/crypto";
 import { schema, type DB } from "@/lib/db";
 import type { Role } from "@/lib/db/schema";
 import type { Workspace } from "@/lib/settings";
-import { cleanViewName, listPinnedViews, listViews, sanitizeViewParams, viewHref } from "@/lib/views";
+import { cleanViewName, listPinnedViews, listViews, PINNED_VIEWS_MAX, sameViewParams, sanitizeViewParams, viewHref } from "@/lib/views";
 import { setupWorkspace } from "./helpers";
 
 // Server actions read the session cookie through next/headers.
@@ -65,6 +65,13 @@ describe("view params", () => {
     expect(cleanViewName("   ")).toBeNull();
     expect(cleanViewName("x".repeat(80))).toHaveLength(60);
     expect(viewHref({ id: "v1", page: "performance", params: { preset: "leadgen" } })).toBe("/performance?preset=leadgen&view=v1");
+    expect(viewHref({ id: "v1", page: "performance", params: { sort: "roas", range: "7d", junk: "x" } })).toBe("/performance?range=7d&sort=roas&view=v1");
+  });
+
+  it("compares param sets ignoring order and unknown keys", () => {
+    expect(sameViewParams("performance", "range=7d&preset=leadgen&view=abc", { preset: "leadgen", range: "7d" })).toBe(true);
+    expect(sameViewParams("performance", "range=7d", { range: "7d", cols: "spendMinor" })).toBe(false);
+    expect(sameViewParams("performance", "", {})).toBe(true);
   });
 });
 
@@ -82,7 +89,8 @@ describe("saved view actions", () => {
     expect((await updateViewParamsAction(id, { preset: "leadgen", range: "90d" })).ok).toBe(true);
     const pinned = await setViewPinnedAction(id, true);
     expect(pinned.views!.find((v) => v.id === id)).toMatchObject({ name: "Lead gen, 90 days", pinned: true, params: { preset: "leadgen", range: "90d" } });
-    expect((await listPinnedViews(db, ws.id, viewer.id)).map((v) => v.href)).toEqual([`/performance?preset=leadgen&range=90d&view=${id}`]);
+    // Links use the page's canonical key order, whatever order jsonb hands the params back in.
+    expect((await listPinnedViews(db, ws.id, viewer.id)).map((v) => v.href)).toEqual([`/performance?range=90d&preset=leadgen&view=${id}`]);
 
     const audits = await db.select().from(schema.auditLog).where(and(eq(schema.auditLog.userId, viewer.id), eq(schema.auditLog.target, id)));
     expect(audits.map((a) => a.action).sort()).toEqual(["view.create", "view.pin", "view.rename", "view.update"]);
@@ -152,6 +160,25 @@ describe("saved view actions", () => {
     expect((await deleteViewAction(id)).ok).toBe(false);
     expect((await listViews(db, ws.id, alice.id, "performance")).map((v) => v.name)).toEqual(["Alice only"]);
     expect((await listViews(db, w2.id, other.id, "performance")).map((v) => v.name)).toEqual(["Team view (other)"]);
+  });
+
+  it("caps the sidebar at eight pinned views", async () => {
+    const { saveViewAction, setViewPinnedAction } = await actions();
+    const [w3] = await db
+      .insert(schema.workspaces)
+      .values({ organizationId: orgId, name: "Pins", slug: `pins-${Date.now()}`, reportingCurrency: "USD", timezone: "UTC" })
+      .returning();
+    const me = await member("analyst", w3 as Workspace);
+    as(me);
+    const ids: string[] = [];
+    for (let i = 0; i <= PINNED_VIEWS_MAX; i++) ids.push((await saveViewAction({ page: "performance", name: `View ${i}`, params: {} })).view!.id);
+    for (const id of ids.slice(0, PINNED_VIEWS_MAX)) expect((await setViewPinnedAction(id, true)).ok).toBe(true);
+    expect(await setViewPinnedAction(ids[PINNED_VIEWS_MAX], true)).toMatchObject({ ok: false });
+    // Re-pinning an already pinned view is fine; unpinning makes room.
+    expect((await setViewPinnedAction(ids[0], true)).ok).toBe(true);
+    expect((await setViewPinnedAction(ids[0], false)).ok).toBe(true);
+    expect((await setViewPinnedAction(ids[PINNED_VIEWS_MAX], true)).ok).toBe(true);
+    expect(await listPinnedViews(db, w3.id, me.id)).toHaveLength(PINNED_VIEWS_MAX);
   });
 
   it("orders shared views before personal ones", async () => {

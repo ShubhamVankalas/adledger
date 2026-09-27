@@ -1,7 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { rows, type DB } from "./db";
 import type { Platform } from "./db/schema";
-import { maskEmail, previousPeriod, type PerfLevel, type ReportParams } from "./reports";
+import { maskEmail, tsRange, type PerfLevel, type ReportParams } from "./reports";
 import type { Workspace } from "./settings";
 
 // Performance v2: the ads table with every column the Display menu offers, totals, period
@@ -14,12 +14,13 @@ import type { Workspace } from "./settings";
 //   purchases = credited payments · AOV = credited gross payments ÷ purchases
 //   NC-ROAS = credited revenue of each customer's first payment ÷ spend
 //   platform conversions = what the ad platform reported (its own attribution)
-//   AdLedger conversions = credited leads + credited new customers (what we could verify)
-//   platform gap = (platform − AdLedger) ÷ AdLedger, e.g. +129% when Meta claims 94 and we saw 41
+//   verified conversions = credited leads + credited new customers (what AdLedger could match)
+//   platform gap = (platform − verified) ÷ verified, e.g. +129% when Meta claims 94 and we saw 41
 
-export type CompareMode = "previous" | "year" | "none";
+/** An inclusive comparison window (see comparisonRange in period-presets.ts). */
+export type ComparisonWindow = { start: string; end: string };
 
-export const METRIC_KEYS = [
+export const PERF_METRIC_KEYS = [
   "spendMinor",
   "impressions",
   "clicks",
@@ -42,8 +43,9 @@ export const METRIC_KEYS = [
   "verifiedConversions",
   "platformGap",
 ] as const;
-export type MetricKey = (typeof METRIC_KEYS)[number];
-export type PerfMetrics = Record<MetricKey, number | null>;
+export type PerfMetricKey = (typeof PERF_METRIC_KEYS)[number];
+export type PerfMetrics = Record<PerfMetricKey, number | null>;
+export type PerfDeltas = Partial<Record<PerfMetricKey, number | null>>;
 export type Quadrant = "scale" | "test" | "fix" | "kill";
 
 export type PerfRowV2 = PerfMetrics & {
@@ -54,7 +56,7 @@ export type PerfRowV2 = PerfMetrics & {
   parentId: string | null;
   parentName: string | null;
   /** Change vs the comparison period per metric (ratio, 0.12 = +12%); null when not comparable. */
-  delta: Partial<Record<MetricKey, number | null>> | null;
+  delta: PerfDeltas | null;
   quadrant: Quadrant | null;
 };
 
@@ -62,8 +64,9 @@ export type PerformanceReport = {
   level: PerfLevel;
   rows: PerfRowV2[];
   totals: PerfMetrics & { count: number };
-  totalsDelta: Partial<Record<MetricKey, number | null>> | null;
-  compare: { mode: Exclude<CompareMode, "none">; start: string; end: string } | null;
+  totalsDelta: PerfDeltas | null;
+  /** The comparison window the deltas were computed against, or null when compare is off. */
+  compare: ComparisonWindow | null;
   /** Where the quadrant chart splits: median spend of rows with spend, and the ROAS bar. */
   split: { spendMinor: number; roas: number };
 };
@@ -73,7 +76,8 @@ export type PerfQuery = ReportParams & {
   parentId?: string;
   /** Case-insensitive name filter (entity or parent name). */
   q?: string;
-  compare?: CompareMode;
+  /** Compare against this window (from the filter bar's ?compare=); omit or null for no deltas. */
+  comparison?: ComparisonWindow | null;
   /** ROAS the quadrant splits on (a workspace target when one exists; break-even 1.0 otherwise). */
   roasSplit?: number;
 };
@@ -88,27 +92,7 @@ const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 const ratio = (a: number, b: number) => (b > 0 ? a / b : null);
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const minor = (a: number, b: number) => (b > 0 ? Math.round(a / b) : null);
-
-function tsRange(col: SQL, ws: Workspace, p: ReportParams) {
-  return sql`${col} >= (${p.start}::date)::timestamp at time zone ${ws.timezone}
-    and ${col} < ((${p.end}::date + 1))::timestamp at time zone ${ws.timezone}`;
-}
-
-/** The period the table compares against. */
-export function comparePeriod(p: ReportParams, mode: CompareMode): ReportParams | null {
-  if (mode === "none") return null;
-  if (mode === "previous") return previousPeriod(p);
-  const shift = (d: string) => {
-    const t = new Date(`${d}T00:00:00Z`);
-    t.setUTCFullYear(t.getUTCFullYear() - 1);
-    return t.toISOString().slice(0, 10);
-  };
-  return { ...p, start: shift(p.start), end: shift(p.end) };
-}
-
-export function parseCompare(v: unknown): CompareMode {
-  return v === "none" || v === "year" ? v : "previous";
-}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Raw = Record<string, string | null>;
 
@@ -151,17 +135,33 @@ function metricsFrom(r: Raw): PerfMetrics {
   };
 }
 
+const toRow = (r: Raw, m: PerfMetrics = metricsFrom(r)) => ({
+  id: r.id!,
+  name: r.name!,
+  platform: r.platform as Platform,
+  status: r.status,
+  parentId: r.parent_id,
+  parentName: r.parent_name,
+  ...m,
+});
+
+type LevelQuery = PerfQuery & {
+  /** Only this entity (the peek): filtered inside the CTEs too, so only its rows are summed. */
+  id?: string;
+};
+
 /** One row per entity with summed inputs; shared by the row and totals queries. */
-function baseQuery(ws: Workspace, p: PerfQuery): SQL {
+function baseQuery(ws: Workspace, p: LevelQuery): SQL {
   const rc = ws.reportingCurrency;
   const cfg = LEVELS[p.level];
   const key = sql.raw(cfg.key);
-  const parentSel = cfg.parent
-    ? sql.raw(`e.${cfg.parent} as parent_id, pe.name as parent_name`)
-    : sql.raw(`null::uuid as parent_id, null::text as parent_name`);
+  const parentSel = parentSelFor(cfg);
   const parentJoin = cfg.parentTable ? sql.raw(`left join ${cfg.parentTable} pe on pe.id = e.${cfg.parent}`) : sql``;
   const parentWhere = p.parentId && cfg.parent ? sql`and e.${sql.raw(cfg.parent)} = ${p.parentId}::uuid` : sql``;
   const platformWhere = p.platform ? sql`and e.platform = ${p.platform}` : sql``;
+  const idS = p.id ? sql`and ${key} = ${p.id}::uuid` : sql``;
+  const idC = p.id ? sql`and ac.${key} = ${p.id}::uuid` : sql``;
+  const idE = p.id ? sql`and e.id = ${p.id}::uuid` : sql``;
   const q = p.q?.trim().slice(0, 200);
   const like = q ? `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
   const nameWhere = like
@@ -175,7 +175,7 @@ function baseQuery(ws: Workspace, p: PerfQuery): SQL {
       select ${key} as id, sum(spend_minor) spend, sum(impressions) imp, sum(clicks) clicks,
         sum(platform_conversions) platform_conv
       from ad_insights_daily
-      where workspace_id = ${ws.id} and date between ${p.start}::date and ${p.end}::date and currency = ${rc}
+      where workspace_id = ${ws.id} and date between ${p.start}::date and ${p.end}::date and currency = ${rc} ${idS}
       group by 1
     ), fp as (
       -- A customer conversion's id is the contact's first payment, so these are "new customer" payments.
@@ -193,7 +193,7 @@ function baseQuery(ws: Workspace, p: PerfQuery): SQL {
       from attribution_credits ac
       left join fp on fp.id = ac.conversion_id
       where ac.workspace_id = ${ws.id} and ac.model = ${p.model} and ac.${key} is not null
-        and ${tsRange(sql`ac.conversion_at`, ws, p)}
+        and ${tsRange(sql`ac.conversion_at`, ws, p)} ${idC}
       group by 1
     ), base as (
       select e.id, e.name, e.platform, e.status, ${parentSel},
@@ -206,11 +206,11 @@ function baseQuery(ws: Workspace, p: PerfQuery): SQL {
       left join c on c.id = e.id
       ${parentJoin}
       where e.workspace_id = ${ws.id} and (s.id is not null or c.id is not null)
-        ${platformWhere} ${parentWhere} ${nameWhere}
+        ${platformWhere} ${parentWhere} ${nameWhere} ${idE}
     )`;
 }
 
-async function fetchLevel(db: DB, ws: Workspace, p: PerfQuery) {
+async function fetchLevel(db: DB, ws: Workspace, p: LevelQuery) {
   const base = baseQuery(ws, p);
   const [list, [tot]] = await Promise.all([
     db.execute(sql`${base} select * from base order by spend desc, name, id`).then((r) => rows<Raw>(r)),
@@ -225,9 +225,9 @@ async function fetchLevel(db: DB, ws: Workspace, p: PerfQuery) {
   return { list, totals: { ...metricsFrom(tot ?? {}), count: n(tot?.count) } };
 }
 
-function deltas(cur: PerfMetrics, prev: PerfMetrics | undefined): Partial<Record<MetricKey, number | null>> {
-  const out: Partial<Record<MetricKey, number | null>> = {};
-  for (const k of METRIC_KEYS) {
+function deltas(cur: PerfMetrics, prev: PerfMetrics | undefined): PerfDeltas {
+  const out: PerfDeltas = {};
+  for (const k of PERF_METRIC_KEYS) {
     const a = cur[k];
     const b = prev?.[k] ?? null;
     out[k] = a === null || b === null || b === 0 ? null : (a - b) / Math.abs(b);
@@ -242,6 +242,10 @@ function median(values: number[]): number {
   return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
 }
 
+/**
+ * Scale (big spend, ROAS at or above the bar), Test (small spend, good ROAS: give it more),
+ * Fix (small spend, weak ROAS) or Kill (big spend, weak ROAS). Rows without spend aren't placed.
+ */
 export function quadrantOf(spendMinor: number, roas: number | null, split: { spendMinor: number; roas: number }): Quadrant | null {
   if (spendMinor <= 0) return null;
   const good = (roas ?? 0) >= split.roas;
@@ -251,12 +255,8 @@ export function quadrantOf(spendMinor: number, roas: number | null, split: { spe
 
 /** The Performance table: rows, SQL totals, optional comparison and quadrant split. */
 export async function performanceReport(db: DB, ws: Workspace, p: PerfQuery): Promise<PerformanceReport> {
-  const mode = p.compare ?? "none";
-  const prevParams = comparePeriod(p, mode);
-  const [cur, prev] = await Promise.all([
-    fetchLevel(db, ws, p),
-    prevParams ? fetchLevel(db, ws, { ...p, ...prevParams }) : Promise.resolve(null),
-  ]);
+  const prevParams = p.comparison ? { ...p, start: p.comparison.start, end: p.comparison.end } : null;
+  const [cur, prev] = await Promise.all([fetchLevel(db, ws, p), prevParams ? fetchLevel(db, ws, prevParams) : Promise.resolve(null)]);
   const prevById = new Map(prev?.list.map((r) => [r.id!, metricsFrom(r)]) ?? []);
 
   const metrics = cur.list.map((r) => ({ r, m: metricsFrom(r) }));
@@ -264,23 +264,16 @@ export async function performanceReport(db: DB, ws: Workspace, p: PerfQuery): Pr
     spendMinor: median(metrics.map(({ m }) => m.spendMinor ?? 0).filter((v) => v > 0)),
     roas: p.roasSplit && p.roasSplit > 0 ? p.roasSplit : 1,
   };
-  const out: PerfRowV2[] = metrics.map(({ r, m }) => ({
-    id: r.id!,
-    name: r.name!,
-    platform: r.platform as Platform,
-    status: r.status,
-    parentId: r.parent_id,
-    parentName: r.parent_name,
-    ...m,
-    delta: prev ? deltas(m, prevById.get(r.id!)) : null,
-    quadrant: quadrantOf(m.spendMinor ?? 0, m.roas, split),
-  }));
   return {
     level: p.level,
-    rows: out,
+    rows: metrics.map(({ r, m }) => ({
+      ...toRow(r, m),
+      delta: prev ? deltas(m, prevById.get(r.id!)) : null,
+      quadrant: quadrantOf(m.spendMinor ?? 0, m.roas, split),
+    })),
     totals: cur.totals,
     totalsDelta: prev ? deltas(cur.totals, prev.totals) : null,
-    compare: prevParams && mode !== "none" ? { mode, start: prevParams.start, end: prevParams.end } : null,
+    compare: prevParams ? { start: prevParams.start, end: prevParams.end } : null,
     split,
   };
 }
@@ -298,26 +291,51 @@ export type PeekContact = {
 };
 
 export type PerformancePeek = {
+  level: PerfLevel;
+  /** The entity with its metrics for the period (zeros when it had no activity) and deltas when comparing. */
+  row: PerfRowV2;
   trend: { date: string; spendMinor: number; revenueMinor: number }[];
-  children: PerfRowV2[];
   childLevel: PerfLevel | null;
+  /** Top children by spend (at most 8). */
+  children: PerfRowV2[];
+  /** How many children had activity in the period. */
+  childCount: number;
+  /** Top contacts by credited revenue (at most 8). */
   contacts: PeekContact[];
   contactCount: number;
 };
 
-const CHILD: Record<PerfLevel, PerfLevel | null> = { campaign: "ad_group", ad_group: "ad", ad: null };
+export const CHILD_LEVEL: Record<PerfLevel, PerfLevel | null> = { campaign: "ad_group", ad_group: "ad", ad: null };
 
-/** Daily trend, child rows and the contacts one campaign, ad set or ad brought in. */
+/**
+ * Everything the row peek shows for one campaign, ad set or ad: its metrics (and deltas), the
+ * daily spend and revenue trend, its top children and the contacts it brought in. Null when the id
+ * isn't an entity of this workspace at that level. The platform filter doesn't apply: the peek
+ * always describes the whole entity.
+ */
 export async function performancePeek(
   db: DB,
   ws: Workspace,
-  p: ReportParams & { level: PerfLevel; id: string },
-): Promise<PerformancePeek> {
+  p: ReportParams & { level: PerfLevel; id: string; comparison?: ComparisonWindow | null },
+): Promise<PerformancePeek | null> {
+  if (!UUID.test(p.id)) return null;
+  const cfg = LEVELS[p.level];
   const rc = ws.reportingCurrency;
-  const key = sql.raw(LEVELS[p.level].key);
-  const childLevel = CHILD[p.level];
+  const key = sql.raw(cfg.key);
+  const childLevel = CHILD_LEVEL[p.level];
 
-  const [trend, contacts, [count], children] = await Promise.all([
+  const [entity] = rows<Raw>(
+    await db.execute(sql`
+      select e.id, e.name, e.platform, e.status, ${parentSelFor(cfg)}
+      from ${sql.raw(cfg.table)} e ${cfg.parentTable ? sql.raw(`left join ${cfg.parentTable} pe on pe.id = e.${cfg.parent}`) : sql``}
+      where e.workspace_id = ${ws.id} and e.id = ${p.id}::uuid`),
+  );
+  if (!entity) return null;
+
+  const one: LevelQuery = { ...p, platform: undefined, id: p.id };
+  const [cur, prev, trend, contacts, [count], children] = await Promise.all([
+    fetchLevel(db, ws, one).then((r) => r.list[0]),
+    p.comparison ? fetchLevel(db, ws, { ...one, ...p.comparison }).then((r) => r.list[0]) : Promise.resolve(undefined),
     db
       .execute(
         sql`
@@ -352,7 +370,7 @@ export async function performancePeek(
         where ac.workspace_id = ${ws.id} and ac.model = ${p.model} and ac.${key} = ${p.id}::uuid
           and ${tsRange(sql`ac.conversion_at`, ws, p)}
         group by ct.id, ct.name, ct.email, ct.lifecycle
-        order by 5 desc, 7 desc
+        order by 5 desc, 7 desc, ct.id
         limit 8`,
       )
       .then((r) => rows<Raw>(r)),
@@ -363,23 +381,19 @@ export async function performancePeek(
             and ${tsRange(sql`conversion_at`, ws, p)}`,
       )
       .then((r) => rows<Raw>(r)),
-    childLevel ? fetchLevel(db, ws, { ...p, level: childLevel, parentId: p.id }).then((r) => r.list) : Promise.resolve([]),
+    childLevel
+      ? fetchLevel(db, ws, { model: p.model, start: p.start, end: p.end, level: childLevel, parentId: p.id }).then((r) => r.list)
+      : Promise.resolve([] as Raw[]),
   ]);
 
+  const m = metricsFrom(cur ?? {});
   return {
+    level: p.level,
+    row: { ...toRow(entity, m), delta: p.comparison ? deltas(m, prev ? metricsFrom(prev) : undefined) : null, quadrant: null },
     trend: trend.map((t) => ({ date: t.date!, spendMinor: n(t.spend), revenueMinor: n(t.revenue) })),
     childLevel,
-    children: children.slice(0, 8).map((r) => ({
-      id: r.id!,
-      name: r.name!,
-      platform: r.platform as Platform,
-      status: r.status,
-      parentId: r.parent_id,
-      parentName: r.parent_name,
-      ...metricsFrom(r),
-      delta: null,
-      quadrant: null,
-    })),
+    children: children.slice(0, 8).map((r) => ({ ...toRow(r), delta: null, quadrant: null })),
+    childCount: children.length,
     contacts: contacts.map((c) => ({
       id: c.id!,
       label: c.name?.trim() || maskEmail(c.email) || "Anonymous contact",
@@ -390,4 +404,8 @@ export async function performancePeek(
     })),
     contactCount: n(count?.n),
   };
+}
+
+function parentSelFor(cfg: (typeof LEVELS)[PerfLevel]): SQL {
+  return cfg.parent ? sql.raw(`e.${cfg.parent} as parent_id, pe.name as parent_name`) : sql.raw(`null::uuid as parent_id, null::text as parent_name`);
 }

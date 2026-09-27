@@ -7,7 +7,9 @@ import { getDb } from "@/lib/db";
 import type { SavedViewPage } from "@/lib/db/schema";
 import {
   cleanViewName,
+  countPinnedViews,
   countViews,
+  PINNED_VIEWS_MAX,
   createView,
   deleteView,
   getView,
@@ -95,7 +97,11 @@ export async function setViewPinnedAction(id: string, pinned: boolean): Promise<
   return runView(async () => {
     const user = await guard("reports.view");
     const view = await editable(user, id);
-    await updateView(await getDb(), user.workspace.id, view.id, { pinned: Boolean(pinned) });
+    const db = await getDb();
+    if (pinned && !view.pinned && (await countPinnedViews(db, user.workspace.id, user.id)) >= PINNED_VIEWS_MAX) {
+      return fail(`The sidebar holds up to ${PINNED_VIEWS_MAX} pinned views. Unpin one first.`);
+    }
+    await updateView(db, user.workspace.id, view.id, { pinned: Boolean(pinned) });
     await audit(user, pinned ? "view.pin" : "view.unpin", view.id, { page: view.page });
     revalidatePath("/", "layout");
     return { ...ok(pinned ? `Pinned “${view.name}” to the sidebar.` : `Unpinned “${view.name}”.`), views: await pageViews(user, view.page) };
