@@ -384,6 +384,10 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "report_schedules" },
   { table: "export_log" },
   { table: "saved_views" },
+  // CRM. Not exported: contact_notes (private notes never leave AdLedger) and contact_stats (derived, rebuilt from the ledger).
+  { table: "contact_tags" },
+  { table: "tasks" },
+  { table: "contact_views" },
   { table: "audit_log" },
 ];
 

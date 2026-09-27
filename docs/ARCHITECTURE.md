@@ -125,6 +125,16 @@ unattributed, channel, platform, campaign/ad group/ad, credit numeric(9,6), reve
 conversion type × lead/payment id, unique; status pending|sent|failed|skipped, attempts, next_attempt_at,
 error, mock, sent_at, skip_reason, consent_mode = the consent basis it was built with).
 
+**CRM** — `contacts.owner_user_id` (a team member, set null when they leave), `contact_tags`
+(lowercased tag per contact, unique `(contact_id, tag)`), `contact_notes` (body, author, pinned) and `tasks`
+(title, due_at, assignee, created_by, done_at, optional contact). Notes and tasks are part of the contact
+record: `on delete cascade` from `contacts`, never exported, never sent to AI or MCP. `contact_views` holds
+each member's saved Contacts views (name + the table's URL params). `contact_stats` is a derived
+per-contact roll-up (revenue, refunds, orders, touches, first/last touch platform/channel/campaign,
+first lead, converted_at, days_to_convert, last seen/activity, engagement 0–100) rebuilt by
+`refreshContactStats()` after every attribution recompute and filled for new contacts when the
+Contacts page loads.
+
 **Overview layouts** — `dashboards` (name, preset, layout jsonb, version, updated_at; `user_id` null =
 the workspace default, otherwise that member's personal override; unique `(workspace_id, user_id)` with
 nulls not distinct).
@@ -180,6 +190,25 @@ Models: first_touch (earliest), last_touch (latest non-direct), linear (equal). 
 with largest-remainder rounding so credits sum exactly to the payment. No touchpoints → one
 “unattributed” credit (reported, not hidden). Full recompute per workspace, debounced, and once
 per boot so logic upgrades apply to old data.
+
+**CRM (Contacts, record page, notes, tasks).** `src/lib/reports-crm.ts` holds every CRM number, in SQL.
+The Contacts table (`/contacts`) reads `contacts ⟕ contact_stats` with keyset paging on
+`(sort value, id)` (cursor tokens `a.`/`b.` for next/previous; timestamps travel as Postgres text so
+microseconds survive), filters (status, first-touch platform/campaign, revenue range, tag, owner, date
+added, search), starter views (All, Customers, Open leads, High value = top 10% of paying contacts by
+revenue) and personal saved views. Footer totals (count, paying, Σ revenue, average LTV, median days to
+convert) and group-by-status subtotals are separate SQL aggregates over the same filter. All table state
+lives in the URL (`src/lib/crm-query.ts` parses and serializes it). The record page and the preview sheet
+render one `ContactPanel` (`src/components/crm/**`) fed by `contactRecord()`: highlights straight from the
+ledger, a unified timeline (touchpoints, page views and custom events, forms, payments, refunds, notes,
+tasks), properties with optimistic inline edits and Undo. Writes live in `src/app/actions/crm.ts`
+(`guard()` + workspace ownership checks + `audit()`; note bodies and names never enter the audit log).
+Every email/phone on CRM surfaces goes through `src/lib/contact-display.ts` (`displayEmail`,
+`displayPhone`), the single place role-based masking plugs in. Permissions: `contacts.edit` (owner, admin,
+analyst: tags, owner, status, name, notes, tasks) and `contacts.notes` (everyone but clients: see notes and
+tasks); authors edit their own notes, owners and admins anyone's. Engagement is a simple SQL score:
+recency of last activity (≤40) + pixel events in 30 days (≤30) + touches in 30 days (≤15) + a lead in
+30 days (10) + a payment in 90 days (5).
 
 **Currency.** One reporting currency per workspace. Rows in other currencies are stored but
 excluded from totals, with a warning in the API/UI. FX conversion is v0.2.

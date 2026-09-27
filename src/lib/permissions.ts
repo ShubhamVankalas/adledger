@@ -22,6 +22,8 @@ export type Permission =
   | "contacts.pii"
   | "security.manage"
   | "views.share"
+  | "contacts.edit"
+  | "contacts.notes"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -51,6 +53,9 @@ const MATRIX: Record<Permission, Role[]> = {
   "security.manage": ["owner"],
   // Create, edit, pin and delete views shared with the whole workspace (personal views only need reports.view).
   "views.share": ["owner", "admin", "analyst"],
+  // CRM: tags, owner, lifecycle, notes, tasks and saved views. Notes and tasks are internal: clients never see them.
+  "contacts.edit": ["owner", "admin", "analyst"],
+  "contacts.notes": ["owner", "admin", "analyst", "viewer"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],

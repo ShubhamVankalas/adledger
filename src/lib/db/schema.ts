@@ -524,11 +524,15 @@ export const contacts = pgTable(
     externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
     // Latest explicit ads consent (granted | denied); null = never asked.
     adsConsent: text("ads_consent").$type<ConsentState>(),
+    /** Team member responsible for this contact (CRM owner). */
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("contacts_email_hash_uq").on(t.workspaceId, t.emailHash),
     index().on(t.workspaceId, t.phoneHash),
+    index().on(t.workspaceId, t.firstSeenAt, t.id),
+    index().on(t.workspaceId, t.ownerUserId),
   ],
 );
 
@@ -784,4 +788,113 @@ export const savedViews = pgTable(
   (t) => [index().on(t.workspaceId, t.page, t.position), index().on(t.userId)],
 );
 export type SavedViewPage = "performance";
+// ---------------------------------------------------------------- CRM
+
+/**
+ * Per-contact roll-up behind the Contacts table, so sort, filter and footer totals stay
+ * index-backed. Derived data: rebuilt by refreshContactStats() (src/lib/reports-crm.ts) after
+ * every attribution recompute, and for contacts without a row when the Contacts page loads.
+ * Money is in the workspace's reporting currency, like the rest of the reports.
+ */
+export const contactStats = pgTable(
+  "contact_stats",
+  {
+    contactId: uuid("contact_id")
+      .primaryKey()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    workspaceId: workspaceId(),
+    revenueMinor: money("revenue_minor").notNull().default(0),
+    refundsMinor: money("refunds_minor").notNull().default(0),
+    orders: integer("orders").notNull().default(0),
+    touches: integer("touches").notNull().default(0),
+    firstTouchAt: tstz("first_touch_at"),
+    firstTouchChannel: text("first_touch_channel").$type<Channel>(),
+    firstTouchPlatform: text("first_touch_platform").$type<Platform>(),
+    firstTouchCampaignId: uuid("first_touch_campaign_id"),
+    lastTouchAt: tstz("last_touch_at"),
+    lastTouchChannel: text("last_touch_channel").$type<Channel>(),
+    lastTouchPlatform: text("last_touch_platform").$type<Platform>(),
+    lastTouchCampaignId: uuid("last_touch_campaign_id"),
+    firstLeadAt: tstz("first_lead_at"),
+    convertedAt: tstz("converted_at"),
+    daysToConvert: integer("days_to_convert"),
+    lastSeenAt: tstz("last_seen_at"),
+    lastActivityAt: tstz("last_activity_at"),
+    /** 0–100: recency and frequency of visits, ad touches, forms and payments. */
+    engagement: integer("engagement").notNull().default(0),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.workspaceId, t.revenueMinor),
+    index().on(t.workspaceId, t.lastActivityAt),
+    index().on(t.workspaceId, t.firstTouchPlatform),
+    index().on(t.workspaceId, t.firstTouchCampaignId),
+  ],
+);
+
+export const contactTags = pgTable(
+  "contact_tags",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    /** Lowercased and trimmed, at most 40 characters. */
+    tag: text("tag").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("contact_tags_uq").on(t.contactId, t.tag), index().on(t.workspaceId, t.tag)],
+);
+
+/** Private notes are part of the contact record: deleted with it, never exported or sent to AI/MCP. */
+export const contactNotes = pgTable(
+  "contact_notes",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    pinned: boolean("pinned").notNull().default(false),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.contactId, t.createdAt), index().on(t.workspaceId)],
+);
+
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    // A task about a contact is part of its record and is deleted with it.
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    dueAt: tstz("due_at"),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    doneAt: tstz("done_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.assigneeUserId, t.doneAt, t.dueAt), index().on(t.contactId)],
+);
+
+/** Personal saved views on the Contacts table: the table's URL params (filters, sort, columns). */
+export const contactViews = pgTable(
+  "contact_views",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    filters: jsonb("filters").$type<Record<string, string>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.userId)],
+);
 

@@ -1,353 +1,76 @@
-import { ChevronLeftIcon, ChevronRightIcon, DownloadIcon, SearchIcon, UsersIcon, XIcon } from "lucide-react";
-import Link from "next/link";
+import { DownloadIcon } from "lucide-react";
+import { ContactsView } from "@/components/crm/contacts-view";
 import { PageBody, PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth";
+import { parseContactQuery } from "@/lib/crm-query";
 import { getDb } from "@/lib/db";
-import { channelLabel, moneyWhole, num } from "@/lib/format";
-import { listContacts, maskEmail, type ContactRow } from "@/lib/reports";
-import { cn } from "@/lib/utils";
-import { Email, RevealProvider, RevealToggle } from "./reveal";
+import {
+  contactGroupTotals,
+  contactTotals,
+  crmAbilities,
+  crmMembers,
+  ensureContactStats,
+  filterOptions,
+  highValueThreshold,
+  listContactsPage,
+  listContactViews,
+  starterViewCounts,
+} from "@/lib/reports-crm";
 
 export const metadata = { title: "Contacts" };
-const PAGE = 50;
-const FILTERS = [
-  [undefined, "All"],
-  ["lead", "Leads"],
-  ["customer", "Customers"],
-] as const;
 
 export default async function ContactsPage({ searchParams }: PageProps<"/contacts">) {
   const user = await requireUser();
   const ws = user.workspace;
-  const canSetup = user.can("workspace.settings");
-  // Emails are masked on screen for everyone; members with contacts.pii can reveal them (audited)
-  // and search by any part of an address. Others match names and exact emails only.
-  const pii = user.can("contacts.pii");
-  const sp = await searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
-  const lifecycle = sp.lifecycle === "lead" || sp.lifecycle === "customer" ? sp.lifecycle : undefined;
-  const page = Math.max(1, Math.floor(Number(sp.page)) || 1);
   const db = await getDb();
-  const result = await listContacts(db, ws, {
-    search: q,
-    lifecycle,
-    limit: PAGE,
-    offset: (page - 1) * PAGE,
-    piiSearch: pii,
-  });
-  const total = result.total;
-  const rows = result.rows.map((c) => ({ ...c, email: maskEmail(c.email) }));
-  const pages = Math.max(1, Math.ceil(total / PAGE));
-  const link = (patch: Record<string, string | undefined>) => {
-    const next = new URLSearchParams(
-      Object.entries({ q, lifecycle, page: String(page), ...patch }).filter(([k, v]) => v && !(k === "page" && v === "1")) as [string, string][],
-    );
-    const s = next.toString();
-    return s ? `/contacts?${s}` : "/contacts";
-  };
-  const exportHref = `/api/v1/exports/contacts?${new URLSearchParams(Object.entries({ q, lifecycle }).filter(([, v]) => v) as [string, string][])}`;
-  const dateFmt = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: ws.timezone,
-  });
-  const noun = lifecycle === "customer" ? "customer" : lifecycle === "lead" ? "lead" : "contact";
-  const from = (page - 1) * PAGE + 1;
-  const to = Math.min(total, page * PAGE);
-  const firstTouch = (c: ContactRow) => ({
-    primary: c.firstCampaign ?? (c.firstChannel ? channelLabel(c.firstChannel) : null),
-    secondary: c.firstCampaign && c.firstChannel ? channelLabel(c.firstChannel) : null,
-  });
-  const revenue = (c: ContactRow) => (c.revenueMinor ? moneyWhole(c.revenueMinor, ws.reportingCurrency) : "—");
+  const query = parseContactQuery(await searchParams);
+  // Contacts created since the last attribution run get their roll-up row now.
+  await ensureContactStats(db, ws.id);
+  const highValueMinor = await highValueThreshold(db, ws);
+  const q = { ...query, viewerId: user.id, highValueMinor, pii: user.can("contacts.pii") };
+  const [page, totals, groups, counts, options, members, views] = await Promise.all([
+    listContactsPage(db, ws, q, user),
+    contactTotals(db, ws, q),
+    query.group ? contactGroupTotals(db, ws, q) : Promise.resolve(null),
+    starterViewCounts(db, ws, highValueMinor),
+    filterOptions(db, ws),
+    crmMembers(db, ws),
+    listContactViews(db, ws, user.id),
+  ]);
+  const abilities = crmAbilities(user);
+  const exportParams = new URLSearchParams(Object.entries({ q: query.q, lifecycle: query.lc ?? (query.view === "customers" ? "customer" : query.view === "leads" ? "lead" : "") }).filter(([, v]) => v) as [string, string][]);
 
   return (
-    <RevealProvider ids={rows.filter((c) => c.email).map((c) => c.id)} canReveal={pii}>
-      <PageHeader title="Contacts" description="Every lead and customer, with the journey that brought them in">
-        {rows.some((c) => c.email) ? <RevealToggle /> : null}
-        {user.can("export.csv") && total > 0 ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-10 sm:h-7"
-            title={user.can("export.contacts") ? undefined : "Emails are masked in your export"}
-            render={<a href={exportHref} download />}
-          >
-            <DownloadIcon /> Export <span className="max-sm:sr-only">CSV</span>
+    <>
+      <PageHeader title="Contacts" description="Every lead and customer, with the ad that brought them in">
+        {abilities.export && counts.all > 0 ? (
+          <Button variant="outline" size="sm" render={<a href={`/api/v1/exports/contacts${exportParams.size ? `?${exportParams}` : ""}`} download />}>
+            <DownloadIcon /> <span className="max-sm:sr-only">Export CSV</span>
           </Button>
         ) : null}
       </PageHeader>
       <PageBody>
-        {/* Toolbar: search + lifecycle filter. Stacks in narrow containers, one row when there is room. */}
-        <div className="@container">
-          <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
-            <form className="relative w-full @xl:max-w-sm" action="/contacts" role="search">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                name="q"
-                defaultValue={q}
-                placeholder={pii ? "Search by email or name…" : "Search by name or full email…"}
-                aria-label="Search contacts"
-                enterKeyHint="search"
-                autoComplete="off"
-                spellCheck={false}
-                className="h-10 pr-10 pl-9 @xl:h-9 [&::-webkit-search-cancel-button]:hidden"
-              />
-              {lifecycle ? <input type="hidden" name="lifecycle" value={lifecycle} /> : null}
-              {q ? (
-                <Link
-                  href={link({ q: undefined, page: undefined })}
-                  aria-label="Clear search"
-                  className="absolute top-1/2 right-0.5 flex size-9 -translate-y-1/2 items-center @xl:size-8 justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <XIcon className="size-4" />
-                </Link>
-              ) : null}
-            </form>
-            <nav aria-label="Filter by status" className="grid grid-cols-3 gap-1 rounded-lg border bg-muted/40 p-1 text-sm @xl:flex @xl:h-9 @xl:shrink-0 @xl:p-0.5">
-              {FILTERS.map(([v, label]) => (
-                <Link
-                  key={label}
-                  href={link({ lifecycle: v, page: undefined })}
-                  aria-current={lifecycle === v ? "page" : undefined}
-                  className={cn(
-                    "flex h-10 items-center justify-center rounded-md px-3 font-medium text-muted-foreground transition-colors hover:text-foreground @xl:h-auto",
-                    lifecycle === v && "bg-background text-foreground shadow-sm dark:bg-input/40",
-                  )}
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {rows.length === 0 ? (
-          !q && !lifecycle && total === 0 ? (
-            <Empty className="border bg-card py-10 sm:py-14">
-              <EmptyHeader className="max-w-md">
-                <EmptyMedia variant="icon" className="size-10 rounded-xl bg-primary/10 text-primary">
-                  <UsersIcon className="size-5" />
-                </EmptyMedia>
-                <EmptyTitle className="text-base">No contacts yet</EmptyTitle>
-                <EmptyDescription>
-                  Contacts appear when someone submits a form on your site, a form tool calls your lead webhook, or a payment arrives — each with the ads and visits that brought them in.
-                </EmptyDescription>
-              </EmptyHeader>
-              {canSetup ? (
-                <EmptyContent className="max-w-md sm:flex-row sm:justify-center">
-                  <Button size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#leads" />}>
-                    Capture your first lead
-                  </Button>
-                  <Button variant="outline" size="lg" className="h-11 w-full px-4 sm:h-10 sm:w-auto" render={<Link href="/onboarding#revenue" />}>
-                    Connect payments
-                  </Button>
-                </EmptyContent>
-              ) : null}
-            </Empty>
-          ) : (
-            <Empty className="border">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">{q ? <SearchIcon /> : <UsersIcon />}</EmptyMedia>
-                {q ? (
-                  <>
-                    <EmptyTitle className="break-words">
-                      No {noun}s match “{q}”
-                    </EmptyTitle>
-                    <EmptyDescription>
-                      {pii
-                        ? "Search looks at names and email addresses. Check the spelling or try part of the email."
-                        : "Search looks at names, and at email addresses typed in full. Check the spelling."}
-                    </EmptyDescription>
-                  </>
-                ) : total > 0 ? (
-                  <>
-                    <EmptyTitle>Nothing on this page</EmptyTitle>
-                    <EmptyDescription>
-                      There are only {pages} page{pages === 1 ? "" : "s"} of {noun}s.
-                    </EmptyDescription>
-                  </>
-                ) : (
-                  <>
-                    <EmptyTitle>No {noun}s yet</EmptyTitle>
-                    <EmptyDescription>
-                      {lifecycle === "customer"
-                        ? "Contacts become customers when a payment arrives from Stripe or another revenue source."
-                        : "Leads appear when someone submits a form on your site or a form tool calls your lead webhook."}
-                    </EmptyDescription>
-                  </>
-                )}
-              </EmptyHeader>
-              {q ? (
-                <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ q: undefined, page: undefined })} />}>
-                  Clear search
-                </Button>
-              ) : total > 0 ? (
-                <Button variant="outline" className="h-10 sm:h-8" render={<Link href={link({ page: undefined })} />}>
-                  Go to the first page
-                </Button>
-              ) : (
-                <Button variant="outline" className="h-10 sm:h-8" render={<Link href="/contacts" />}>
-                  Show all contacts
-                </Button>
-              )}
-            </Empty>
-          )
-        ) : (
-          <section className="@container space-y-3" aria-label={`${noun}s`}>
-            <p className="text-sm break-words text-muted-foreground">
-              <span className="tabular font-medium text-foreground">{num(total)}</span> {noun}
-              {total === 1 ? "" : "s"}
-              {q ? (
-                <>
-                  {" "}
-                  matching “<span className="text-foreground">{q}</span>”
-                </>
-              ) : null}
-            </p>
-
-            {/* Narrow containers (phones, tablets with the sidebar open): a tappable list. */}
-            <ul className="divide-y overflow-hidden rounded-xl border bg-card @2xl:hidden">
-              {rows.map((c) => {
-                const ft = firstTouch(c);
-                return (
-                  <li key={c.id}>
-                    <Link href={`/contacts/${c.id}`} className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/60">
-                      <Avatar c={c} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <span className="truncate font-medium">{c.name || (c.email ? <Email id={c.id} masked={c.email} /> : "Anonymous")}</span>
-                          {c.revenueMinor ? <span className="tabular shrink-0 text-sm font-medium">{revenue(c)}</span> : null}
-                        </div>
-                        {c.name && c.email ? <Email id={c.id} masked={c.email} className="block truncate text-xs text-muted-foreground" /> : null}
-                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          <LifecycleBadge lifecycle={c.lifecycle} />
-                          <span className="min-w-0 truncate">{ft.primary ?? "No tracked touchpoint"}</span>
-                        </div>
-                      </div>
-                      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {/* Wide containers: a table whose columns appear as space allows. The whole row is clickable. */}
-            <div className="hidden overflow-hidden rounded-xl border bg-card @2xl:block">
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="w-auto pl-4">Contact</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="hidden w-[32%] @4xl:table-cell">First touch</TableHead>
-                    <TableHead className="hidden w-36 @6xl:table-cell">Became a lead</TableHead>
-                    <TableHead className="w-28 text-right">Touchpoints</TableHead>
-                    <TableHead className="w-32 pr-4 text-right">Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((c) => {
-                    const ft = firstTouch(c);
-                    return (
-                      <TableRow key={c.id} className="relative">
-                        <TableCell className="py-2.5 pl-4">
-                          <Link
-                            href={`/contacts/${c.id}`}
-                            className="flex items-center gap-3 rounded-md outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring/50 focus-visible:after:ring-inset"
-                          >
-                            <Avatar c={c} />
-                            <span className="min-w-0">
-                              <span className="block truncate font-medium">{c.name || (c.email ? <Email id={c.id} masked={c.email} /> : "Anonymous")}</span>
-                              {c.name && c.email ? <Email id={c.id} masked={c.email} className="block truncate text-xs text-muted-foreground" /> : null}
-                            </span>
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <LifecycleBadge lifecycle={c.lifecycle} />
-                        </TableCell>
-                        <TableCell className="hidden @4xl:table-cell">
-                          <div className="truncate text-sm" title={ft.primary ?? undefined}>
-                            {ft.primary ?? <span className="text-muted-foreground">No tracked touchpoint</span>}
-                          </div>
-                          {ft.secondary ? <div className="truncate text-xs text-muted-foreground">{ft.secondary}</div> : null}
-                        </TableCell>
-                        <TableCell className="hidden text-sm text-muted-foreground @6xl:table-cell">
-                          {c.firstLeadAt ? dateFmt.format(new Date(c.firstLeadAt)) : "—"}
-                        </TableCell>
-                        <TableCell className="tabular text-right">{num(c.touchpoints)}</TableCell>
-                        <TableCell className={cn("tabular pr-4 text-right font-medium", !c.revenueMinor && "font-normal text-muted-foreground")}>{revenue(c)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        )}
-
-        {pages > 1 && rows.length > 0 ? (
-          <nav aria-label="Pagination" className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-            <span className="tabular">
-              <span className="hidden sm:inline">Showing </span>
-              {num(from)}–{num(to)} of {num(total)}
-              <span className="hidden sm:inline">
-                {" "}
-                · page {num(page)} of {num(pages)}
-              </span>
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="h-10 min-w-10 sm:h-8"
-                disabled={page <= 1}
-                aria-label="Previous page"
-                render={page > 1 ? <Link href={link({ page: String(page - 1) })} /> : undefined}
-              >
-                <ChevronLeftIcon />
-                <span className="hidden sm:inline">Previous</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-10 min-w-10 sm:h-8"
-                disabled={page >= pages}
-                aria-label="Next page"
-                render={page < pages ? <Link href={link({ page: String(page + 1) })} /> : undefined}
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRightIcon />
-              </Button>
-            </div>
-          </nav>
-        ) : null}
+        <ContactsView
+          query={query}
+          rows={page.rows}
+          nextCursor={page.nextCursor}
+          prevCursor={page.prevCursor}
+          totals={totals}
+          groups={groups}
+          counts={counts}
+          views={views}
+          options={options}
+          members={members}
+          abilities={abilities}
+          viewerId={user.id}
+          currency={ws.reportingCurrency}
+          timezone={ws.timezone}
+          now={new Date().toISOString()}
+          highValueMinor={highValueMinor}
+          canSetup={user.can("workspace.settings")}
+        />
       </PageBody>
-    </RevealProvider>
-  );
-}
-
-function Avatar({ c }: { c: ContactRow }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-        c.lifecycle === "customer" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-      )}
-    >
-      {(c.name || c.email || "?").slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
-function LifecycleBadge({ lifecycle }: { lifecycle: string }) {
-  return (
-    <Badge variant={lifecycle === "customer" ? "default" : "secondary"} className="capitalize">
-      {lifecycle}
-    </Badge>
+    </>
   );
 }

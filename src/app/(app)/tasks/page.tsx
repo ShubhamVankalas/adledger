@@ -1,17 +1,23 @@
-import { ListTodoIcon } from "lucide-react";
-import { ComingSoon } from "@/components/coming-soon";
+import { MyTasks } from "@/components/crm/my-tasks";
+import { PageBody, PageHeader } from "@/components/page-header";
 import { requireUser } from "@/lib/auth";
+import { getDb } from "@/lib/db";
+import { crmMembers, myTasks } from "@/lib/reports-crm";
 
 export const metadata = { title: "My tasks" };
 
 export default async function TasksPage() {
-  await requireUser();
+  // Tasks are internal team work: clients never see them.
+  const user = await requireUser("contacts.notes");
+  const ws = user.workspace;
+  const db = await getDb();
+  const [tasks, members] = await Promise.all([myTasks(db, ws, user.id, user), crmMembers(db, ws)]);
   return (
-    <ComingSoon
-      title="My tasks"
-      icon={ListTodoIcon}
-      headline="My tasks is coming in the next update"
-      body="Follow-ups on your leads and customers, grouped into overdue, today and upcoming."
-    />
+    <>
+      <PageHeader title="My tasks" description="Follow-ups assigned to you in this workspace" />
+      <PageBody>
+        <MyTasks tasks={tasks} members={members} viewerId={user.id} canEdit={user.can("contacts.edit")} tz={ws.timezone} now={new Date().toISOString()} />
+      </PageBody>
+    </>
   );
 }
