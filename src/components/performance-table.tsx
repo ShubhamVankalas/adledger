@@ -17,7 +17,6 @@ import { PlatformBadge } from "@/components/platform-badge";
 import {
   ReportEmpty,
   ROW_HOVER,
-  shortMoney,
   Stat,
   STICKY_HEAD_BG,
   STICKY_ROW_BG,
@@ -32,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { money, num, pct, roas } from "@/lib/format";
+import { countLabel, credit, creditTitle, moneyShort, moneyWhole, num, pct, roas } from "@/lib/format";
 import { toMajor } from "@/lib/money";
 import type { PerfRow } from "@/lib/reports";
 import { cn } from "@/lib/utils";
@@ -358,7 +357,7 @@ export function PerformanceTable({
                 <TableRow key={r.id} className={ROW_HOVER}>
                   <TableCell
                     className={cn(
-                      "sticky left-0 z-10 max-w-64 border-r pl-3 @6xl:max-w-96",
+                      "sticky left-0 z-10 max-w-64 border-r pl-3 @4xl:max-w-80 @6xl:max-w-[28rem]",
                       STICKY_ROW_BG,
                     )}
                   >
@@ -391,7 +390,7 @@ export function PerformanceTable({
                           </div>
                         )}
                         {r.parentName ? (
-                          <div className="truncate text-xs text-muted-foreground">
+                          <div className="truncate text-xs text-muted-foreground" title={r.parentName}>
                             {r.parentName}
                           </div>
                         ) : null}
@@ -404,7 +403,7 @@ export function PerformanceTable({
                       sortedCol("spendMinor"),
                     )}
                   >
-                    {money(r.spendMinor, currency)}
+                    {moneyWhole(r.spendMinor, currency)}
                   </TableCell>
                   <TableCell
                     className={cn(
@@ -424,8 +423,9 @@ export function PerformanceTable({
                   </TableCell>
                   <TableCell
                     className={cn("tabular text-right", sortedCol("leads"))}
+                    title={creditTitle(r.leads, "leads")}
                   >
-                    {num(r.leads, 1)}
+                    {credit(r.leads)}
                   </TableCell>
                   <TableCell
                     className={cn(
@@ -433,15 +433,16 @@ export function PerformanceTable({
                       sortedCol("cplMinor"),
                     )}
                   >
-                    {money(r.cplMinor, currency)}
+                    {moneyWhole(r.cplMinor, currency)}
                   </TableCell>
                   <TableCell
                     className={cn(
                       "tabular hidden text-right @3xl:table-cell",
                       sortedCol("customers"),
                     )}
+                    title={creditTitle(r.customers, "customers")}
                   >
-                    {num(r.customers, 1)}
+                    {credit(r.customers)}
                   </TableCell>
                   <TableCell
                     className={cn(
@@ -449,10 +450,10 @@ export function PerformanceTable({
                       sortedCol("cacMinor"),
                     )}
                   >
-                    {money(r.cacMinor, currency)}
+                    {moneyWhole(r.cacMinor, currency)}
                   </TableCell>
                   <TableCell className="tabular text-right font-medium">
-                    {money(r.revenueMinor, currency)}
+                    {moneyWhole(r.revenueMinor, currency)}
                   </TableCell>
                   <TableCell className="pr-3 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -501,7 +502,7 @@ export function PerformanceTable({
                   </span>
                 </TableCell>
                 <TableCell className="tabular text-right font-semibold">
-                  {money(totals.spend, currency)}
+                  {moneyWhole(totals.spend, currency)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @5xl:table-cell">
                   {num(totals.clicks)}
@@ -510,10 +511,10 @@ export function PerformanceTable({
                   {pct(totals.imp ? totals.clicks / totals.imp : null, 2)}
                 </TableCell>
                 <TableCell className="tabular text-right">
-                  {num(totals.leads, 1)}
+                  {credit(totals.leads)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @3xl:table-cell">
-                  {money(
+                  {moneyWhole(
                     totals.leads
                       ? Math.round(totals.spend / totals.leads)
                       : null,
@@ -521,16 +522,16 @@ export function PerformanceTable({
                   )}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @3xl:table-cell">
-                  {num(totals.cust, 1)}
+                  {credit(totals.cust)}
                 </TableCell>
                 <TableCell className="tabular hidden text-right @4xl:table-cell">
-                  {money(
+                  {moneyWhole(
                     totals.cust ? Math.round(totals.spend / totals.cust) : null,
                     currency,
                   )}
                 </TableCell>
                 <TableCell className="tabular text-right font-semibold">
-                  {money(totals.rev, currency)}
+                  {moneyWhole(totals.rev, currency)}
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -555,9 +556,9 @@ export function PerformanceTable({
           >
             <Stat
               label="Total spend"
-              value={shortMoney(totals.spend, currency)}
+              value={moneyShort(totals.spend, currency)}
             />
-            <Stat label="Revenue" value={shortMoney(totals.rev, currency)} />
+            <Stat label="Revenue" value={moneyShort(totals.rev, currency)} />
             <Stat
               label="ROAS"
               value={roas(totalRoas)}
@@ -622,6 +623,7 @@ export function PerformanceTable({
                   <div className="min-w-0 flex-1">
                     <span
                       data-slot="row-name"
+                      title={r.name}
                       className="line-clamp-2 text-sm font-medium break-words"
                     >
                       {r.name}
@@ -629,7 +631,12 @@ export function PerformanceTable({
                     <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       <PlatformBadge platform={r.platform} />
                       {r.parentName ? (
-                        <span className="truncate">{r.parentName}</span>
+                        <>
+                          <span aria-hidden>·</span>
+                          <span className="truncate" title={r.parentName}>
+                            {r.parentName}
+                          </span>
+                        </>
                       ) : null}
                     </span>
                   </div>
@@ -643,11 +650,11 @@ export function PerformanceTable({
                 <dl className="mt-3 grid grid-cols-3 gap-2">
                   <Stat
                     label="Spend"
-                    value={shortMoney(r.spendMinor, currency)}
+                    value={moneyShort(r.spendMinor, currency)}
                   />
                   <Stat
                     label="Revenue"
-                    value={shortMoney(r.revenueMinor, currency)}
+                    value={moneyShort(r.revenueMinor, currency)}
                   />
                   <Stat
                     label="ROAS"
@@ -656,9 +663,9 @@ export function PerformanceTable({
                   />
                 </dl>
                 <p className="tabular mt-2 truncate border-t pt-2 text-xs text-muted-foreground">
-                  {num(r.leads, 1)} leads · {num(r.customers, 1)} customers
+                  {countLabel(r.leads, "lead")} · {countLabel(r.customers, "customer")}
                   {r.cacMinor !== null
-                    ? ` · ${shortMoney(r.cacMinor, currency)} CAC`
+                    ? ` · ${moneyShort(r.cacMinor, currency)} CAC`
                     : ""}
                 </p>
               </>

@@ -74,7 +74,8 @@ export function languageModel(cfg: LlmConfig): LanguageModel {
 const SYSTEM = `You are a sharp, practical performance-marketing analyst writing a short weekly note for a founder.
 Rules (strict):
 - Use ONLY numbers that appear in the JSON facts. Never calculate, estimate, round differently, or invent numbers.
-- Quote money exactly as formatted in the facts (with currency symbol).
+- Quote money, percentages and ROAS exactly as formatted in the facts (with currency symbol).
+- Name platforms, channels and the period exactly as the facts do (e.g. "Meta", "Paid social", period.label).
 - If something isn't in the facts, say you don't know.
 - Be concrete: name campaigns. Recommend where to move budget and why, based on ROAS and revenue.
 Format (Markdown):
@@ -84,32 +85,86 @@ Format (Markdown):
 ## Recommendations  (3-5 numbered actions)
 Keep it under 350 words.`;
 
+// ---- Template helpers: turn the pre-formatted facts into sentences. They only choose words;
+// every figure in the output is copied verbatim from the facts pack.
+
+const MINUS = "−";
+/** True when a formatted amount is zero ("$0", "0x", "0"). */
+const isZero = (s: string) => !/[1-9]/.test(s);
+/** Signed percentage string ("+15.2%", "−0.1%", "0%") -> number; null for "new" / "n/a". */
+function pctValue(s: string): number | null {
+  const m = /^([+−-])?(\d+(?:\.\d+)?)%$/.exec(s);
+  if (!m) return null;
+  return (m[1] === MINUS || m[1] === "-" ? -1 : 1) * Number(m[2]);
+}
+const unsigned = (s: string) => s.replace(/^[+−-]/, "");
+const counted = (count: string, one: string, many = `${one}s`) => `${count} ${count === "1" ? one : many}`;
+const roasValue = (s: string) => (s === "n/a" ? null : parseFloat(s));
+
+/** "was flat (−0.1%)", "was up 15.2%", "was down 8.0%", "started this period". */
+function movement(change: string) {
+  if (change === "new") return "started this period";
+  const v = pctValue(change);
+  if (v === null) return `changed ${change}`;
+  if (v === 0) return "was flat";
+  if (Math.abs(v) < 1) return `was flat (${change})`;
+  return `was ${v > 0 ? "up" : "down"} ${unsigned(change)}`;
+}
+
 /** Deterministic report used when no model is configured (or the model call fails). */
 export function templateReport(f: Facts): string {
   const lines: string[] = [];
   const t = f.totals;
   const c = f.changeVsPreviousPeriod;
+  const model = f.attributionModelLabel.toLowerCase();
+  const vs = f.period.days === 7 ? "the previous week" : `the previous ${f.period.days} days`;
+
   lines.push("## Summary");
-  lines.push(
-    `From ${f.period.start} to ${f.period.end} you spent **${t.spend}** on ads and earned **${t.revenue}** in revenue ` +
-      `(**${t.revenueAttributedToAds}** attributed to ads, ROAS **${t.roas}** using the ${f.attributionModel.replace("_", "-")} model). ` +
-      `Spend changed ${c.spend} and revenue changed ${c.revenue} versus the previous period.`,
-  );
+  if (isZero(t.spend)) {
+    lines.push(
+      `**${f.period.label}:** no ad spend was recorded. You earned **${t.revenue}** in revenue` +
+        (isZero(t.revenue) ? "." : `, and revenue ${movement(c.revenue)} on ${vs}.`),
+    );
+  } else {
+    const credited = isZero(t.revenueAttributedToAds)
+      ? "none of it attributed to ads yet"
+      : `**${t.revenueAttributedToAds}** of it attributed to ads for a **${t.roas}** return on ad spend (${model} attribution)`;
+    lines.push(
+      `**${f.period.label}:** you spent **${t.spend}** on ads and earned **${t.revenue}** in revenue, ${credited}. ` +
+        `Spend ${movement(c.spend)} and revenue ${movement(c.revenue)} on ${vs}.`,
+    );
+  }
+
   lines.push("", "## What's working");
-  const winners = f.topCampaigns.filter((x) => x.roas !== "n/a" && parseFloat(x.roas) >= 1);
+  const winners = f.topCampaigns.filter((x) => (roasValue(x.roas) ?? 0) >= 1);
   if (winners.length === 0) lines.push("- No campaign returned more than it spent in this period.");
-  for (const w of winners) lines.push(`- **${w.name}** (${w.platform}): ${w.revenue} revenue on ${w.spend} spend — ROAS ${w.roas}.`);
+  for (const w of winners) lines.push(`- **${w.name}** (${w.platform}): ${w.revenue} in revenue on ${w.spend} of spend, a ${w.roas} return.`);
+
   lines.push("", "## Wasted spend");
   if (f.wastedSpend.length === 0) lines.push("- Nothing obvious: every campaign with meaningful spend produced revenue.");
-  for (const w of f.wastedSpend) lines.push(`- **${w.name}** (${w.platform}): ${w.spend} spent, ${w.revenue} revenue, ${w.leads} leads — ROAS ${w.roas}.`);
+  for (const w of f.wastedSpend) {
+    const noLeads = isZero(w.leads);
+    const leads = noLeads ? "no leads" : counted(w.leads, "lead");
+    const result = !isZero(w.revenue)
+      ? `for ${w.revenue} in revenue (${w.roas} ROAS) and ${leads}`
+      : noLeads
+        ? "with no leads and no attributed revenue"
+        : `for ${leads} but no attributed revenue`;
+    lines.push(`- **${w.name}** (${w.platform}): ${w.spend} spent ${result}.`);
+  }
+
   lines.push("", "## Recommendations");
   let i = 1;
-  if (f.wastedSpend[0]) lines.push(`${i++}. Cut or restructure **${f.wastedSpend[0].name}** — it spent ${f.wastedSpend[0].spend} with ROAS ${f.wastedSpend[0].roas}.`);
-  if (winners[0]) lines.push(`${i++}. Move budget toward **${winners[0].name}**, your best performer at ROAS ${winners[0].roas}.`);
-  if (t.unattributedShare !== "n/a" && parseFloat(t.unattributedShare) > 20) {
-    lines.push(`${i++}. ${t.unattributedShare} of revenue is unattributed — check the pixel is on every landing page and pass the visitor ID to Stripe checkout.`);
+  const worst = f.wastedSpend[0];
+  if (worst) {
+    const why = isZero(worst.revenue) ? `${worst.spend} spent with no attributed revenue` : `${worst.spend} spent at a ${worst.roas} ROAS`;
+    lines.push(`${i++}. Pause or rework **${worst.name}**: ${why}.`);
   }
-  lines.push(`${i++}. Compare models (first-touch vs last-touch) before cutting prospecting campaigns; they often start journeys that retargeting and brand search finish.`);
+  if (winners[0]) lines.push(`${i++}. Shift budget toward **${winners[0].name}**, your top revenue earner at a ${winners[0].roas} ROAS.`);
+  if (t.unattributedShare !== "n/a" && parseFloat(t.unattributedShare) > 20) {
+    lines.push(`${i++}. ${t.unattributedShare} of revenue has no tracked source. Make sure the pixel is on every landing page and the visitor ID is passed to checkout.`);
+  }
+  lines.push(`${i++}. Check the model comparison before cutting prospecting campaigns: they often start journeys that retargeting and brand search finish.`);
   return lines.join("\n");
 }
 

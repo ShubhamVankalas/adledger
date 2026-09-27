@@ -25,15 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
-import { CHANNEL_LABELS, MODEL_LABELS, delta, money, moneyKpi, num, pct, roas } from "@/lib/format";
+import { CHANNEL_LABELS, MODEL_LABELS, countLabel, credit, dateRange, delta, moneyKpi, moneyShort, pct, reportSourceLabel, roas } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { channels, overview, performance, platforms, previousPeriod, timeseries, wastedSpend } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Overview" };
 
-const shortDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-const plural = (n: number, one: string, many = `${one}s`) => `${num(n, 1)} ${n === 1 ? one : many}`;
 /** Card-header link: a 36px tap target on phones, compact from `sm` up. */
 const headerLink = "h-9 px-3 sm:h-7 sm:px-2.5";
 /** List rows are links: comfortable tap height on phones, a hover wash on desktop. */
@@ -96,7 +94,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
         <section aria-label="Key metrics" className="@container">
           <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3 @4xl:grid-cols-6">
             <KpiCard label="Ad spend" value={moneyKpi(cur.spendMinor, c)} delta={delta(cur.spendMinor, prev.spendMinor)} goodWhenUp={null} icon={MegaphoneIcon} sub="vs prev. period" />
-            <KpiCard label="Revenue" value={moneyKpi(cur.revenueMinor, c)} delta={delta(cur.revenueMinor, prev.revenueMinor)} icon={CoinsIcon} sub={`${money(cur.attributedRevenueMinor, c, true)} from ads`} />
+            <KpiCard label="Revenue" value={moneyKpi(cur.revenueMinor, c)} delta={delta(cur.revenueMinor, prev.revenueMinor)} icon={CoinsIcon} sub={`${moneyShort(cur.attributedRevenueMinor, c)} from ads`} />
             <KpiCard
               accent
               label="ROAS"
@@ -106,15 +104,15 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
               sub={`blended ${roas(cur.blendedRoas)}`}
               hint="Revenue attributed to ads ÷ ad spend, using the selected attribution model. Blended = all revenue ÷ ad spend."
             />
-            <KpiCard label="Leads" value={num(cur.leads)} delta={delta(cur.leads, prev.leads)} icon={UserPlusIcon} sub={`CPL ${moneyKpi(cur.cplMinor, c)}`} />
-            <KpiCard label="Customers" value={num(cur.customers)} delta={delta(cur.customers, prev.customers)} icon={HandCoinsIcon} sub={`CAC ${moneyKpi(cur.cacMinor, c)}`} />
+            <KpiCard label="Leads" value={credit(cur.leads)} delta={delta(cur.leads, prev.leads)} icon={UserPlusIcon} sub={`CPL ${moneyKpi(cur.cplMinor, c)}`} />
+            <KpiCard label="Customers" value={credit(cur.customers)} delta={delta(cur.customers, prev.customers)} icon={HandCoinsIcon} sub={`CAC ${moneyKpi(cur.cacMinor, c)}`} />
             <KpiCard
               label="Unattributed"
               value={pct(cur.unattributedShare)}
               icon={TargetIcon}
               goodWhenUp={false}
               delta={delta(cur.unattributedShare, prev.unattributedShare)}
-              sub={money(cur.unattributedRevenueMinor, c, true)}
+              sub={moneyShort(cur.unattributedRevenueMinor, c)}
               hint="Revenue from people with no tracked marketing touchpoint in the attribution window. Lower is better — install the pixel everywhere and pass the visitor ID to checkout."
             />
           </div>
@@ -187,10 +185,10 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                                 {t.name}
                               </span>
                             </span>
-                            <span className="tabular text-right text-sm font-semibold">{money(t.revenueMinor, c, true)}</span>
-                            <span className="tabular hidden text-right text-sm text-muted-foreground @xl:block">{money(t.spendMinor, c, true)}</span>
+                            <span className="tabular text-right text-sm font-semibold">{moneyShort(t.revenueMinor, c)}</span>
+                            <span className="tabular hidden text-right text-sm text-muted-foreground @xl:block">{moneyShort(t.spendMinor, c)}</span>
                             <span className="col-span-2 flex items-center gap-2.5 @xl:col-span-1">
-                              <span className="tabular w-24 shrink-0 text-xs text-muted-foreground @xl:hidden">spend {money(t.spendMinor, c, true)}</span>
+                              <span className="tabular w-24 shrink-0 text-xs text-muted-foreground @xl:hidden">spend {moneyShort(t.spendMinor, c)}</span>
                               <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                                 <span
                                   className={cn("block h-full rounded-full", (t.roas ?? 0) >= 1 ? "bg-success" : "bg-destructive/70")}
@@ -213,7 +211,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                 <CardTitle className="flex items-center gap-2">
                   <SparklesIcon className="size-4 text-primary" /> Latest insight
                 </CardTitle>
-                <CardDescription>{latest ? `${shortDate(latest.periodStart)} – ${shortDate(latest.periodEnd)} · ${latest.modelName}` : "Weekly AI summary of what changed and why"}</CardDescription>
+                <CardDescription>{latest ? `${dateRange(latest.periodStart, latest.periodEnd)} · ${reportSourceLabel(latest.modelName)}` : "Weekly AI summary of what changed and why"}</CardDescription>
                 {latest ? (
                   <CardAction>
                     <Button variant="ghost" size="sm" className={headerLink} render={<Link href="/insights" />}>
@@ -250,7 +248,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                 {waste.length ? (
                   <CardAction>
                     <Badge variant="destructive" className="tabular h-6 px-2 text-xs font-semibold">
-                      {money(wasteTotal, c, true)}
+                      {moneyShort(wasteTotal, c)}
                     </Badge>
                   </CardAction>
                 ) : null}
@@ -273,7 +271,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                         </span>
                         <span className="flex shrink-0 flex-col items-end leading-tight">
                           <span className="tabular text-sm font-semibold text-destructive">{roas(w.roas)}</span>
-                          <span className="tabular text-xs text-muted-foreground">{money(w.spendMinor, c, true)} spent</span>
+                          <span className="tabular text-xs text-muted-foreground">{moneyShort(w.spendMinor, c)} spent</span>
                         </span>
                       </Link>
                     </li>
@@ -302,7 +300,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                         <div className="flex items-baseline justify-between gap-3 text-sm">
                           <span className="truncate font-medium">{CHANNEL_LABELS[r.channel] ?? r.channel}</span>
                           <span className="tabular shrink-0">
-                            <span className="font-medium">{money(r.revenueMinor, c, true)}</span>
+                            <span className="font-medium">{moneyShort(r.revenueMinor, c)}</span>
                             <span className="text-muted-foreground"> · {pct(share, 0)}</span>
                           </span>
                         </div>
@@ -313,7 +311,7 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                           />
                         </div>
                         <div className="tabular mt-1 text-xs text-muted-foreground">
-                          {plural(r.leads, "lead")} · {plural(r.customers, "customer")}
+                          {countLabel(r.leads, "lead")} · {countLabel(r.customers, "customer")}
                         </div>
                       </li>
                     );
@@ -345,10 +343,10 @@ export default async function OverviewPage({ searchParams }: PageProps<"/">) {
                             className={cn(rowLink, "grid min-h-11 grid-cols-[minmax(0,1fr)_auto_3.5rem] items-center gap-x-3 py-1.5")}
                           >
                             <span className="min-w-0">
-                              <PlatformBadge platform={pl.platform} />
+                              <PlatformBadge platform={pl.platform} className="text-sm font-medium text-foreground" />
                             </span>
                             <span className="tabular text-right text-xs text-muted-foreground">
-                              {money(pl.spendMinor, c, true)} → <span className="text-foreground">{money(pl.revenueMinor, c, true)}</span>
+                              {moneyShort(pl.spendMinor, c)} → <span className="text-foreground">{moneyShort(pl.revenueMinor, c)}</span>
                             </span>
                             <span className={cn("tabular text-right text-sm font-semibold", (pl.roas ?? 0) >= 1 ? "text-success" : "text-destructive")}>{roas(pl.roas)}</span>
                           </Link>

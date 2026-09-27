@@ -14,7 +14,6 @@ import {
   CohortTable,
   ratioLabel,
 } from "@/components/reports/ltv-tables";
-import { shortMoney } from "@/components/reports/report-ui";
 import {
   Card,
   CardContent,
@@ -24,18 +23,11 @@ import {
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { MODEL_LABELS, moneyKpi, num } from "@/lib/format";
+import { dateRange, longDate, MODEL_LABELS, moneyKpi, moneyShort, num } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { ltv } from "@/lib/reports-advanced";
 
 export const metadata = { title: "Customer LTV" };
-
-const day = (d: string) =>
-  new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
 
 export default async function LtvPage({
   searchParams,
@@ -76,8 +68,8 @@ export default async function LtvPage({
             label="New customers"
             value={num(r.customers)}
             icon={UsersIcon}
-            sub={`${day(p.start)} – ${day(p.end)}`}
-            hint={`Customers whose first payment was between ${p.start} and ${p.end}.`}
+            sub={dateRange(p.start, p.end)}
+            hint={`Customers whose first payment was between ${longDate(p.start)} and ${longDate(p.end)}.`}
           />
           <KpiCard
             label="Revenue to date"
@@ -98,10 +90,10 @@ export default async function LtvPage({
             icon={GaugeIcon}
             sub={
               paidSpend
-                ? `on ${shortMoney(paidSpend, c)} ad spend`
+                ? `on ${moneyShort(paidSpend, c)} ad spend`
                 : "no ad spend"
             }
-            hint={`Lifetime revenue of customers acquired by ad platforms (${shortMoney(paidRevenue, c)}) ÷ what those platforms cost in the same period (${shortMoney(paidSpend, c)}). 3:1 or better is healthy for most businesses.`}
+            hint={`Lifetime revenue of customers acquired by ad platforms (${moneyShort(paidRevenue, c)}) ÷ what those platforms cost in the same period (${moneyShort(paidSpend, c)}). 3:1 or better is healthy for most businesses.`}
           />
         </section>
 
@@ -135,7 +127,7 @@ export default async function LtvPage({
         </div>
         <div className="flex flex-col gap-3 border-t pt-4 text-xs text-muted-foreground lg:flex-row lg:items-start lg:justify-between">
           <p className="max-w-3xl">
-            Revenue is every payment minus refunds in {c} up to {p.end}.
+            Revenue is every payment minus refunds in {c} up to {longDate(p.end)}.
             Customers are counted in the month of their first payment (workspace
             timezone {ws.timezone}). CAC only exists for ad platforms with spend
             in {c}; organic, referral and unattributed customers show LTV only.

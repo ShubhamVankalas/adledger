@@ -193,9 +193,12 @@ export default async function PerformancePage({ searchParams }: PageProps<"/perf
             <strong className="text-foreground">
               {MODEL_LABELS[p.model].toLowerCase()}
             </strong>{" "}
-            model within a {ws.attributionWindowDays}-day window. Fractional
-            values come from multi-touch credit. Spend is in{" "}
-            {ws.reportingCurrency}; accounts in other currencies are excluded.
+            model within a {ws.attributionWindowDays}-day window.
+            {p.model === "linear"
+              ? " Linear credit splits each person across the ads they touched, so small counts can show a decimal; hover a count for the exact value."
+              : null}{" "}
+            Amounts are in {ws.reportingCurrency}; ad accounts in other
+            currencies are excluded.
           </p>
           <nav
             aria-label="Related reports"

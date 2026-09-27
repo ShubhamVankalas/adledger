@@ -3,7 +3,6 @@ import { PlatformBadge } from "@/components/platform-badge";
 import {
   ReportEmpty,
   ROW_HOVER,
-  shortMoney,
   STICKY_HEAD_BG,
   STICKY_ROW_BG,
 } from "@/components/reports/report-ui";
@@ -16,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { roas } from "@/lib/format";
+import { moneyDelta, moneyShort, moneyWhole, roas } from "@/lib/format";
 import type {
   JourneyRole,
   ModelComparison,
@@ -65,8 +64,6 @@ function RoleDot({ role }: { role: JourneyRole }) {
 
 const roasTone = (m: ModelResult) =>
   (m.roas ?? 0) >= 1 ? "text-success" : "text-muted-foreground";
-const signed = (minor: number, c: string) =>
-  `${minor > 0 ? "+" : minor < 0 ? "−" : ""}${shortMoney(Math.abs(minor), c)}`;
 
 /** Centre-anchored bar: right of centre = earns more under first touch, left = under last touch. */
 function DeltaBar({
@@ -106,7 +103,7 @@ function ModelCells({ m, currency }: { m: ModelResult; currency: string }) {
   return (
     <>
       <TableCell className="tabular border-l text-right">
-        {shortMoney(m.revenueMinor, currency)}
+        {moneyWhole(m.revenueMinor, currency)}
       </TableCell>
       <TableCell
         className={cn("tabular text-right text-xs font-medium", roasTone(m))}
@@ -202,7 +199,7 @@ export function ModelComparisonTable({
               <TableRow key={x.id} className={ROW_HOVER}>
                 <TableCell
                   className={cn(
-                    "sticky left-0 z-10 max-w-56 border-r pl-4 @6xl:max-w-80",
+                    "sticky left-0 z-10 max-w-56 border-r pl-4 @5xl:max-w-64 @6xl:max-w-80",
                     STICKY_ROW_BG,
                   )}
                 >
@@ -214,7 +211,7 @@ export function ModelComparisonTable({
                   </div>
                 </TableCell>
                 <TableCell className="tabular text-right">
-                  {shortMoney(x.spendMinor, c)}
+                  {moneyWhole(x.spendMinor, c)}
                 </TableCell>
                 <ModelCells m={x.firstTouch} currency={c} />
                 <ModelCells m={x.lastTouch} currency={c} />
@@ -227,8 +224,8 @@ export function ModelComparisonTable({
                       role={x.role}
                       className="w-16 shrink-0 @5xl:w-24"
                     />
-                    <span className="tabular w-16 shrink-0 text-right text-xs font-medium">
-                      {signed(x.deltaMinor, c)}
+                    <span className="tabular w-20 shrink-0 text-right text-xs font-medium">
+                      {moneyDelta(x.deltaMinor, c, { whole: true })}
                     </span>
                     <Badge
                       className={cn(
@@ -256,7 +253,7 @@ export function ModelComparisonTable({
                 All campaigns
               </TableCell>
               <TableCell className="tabular text-right font-semibold">
-                {shortMoney(r.totals.spendMinor, c)}
+                {moneyWhole(r.totals.spendMinor, c)}
               </TableCell>
               <ModelCells m={r.totals.firstTouch} currency={c} />
               <ModelCells m={r.totals.lastTouch} currency={c} />
@@ -276,12 +273,13 @@ export function ModelComparisonTable({
           <li key={x.id} className="rounded-xl border bg-background/40 p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="line-clamp-2 text-sm font-medium break-words">
+                <p className="line-clamp-2 text-sm font-medium break-words" title={x.name}>
                   {x.name}
                 </p>
                 <p className="tabular mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <PlatformBadge platform={x.platform} />
-                  {shortMoney(x.spendMinor, c)} spend
+                  <span aria-hidden>·</span>
+                  {moneyShort(x.spendMinor, c)} spend
                 </p>
               </div>
               <Badge className={cn("shrink-0", ROLE[x.role].className)}>
@@ -296,7 +294,7 @@ export function ModelComparisonTable({
                     {m.label}
                   </dt>
                   <dd className="tabular mt-0.5 truncate text-sm font-medium">
-                    {shortMoney(x[m.key].revenueMinor, c)}
+                    {moneyShort(x[m.key].revenueMinor, c)}
                   </dd>
                   <dd
                     className={cn(
@@ -319,7 +317,7 @@ export function ModelComparisonTable({
               />
               <span className="text-[11px] text-muted-foreground">First</span>
               <span className="tabular w-16 text-right text-xs font-semibold">
-                {signed(x.deltaMinor, c)}
+                {moneyDelta(x.deltaMinor, c)}
               </span>
             </div>
           </li>
@@ -332,7 +330,7 @@ export function ModelComparisonTable({
         <div className="min-w-0">
           <dt className="text-muted-foreground">Spend</dt>
           <dd className="tabular mt-0.5 truncate text-sm font-semibold">
-            {shortMoney(r.totals.spendMinor, c)}
+            {moneyShort(r.totals.spendMinor, c)}
           </dd>
         </div>
         {MODELS.map((m) => (

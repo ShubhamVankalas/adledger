@@ -10,7 +10,6 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { ReportControls } from "@/components/report-controls";
 import { ModelComparisonTable } from "@/components/reports/model-comparison-table";
-import { shortMoney } from "@/components/reports/report-ui";
 import {
   Card,
   CardContent,
@@ -20,7 +19,7 @@ import {
 } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { moneyKpi, num, roas } from "@/lib/format";
+import { moneyDelta, moneyKpi, moneyShort, num, plural, roas } from "@/lib/format";
 import { resolvePeriodParams } from "@/lib/period";
 import { modelComparison, ROLE_THRESHOLD } from "@/lib/reports-advanced";
 
@@ -65,7 +64,7 @@ export default async function ModelComparisonPage({
             value={moneyKpi(r.totals.spendMinor, c)}
             goodWhenUp={null}
             icon={MegaphoneIcon}
-            sub={`${r.rows.length} campaigns`}
+            sub={plural(r.rows.length, "campaign")}
           />
           <KpiCard
             label="Linear ROAS"
@@ -81,10 +80,10 @@ export default async function ModelComparisonPage({
             icon={RocketIcon}
             sub={
               starters.length
-                ? `+${shortMoney(starterGain, c)} on first touch`
+                ? `${moneyDelta(starterGain, c)} on first touch`
                 : "none this period"
             }
-            hint={`Campaigns credited clearly more under first-touch than last-touch (${shortMoney(sumFirst(starters), c)} vs ${shortMoney(sumLast(starters), c)}): they introduce people who later convert through something else. Judging them on last-touch undervalues them.`}
+            hint={`Campaigns credited clearly more under first-touch than last-touch (${moneyShort(sumFirst(starters), c)} vs ${moneyShort(sumLast(starters), c)}): they introduce people who later convert through something else. Judging them on last-touch undervalues them.`}
           />
           <KpiCard
             label="Journey closers"
@@ -92,10 +91,10 @@ export default async function ModelComparisonPage({
             icon={FlagIcon}
             sub={
               closers.length
-                ? `+${shortMoney(closerGain, c)} on last touch`
+                ? `${moneyDelta(closerGain, c)} on last touch`
                 : "none this period"
             }
-            hint={`Campaigns credited clearly more under last-touch (${shortMoney(sumLast(closers), c)} vs ${shortMoney(sumFirst(closers), c)} first-touch): they catch people who were already on their way (brand search, retargeting).`}
+            hint={`Campaigns credited clearly more under last-touch (${moneyShort(sumLast(closers), c)} vs ${moneyShort(sumFirst(closers), c)} first-touch): they catch people who were already on their way (brand search, retargeting).`}
           />
         </section>
 
