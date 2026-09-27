@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRightIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDownIcon, ChevronUpIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadContactAction } from "@/app/actions/crm";
@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ContactRecord, CrmAbilities, CrmMember } from "@/lib/crm-query";
 import { cn } from "@/lib/utils";
-import { ContactPanel } from "./contact-panel";
+import { ContactPanel, type PanelCommands } from "./contact-panel";
 import { contactName } from "./crm-format";
 
 /**
@@ -48,6 +48,7 @@ export function ContactPeek({
   const [loading, setLoading] = useState(false);
   const cache = useRef(new Map<string, ContactRecord>());
   const latest = useRef<string | null>(null);
+  const commands = useRef<PanelCommands | null>(null);
 
   const load = useCallback(async (id: string, fresh = false) => {
     latest.current = id;
@@ -82,7 +83,7 @@ export function ContactPeek({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="w-full gap-0 p-0 sm:max-w-[500px]"
+        className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[500px]"
         onKeyDown={(e) => {
           if (e.metaKey || e.ctrlKey || e.altKey) return;
           const t = e.target as HTMLElement;
@@ -93,6 +94,10 @@ export function ContactPeek({
           } else if (e.key === "k") {
             e.preventDefault();
             onMove(-1);
+          } else if ((e.key === "n" || e.key === "t") && commands.current) {
+            e.preventDefault();
+            if (e.key === "n") commands.current.note();
+            else commands.current.task();
           } else if ((e.key === "o" || e.key === "Enter") && contactId && t.tagName !== "BUTTON" && t.tagName !== "A") {
             e.preventDefault();
             onOpen(contactId);
@@ -106,24 +111,38 @@ export function ContactPeek({
           <Button variant="ghost" size="icon-sm" aria-label="Next contact (J)" disabled={position >= total} onClick={() => onMove(1)}>
             <ChevronDownIcon />
           </Button>
-          <span className="num ml-1 text-caption text-muted-foreground">
+          <span className="num ml-1 text-caption whitespace-nowrap text-muted-foreground">
             {position.toLocaleString("en-US")} of {total.toLocaleString("en-US")}
           </span>
           <span className="flex-1" />
           {contactId ? (
-            <Button variant="ghost" size="sm" render={<Link href={`/contacts/${contactId}`} onClick={() => onOpen(contactId)} />}>
-              Open record
+            <Button
+              variant="ghost"
+              size="sm"
+              render={
+                <Link
+                  href={`/contacts/${contactId}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                    e.preventDefault();
+                    onOpen(contactId);
+                  }}
+                />
+              }
+            >
+              <span className="max-sm:sr-only">Open record</span>
               <Keycaps keys="o" className="max-sm:hidden" />
               <ArrowUpRightIcon className="sm:hidden" />
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground">
-            Close
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground" aria-label="Close preview">
+            <span className="max-sm:hidden">Close</span>
             <Keycaps keys="escape" className="max-sm:hidden" />
+            <XIcon className="sm:hidden" />
           </Button>
         </div>
 
-        <div className={cn("flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-10 transition-opacity duration-150", stale && "opacity-60")} aria-busy={loading || undefined}>
+        <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-10 transition-opacity duration-150", stale && "opacity-60")} aria-busy={loading || undefined}>
           {shown ? (
             <>
               <SheetTitle className="sr-only">{contactName(shown.contact)}</SheetTitle>
@@ -138,6 +157,7 @@ export function ContactPeek({
                 now={now}
                 variant="peek"
                 onChanged={() => load(shown.contact.id, true)}
+                commandsRef={commands}
               />
             </>
           ) : error ? (

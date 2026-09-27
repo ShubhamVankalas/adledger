@@ -161,7 +161,7 @@ export function Timeline({
         <div>
           {days.map((d) => (
             <section key={d.key} aria-label={d.label} className="relative">
-              <h3 className={cn("sticky z-[1] -mx-1 mb-1 flex items-center gap-3 bg-card/95 px-1 py-1.5 text-caption font-medium text-muted-foreground backdrop-blur-sm", compact ? "top-0" : "top-[52px]")}>
+              <h3 className={cn("sticky z-[1] -mx-1 mb-1 flex items-center gap-3 px-1 py-1.5 text-caption font-medium text-muted-foreground backdrop-blur-sm", compact ? "top-0 bg-popover/95" : "top-[52px] bg-background/95")}>
                 <span className="shrink-0">{d.label}</span>
                 <span aria-hidden className="h-px flex-1 bg-border" />
               </h3>

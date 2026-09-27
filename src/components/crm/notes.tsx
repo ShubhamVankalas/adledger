@@ -1,21 +1,46 @@
 "use client";
 
-import { MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, StickyNoteIcon, Trash2Icon } from "lucide-react";
+import {
+  MoreHorizontalIcon,
+  PencilIcon,
+  PinIcon,
+  PinOffIcon,
+  StickyNoteIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { startTransition, useId, useOptimistic, useRef, useState } from "react";
-import { addNoteAction, deleteNoteAction, pinNoteAction, updateNoteAction } from "@/app/actions/crm";
+import {
+  addNoteAction,
+  deleteNoteAction,
+  pinNoteAction,
+  updateNoteAction,
+} from "@/app/actions/crm";
 import { UserAvatar } from "@/components/avatars";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Keycaps } from "@/components/keycaps";
 import type { CrmAbilities, CrmMember, NoteRow } from "@/lib/crm-query";
 import { cn } from "@/lib/utils";
-import { relative } from "./crm-format";
+import { dateTime, relative } from "./crm-format";
 import { runAction } from "./run-action";
 
-type Op = { type: "add"; note: NoteRow } | { type: "remove"; id: string } | { type: "patch"; id: string; patch: Partial<NoteRow> };
+type Op =
+  | { type: "add"; note: NoteRow }
+  | { type: "remove"; id: string }
+  | { type: "patch"; id: string; patch: Partial<NoteRow> };
 
 function sortNotes(list: NoteRow[]) {
-  return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt));
+  return [...list].sort(
+    (a, b) =>
+      Number(b.pinned) - Number(a.pinned) ||
+      b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
 /**
@@ -46,28 +71,38 @@ export function NotesSection({
   const [list, apply] = useOptimistic(notes, (state: NoteRow[], op: Op) => {
     if (op.type === "add") return sortNotes([op.note, ...state]);
     if (op.type === "remove") return state.filter((n) => n.id !== op.id);
-    return sortNotes(state.map((n) => (n.id === op.id ? { ...n, ...op.patch } : n)));
+    return sortNotes(
+      state.map((n) => (n.id === op.id ? { ...n, ...op.patch } : n)),
+    );
   });
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const id = useId();
   const me = members.find((m) => m.id === viewerId);
 
   const submit = () => {
     const body = draft.trim();
-    if (!body || busy) return;
-    setBusy(true);
+    if (!body) return;
+    // Clear the box at once (outside the transition); the note shows optimistically until saved.
+    setDraft("");
     startTransition(async () => {
       apply({
         type: "add",
-        note: { id: `tmp-${Date.now()}`, body, pinned: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), authorUserId: viewerId, authorName: me?.name ?? me?.email ?? null },
+        note: {
+          id: `tmp-${Date.now()}`,
+          body,
+          pinned: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          authorUserId: viewerId,
+          authorName: me?.name ?? me?.email ?? null,
+        },
       });
-      setDraft("");
-      const res = await runAction(addNoteAction(contactId, body), { success: false });
+      const res = await runAction(addNoteAction(contactId, body), {
+        success: false,
+      });
       if (!res.ok) setDraft(body);
       await onChanged();
-      setBusy(false);
     });
   };
 
@@ -76,8 +111,12 @@ export function NotesSection({
       apply({ type: "remove", id: note.id });
       await runAction(deleteNoteAction(note.id), {
         undo: async (res) => {
-          const restored = await addNoteAction(contactId, String(res.data?.body ?? note.body));
-          if (restored.ok && note.pinned && restored.data?.id) await pinNoteAction(String(restored.data.id), true);
+          const restored = await addNoteAction(
+            contactId,
+            String(res.data?.body ?? note.body),
+          );
+          if (restored.ok && note.pinned && restored.data?.id)
+            await pinNoteAction(String(restored.data.id), true);
           await onChanged();
           return restored;
         },
@@ -95,7 +134,11 @@ export function NotesSection({
   const save = (note: NoteRow, body: string) =>
     startTransition(async () => {
       setEditing(null);
-      apply({ type: "patch", id: note.id, patch: { body, updatedAt: new Date().toISOString() } });
+      apply({
+        type: "patch",
+        id: note.id,
+        patch: { body, updatedAt: new Date().toISOString() },
+      });
       await runAction(updateNoteAction(note.id, body), { success: false });
       await onChanged();
     });
@@ -133,8 +176,13 @@ export function NotesSection({
             <span className="hidden items-center gap-1.5 pl-1 text-caption text-fg-faint sm:inline-flex">
               <Keycaps keys="mod+enter" /> to save
             </span>
-            <Button type="submit" size="sm" disabled={!draft.trim() || busy} className="ml-auto">
-              {busy ? "Saving…" : "Add note"}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!draft.trim()}
+              className="ml-auto"
+            >
+              Add note
             </Button>
           </div>
         </form>
@@ -142,30 +190,77 @@ export function NotesSection({
 
       {list.length === 0 ? (
         <div className="flex items-start gap-3 rounded-lg bg-fill/60 px-3 py-3 text-ui text-muted-foreground">
-          <StickyNoteIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-faint" />
-          <p className="text-pretty">No notes yet. Notes stay inside AdLedger: they are never exported or shared with AI.</p>
+          <StickyNoteIcon
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-fg-faint"
+          />
+          <p className="text-pretty">
+            No notes yet. Notes stay inside AdLedger: they are never exported or
+            shared with AI.
+          </p>
         </div>
       ) : (
         <ul className="space-y-2">
           {list.map((note) => {
             const author = members.find((m) => m.id === note.authorUserId);
             const mine = note.authorUserId === viewerId;
-            const canChange = abilities.edit && (mine || abilities.moderate) && !note.id.startsWith("tmp-");
-            const edited = new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime() > 60_000;
+            const canChange =
+              abilities.edit &&
+              (mine || abilities.moderate) &&
+              !note.id.startsWith("tmp-");
+            const edited =
+              new Date(note.updatedAt).getTime() -
+                new Date(note.createdAt).getTime() >
+              60_000;
             return (
-              <li key={note.id} className={cn("group/note rounded-lg border bg-surface px-3 py-2.5", note.pinned && "border-warning/40 bg-warning-soft/40", note.id.startsWith("tmp-") && "opacity-70")}>
+              <li
+                key={note.id}
+                className={cn(
+                  "group/note rounded-lg border bg-surface px-3 py-2.5",
+                  note.pinned && "border-warning/40 bg-warning-soft/40",
+                  note.id.startsWith("tmp-") && "opacity-70",
+                )}
+              >
                 <div className="flex items-center gap-2">
-                  {author ? <UserAvatar id={author.id} name={author.name} email={author.email} size="xs" /> : <span className="size-5 rounded-full bg-fill" aria-hidden />}
-                  <span className="min-w-0 truncate text-ui font-medium">{note.authorName ?? (author ? author.name || author.email : "Former teammate")}</span>
-                  <span className="shrink-0 text-caption text-fg-faint" title={new Date(note.createdAt).toLocaleString()}>
+                  {author ? (
+                    <UserAvatar
+                      id={author.id}
+                      name={author.name}
+                      email={author.email}
+                      size="xs"
+                    />
+                  ) : (
+                    <span className="size-5 rounded-full bg-fill" aria-hidden />
+                  )}
+                  <span className="min-w-0 truncate text-ui font-medium">
+                    {note.authorName ??
+                      (author
+                        ? author.name || author.email
+                        : "Former teammate")}
+                  </span>
+                  <span
+                    className="shrink-0 text-caption text-fg-faint"
+                    title={dateTime(note.createdAt, tz)}
+                  >
                     {relative(note.createdAt, tz, now)}
                     {edited ? " · edited" : ""}
                   </span>
-                  {note.pinned ? <PinIcon aria-label="Pinned" className="size-3.5 shrink-0 text-warning-foreground" /> : null}
+                  {note.pinned ? (
+                    <PinIcon
+                      aria-label="Pinned"
+                      className="size-3.5 shrink-0 text-warning-foreground"
+                    />
+                  ) : null}
                   {canChange ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger
-                        render={<Button variant="ghost" size="icon-xs" className="ml-auto text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/note:opacity-100 sm:focus-visible:opacity-100 sm:aria-expanded:opacity-100" />}
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="ml-auto text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/note:opacity-100 sm:focus-visible:opacity-100 sm:aria-expanded:opacity-100"
+                          />
+                        }
                         aria-label="Note actions"
                       >
                         <MoreHorizontalIcon />
@@ -180,7 +275,10 @@ export function NotesSection({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive" onClick={() => remove(note)}>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => remove(note)}
+                        >
                           <Trash2Icon />
                           Delete
                         </DropdownMenuItem>
@@ -189,9 +287,15 @@ export function NotesSection({
                   ) : null}
                 </div>
                 {editing === note.id ? (
-                  <NoteEditor initial={note.body} onCancel={() => setEditing(null)} onSave={(body) => save(note, body)} />
+                  <NoteEditor
+                    initial={note.body}
+                    onCancel={() => setEditing(null)}
+                    onSave={(body) => save(note, body)}
+                  />
                 ) : (
-                  <p className="mt-1.5 text-body break-words whitespace-pre-wrap text-foreground/90">{note.body}</p>
+                  <p className="mt-1.5 text-body break-words whitespace-pre-wrap text-foreground/90">
+                    {note.body}
+                  </p>
                 )}
               </li>
             );
@@ -202,7 +306,15 @@ export function NotesSection({
   );
 }
 
-function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (body: string) => void; onCancel: () => void }) {
+function NoteEditor({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: string;
+  onSave: (body: string) => void;
+  onCancel: () => void;
+}) {
   const [text, setText] = useState(initial);
   const ref = useRef<HTMLTextAreaElement>(null);
   return (
@@ -221,7 +333,8 @@ function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (b
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Escape") onCancel();
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim()) onSave(text.trim());
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim())
+            onSave(text.trim());
         }}
         maxLength={5000}
         className="block min-h-20 w-full resize-y rounded-md border border-border-strong bg-transparent px-2.5 py-2 text-body outline-none field-sizing-content focus-visible:outline-2 focus-visible:outline-ring max-sm:text-base"
@@ -230,7 +343,11 @@ function NoteEditor({ initial, onSave, onCancel }: { initial: string; onSave: (b
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={!text.trim() || text.trim() === initial}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!text.trim() || text.trim() === initial}
+        >
           Save
         </Button>
       </div>

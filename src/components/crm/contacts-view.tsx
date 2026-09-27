@@ -282,6 +282,7 @@ export function ContactsView(p: Props) {
                           className={cn(
                             "group/row cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_40px] [&>td]:border-b [&>td]:px-3 [&>td]:transition-colors [&>td]:duration-100",
                             compact ? "[&>td]:h-9" : "[&>td]:h-11",
+                            "@max-3xl:[&>td]:h-auto @max-3xl:[&>td]:py-2.5",
                             "[&>td]:bg-card hover:[&>td]:bg-fill",
                             isSel && "[&>td]:bg-[color-mix(in_oklch,var(--brand)_8%,var(--card))] hover:[&>td]:bg-[color-mix(in_oklch,var(--brand)_12%,var(--card))]",
                             isFocus && "[&>td:first-child]:shadow-[inset_2px_0_0_var(--fg-muted)]",
@@ -291,7 +292,7 @@ export function ContactsView(p: Props) {
                           <td className="sticky left-0 z-[1] hidden w-10 !pr-0 @3xl:table-cell">
                             <Check checked={isSel} label={`Select ${contactName(r)}`} onChange={(shift) => toggle(i, shift)} />
                           </td>
-                          <td className="sticky left-10 z-[1] max-w-0 min-w-0 @3xl:max-w-80 @3xl:min-w-56">
+                          <td className="sticky left-0 z-[1] max-w-0 @3xl:left-10 min-w-0 @3xl:max-w-80 @3xl:min-w-56">
                             <NameCell row={r} onOpen={() => { setFocus(i); setPeek(r.id); }} onNavigate={rememberList} currency={currency} showRevenue={!cols.includes("revenue")} />
                           </td>
                           {cols.map((c) => (
@@ -309,7 +310,7 @@ export function ContactsView(p: Props) {
                 <tfoot className="sticky bottom-0 z-20">
                   <tr className="[&>td]:h-10 [&>td]:border-t [&>td]:bg-bg-subtle [&>td]:px-3 [&>td]:text-caption [&>td]:text-muted-foreground">
                     <td className="sticky left-0 z-10 hidden @3xl:table-cell" />
-                    <td className="sticky left-10 z-10">
+                    <td className="sticky left-0 z-10 @3xl:left-10">
                       <span className="num">
                         <b className="font-medium text-foreground">{num(totals.count)}</b> {totals.count === 1 ? "contact" : "contacts"}
                         {totals.customers ? <> · {num(totals.customers)} paying</> : null}
@@ -397,8 +398,8 @@ function Check({ checked, indeterminate, label, onChange, disabled }: { checked:
           if (el) el.indeterminate = Boolean(indeterminate);
         }}
         onClick={(e) => {
+          // No preventDefault: React re-renders with the new `checked` value right after.
           e.stopPropagation();
-          e.preventDefault();
           onChange(e.shiftKey);
         }}
         onChange={() => undefined}
@@ -495,7 +496,7 @@ function Cell({ column, row: r, currency, tz, now, owner }: { column: ContactCol
 function Footer({ column, totals, currency }: { column: ContactColumn; totals: ContactTotals; currency: string }) {
   if (column === "revenue")
     return (
-      <span className="inline-flex flex-col items-end leading-tight">
+      <span className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
         <b className="font-medium text-foreground">{moneyWhole(totals.revenueMinor, currency)}</b>
         {totals.avgLtvMinor !== null ? <span className="text-micro font-normal">avg {moneyWhole(totals.avgLtvMinor, currency)} LTV</span> : null}
       </span>

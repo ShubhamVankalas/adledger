@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckIcon, CopyIcon, PieChartIcon, StickyNoteIcon, SquareCheckBigIcon } from "lucide-react";
-import { startTransition, useOptimistic, useRef, useState } from "react";
+import { startTransition, useEffect, useOptimistic, useRef, useState } from "react";
 import {
   addTagAction,
   removeTagAction,
@@ -38,7 +38,10 @@ type Props = {
   variant: "page" | "peek";
   /** Re-read the record after a change (the page refreshes; the peek re-fetches). */
   onChanged: () => Promise<void> | void;
+  commandsRef?: React.RefObject<PanelCommands | null>;
 };
+
+export type PanelCommands = { note: () => void; task: () => void };
 
 type Props0 = { name: string | null; lifecycle: Lifecycle; ownerUserId: string | null; tags: string[] };
 
@@ -47,7 +50,7 @@ type Props0 = { name: string | null; lifecycle: Lifecycle; ownerUserId: string |
  * timeline, notes and tasks, and attribution credit. The same component renders in the preview
  * sheet on /contacts and as the full record page.
  */
-export function ContactPanel({ record, members, tagSuggestions, abilities, viewerId, now, variant, onChanged }: Props) {
+export function ContactPanel({ record, members, tagSuggestions, abilities, viewerId, now, variant, onChanged, commandsRef }: Props) {
   const c = record.contact;
   const tz = record.timezone;
   const peek = variant === "peek";
@@ -99,6 +102,14 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
     requestAnimationFrame(() => taskRef.current?.focus());
   };
   const canNotes = abilities.notes && record.notes !== null;
+  // The preview sheet is a dialog (global shortcuts are off inside it): it calls N and T through this handle.
+  useEffect(() => {
+    if (!commandsRef) return;
+    commandsRef.current = canNotes && abilities.edit ? { note: focusNote, task: focusTask } : null;
+    return () => {
+      commandsRef.current = null;
+    };
+  });
   useHotkeys(
     !peek && canNotes && abilities.edit
       ? [
@@ -116,19 +127,6 @@ export function ContactPanel({ record, members, tagSuggestions, abilities, viewe
     <div
       className={cn("min-w-0", peek ? "space-y-5" : "space-y-5 md:space-y-6")}
       data-contact-panel
-      onKeyDown={(e) => {
-        // Inside the preview sheet (a dialog) global shortcuts are off: handle N and T here.
-        if (!peek || !canNotes || !abilities.edit || e.metaKey || e.ctrlKey || e.altKey) return;
-        const t = e.target as HTMLElement;
-        if (t.closest("input, textarea, [role=menu], [role=listbox]")) return;
-        if (e.key === "n") {
-          e.preventDefault();
-          focusNote();
-        } else if (e.key === "t") {
-          e.preventDefault();
-          focusTask();
-        }
-      }}
     >
       {/* Header */}
       <header className={cn("flex gap-3", peek ? "items-start pr-8" : "items-center gap-4")}>
