@@ -85,16 +85,16 @@ export function stopDemoActivity(workspaceId: string) {
 
 /**
  * Called on every live poll. Writes at most one simulated moment when it is due and returns true
- * when it wrote something. No-op (false) for real workspaces and under test.
+ * when it wrote something. No-op (false) for real workspaces. `force` skips the pacing (tests).
  */
-export async function simulateDemoActivity(db: DB, ws: Workspace, now = new Date()): Promise<boolean> {
-  if (!ws.isDemo || process.env.NODE_ENV === "test") return false;
+export async function simulateDemoActivity(db: DB, ws: Workspace, now = new Date(), opts: { force?: boolean } = {}): Promise<boolean> {
+  if (!ws.isDemo) return false;
   let st = states.get(ws.id);
   if (!st || Date.now() - st.loadedAt > TEMPLATE_TTL_MS) {
     st = await load(db, ws, st);
     states.set(ws.id, st);
   }
-  if (Date.now() < st.nextAt) return false;
+  if (!opts.force && Date.now() < st.nextAt) return false;
   st.nextAt = Date.now() + TICK_MS.min + randomInt(TICK_MS.max - TICK_MS.min);
   st.visitors = st.visitors.filter((v) => Date.now() - v.at < 30 * 60_000).slice(-40);
 
