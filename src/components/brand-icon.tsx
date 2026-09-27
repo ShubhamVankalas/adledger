@@ -4,6 +4,72 @@ import { SIMPLE_ICONS } from "./brand-icons.data";
 
 // Marks that Simple Icons doesn't ship, drawn as simple SVG (multi-colour where the brand is).
 const CUSTOM: Record<string, { title: string; hex: string; svg: React.ReactNode }> = {
+  // Woo's own mark is a wide wordmark that reads as a dash at icon size, so it sits in its speech bubble.
+  woo: {
+    title: "WooCommerce",
+    hex: "#7F54B3",
+    svg: (
+      <>
+        <path d="M4.5 4.5h15a3.5 3.5 0 0 1 3.5 3.5v8a3.5 3.5 0 0 1-3.5 3.5h-5.2l-4.1 2.6.9-2.6H4.5A3.5 3.5 0 0 1 1 16V8a3.5 3.5 0 0 1 3.5-3.5z" fill="#7F54B3" />
+        <path transform="translate(3.6 2.6) scale(0.7)" fill="#fff" d="M10.118 8.895c-.562 0-.928.183-1.255.797l-1.49 2.811v-2.496c0-.745-.353-1.111-1.007-1.111s-.928.222-1.255.85l-1.412 2.757v-2.47c0-.797-.327-1.137-1.124-1.137H.954C.34 8.895 0 9.183 0 9.706s.327.837.928.837h.667v3.15c0 .889.601 1.412 1.464 1.412s1.255-.34 1.686-1.137l.941-1.765v1.49c0 .876.575 1.412 1.451 1.412s1.203-.301 1.699-1.137l2.17-3.66c.471-.798.144-1.413-.901-1.413zm4.078 0c-1.778 0-3.124 1.321-3.124 3.112s1.359 3.098 3.124 3.098 3.111-1.32 3.124-3.098c0-1.791-1.359-3.112-3.124-3.112m0 4.301c-.667 0-1.124-.497-1.124-1.19s.458-1.203 1.124-1.203 1.124.51 1.124 1.203-.444 1.19-1.124 1.19m6.68-4.301c-1.765 0-3.124 1.32-3.124 3.111s1.359 3.098 3.124 3.098S24 13.784 24 12.006s-1.359-3.111-3.124-3.111m0 4.301c-.68 0-1.111-.497-1.111-1.19s.444-1.203 1.111-1.203S22 11.313 22 12.006s-.444 1.19-1.124 1.19" />
+      </>
+    ),
+  },
+  chargebee: {
+    title: "Chargebee",
+    hex: "#FF3300",
+    svg: (
+      <>
+        <rect x="1" y="1" width="22" height="22" rx="5.5" fill="#FF3300" />
+        <path d="M16.4 8.3a5.4 5.4 0 1 0 0 7.4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      </>
+    ),
+  },
+  recurly: {
+    title: "Recurly",
+    hex: "#6C3BE4",
+    svg: (
+      <>
+        <circle cx="12" cy="12" r="11" fill="#6C3BE4" />
+        <g transform="translate(5.6 5.6) scale(0.533)" fill="none" stroke="#fff" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+          <path d="M21 3v5h-5" />
+        </g>
+      </>
+    ),
+  },
+  cashfree: {
+    title: "Cashfree Payments",
+    hex: "#6933D3",
+    svg: (
+      <>
+        <rect x="1" y="1" width="22" height="22" rx="5.5" fill="#6933D3" />
+        <path d="M5.8 10c2.07-3 4.13-3 6.2 0s4.13 3 6.2 0M5.8 15c2.07-3 4.13-3 6.2 0s4.13 3 6.2 0" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" />
+      </>
+    ),
+  },
+  instamojo: {
+    title: "Instamojo",
+    hex: "#3D4FE0",
+    svg: (
+      <>
+        <rect x="1" y="1" width="22" height="22" rx="11" fill="#3D4FE0" />
+        <rect x="10.6" y="10" width="2.8" height="8" rx="1.4" fill="#fff" />
+        <circle cx="12" cy="6.9" r="1.7" fill="#FFC53D" />
+      </>
+    ),
+  },
+  pipedrive: {
+    title: "Pipedrive",
+    hex: "#017737",
+    svg: (
+      <>
+        <circle cx="12" cy="12" r="11" fill="#017737" />
+        <rect x="7.6" y="6.9" width="2.8" height="12" rx="1.4" fill="#fff" />
+        <circle cx="12.6" cy="10.9" r="3.5" fill="none" stroke="#fff" strokeWidth="2.6" />
+      </>
+    ),
+  },
   microsoft: {
     title: "Microsoft",
     hex: "#00A4EF",
@@ -104,7 +170,7 @@ export const ICON_FOR: Record<string, string> = {
   x: "x",
   stripe: "stripe",
   shopify: "shopify",
-  woocommerce: "woocommerce",
+  woocommerce: "woo",
   paddle: "paddle",
   lemonsqueezy: "lemonsqueezy",
   razorpay: "razorpay",
@@ -160,20 +226,20 @@ export function hasBrandIcon(id: string) {
 /** Just the glyph (brand-coloured), for inline use in badges and chips. */
 export function BrandGlyph({ id, name, className, onWhite }: { id: string; name?: string; className?: string; onWhite?: boolean }) {
   const key = ICON_FOR[id] ?? id;
+  const custom = CUSTOM[key];
+  if (custom) {
+    return (
+      <svg viewBox="0 0 24 24" role="img" aria-label={custom.title} className={cn("size-4 shrink-0", className)}>
+        {custom.svg}
+      </svg>
+    );
+  }
   const si = SIMPLE_ICONS[key];
   if (si) {
     const light = luminance(si.hex) > 0.6;
     return (
       <svg viewBox="0 0 24 24" role="img" aria-label={si.title} className={cn("size-4 shrink-0", className)}>
         <path d={si.path} fill={light ? "#1a1a1a" : `#${si.hex}`} className={!onWhite && (si.hex === "000000" || si.hex === "191919") ? "dark:fill-white" : undefined} />
-      </svg>
-    );
-  }
-  const custom = CUSTOM[key];
-  if (custom) {
-    return (
-      <svg viewBox="0 0 24 24" role="img" aria-label={custom.title} className={cn("size-4 shrink-0", className)}>
-        {custom.svg}
       </svg>
     );
   }
@@ -190,7 +256,7 @@ export function BrandGlyph({ id, name, className, onWhite }: { id: string; name?
 /** App-icon style tile with the brand mark, used in the integrations catalog. */
 export function BrandTile({ id, className }: { id: string; className?: string }) {
   const key = ICON_FOR[id] ?? id;
-  const si = SIMPLE_ICONS[key];
+  const si = CUSTOM[key] ? undefined : SIMPLE_ICONS[key];
   const light = si ? luminance(si.hex) > 0.6 : false;
   const generic = !si && !CUSTOM[key];
   return (

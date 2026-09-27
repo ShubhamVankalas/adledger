@@ -1,33 +1,49 @@
 "use client";
 
-import { AlertTriangleIcon, RotateCwIcon } from "lucide-react";
+import { AlertTriangleIcon, ChevronRightIcon, RotateCwIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="flex min-h-[70svh] items-center justify-center p-4 md:p-6">
-      <div role="alert" className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border bg-card p-6 text-center shadow-sm sm:p-8">
+      <div
+        role="alert"
+        className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl bg-card p-6 text-center shadow-sm ring-1 ring-foreground/10 sm:p-8"
+      >
         <span className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
           <AlertTriangleIcon className="size-5" aria-hidden />
         </span>
         <div className="space-y-1.5">
-          <h1 className="text-lg font-semibold tracking-tight">Something went wrong</h1>
-          <p className="text-sm break-words text-muted-foreground">{error.message || "An unexpected error occurred."}</p>
-          {error.digest ? (
-            <p className="text-xs text-muted-foreground">
-              Reference <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{error.digest}</code>
-            </p>
-          ) : null}
+          <h1 className="text-xl font-semibold tracking-tight">Something went wrong</h1>
+          <p className="text-sm text-balance text-muted-foreground">
+            This page couldn&apos;t load. Your data is safe. Try again, and if it keeps happening, check the server logs.
+          </p>
         </div>
         <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-          <Button variant="outline" render={<Link href="/" />}>
+          <Button variant="outline" className="h-10 sm:h-8" render={<Link href="/" />}>
             Back to overview
           </Button>
-          <Button onClick={reset}>
+          <Button className="h-10 sm:h-8" onClick={reset}>
             <RotateCwIcon /> Try again
           </Button>
         </div>
+        {error.message || error.digest ? (
+          <details className="group w-full border-t pt-4 text-left text-xs text-muted-foreground">
+            <summary className="mx-auto flex w-fit cursor-pointer list-none items-center gap-1 rounded-md font-medium hover:text-foreground [&::-webkit-details-marker]:hidden">
+              Technical details
+              <ChevronRightIcon className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
+            </summary>
+            <div className="mt-3 space-y-1.5 rounded-lg bg-muted/50 p-3">
+              {error.message ? <p className="break-words">{error.message}</p> : null}
+              {error.digest ? (
+                <p>
+                  Reference <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{error.digest}</code>
+                </p>
+              ) : null}
+            </div>
+          </details>
+        ) : null}
       </div>
     </div>
   );

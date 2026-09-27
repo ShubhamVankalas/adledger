@@ -15,6 +15,8 @@ import { Snippet } from "./code-snippet";
 
 type Key = { id: string; name: string; prefix: string; createdAt: string; lastUsedAt: string | null; revoked: boolean };
 
+const MCP_TOOLS = ["get_overview", "get_performance", "find_wasted_spend", "compare_periods", "list_contacts", "get_contact_journey", "get_latest_insights", "get_sync_status"];
+
 export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
   const [fresh, setFresh] = useState<string | null>(null);
   const create = useFormAction(createApiKeyAction, (r) => r.ok && setFresh(String(r.data?.key ?? "")));
@@ -126,9 +128,18 @@ export function ApiSection({ origin, keys }: { origin: string; keys: Key[] }) {
               </p>
             </TabsContent>
           </Tabs>
-          <p className="text-xs break-words text-muted-foreground">
-            Tools: get_overview, get_performance, find_wasted_spend, compare_periods, list_contacts, get_contact_journey (emails masked), get_latest_insights, get_sync_status. All read-only.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {MCP_TOOLS.length} read-only tools. The agent can look things up but never change anything; contact emails are masked.
+            </p>
+            <ul className="flex flex-wrap gap-1.5" aria-label="MCP tools">
+              {MCP_TOOLS.map((t) => (
+                <li key={t} className="rounded-md border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightIcon, CheckCircle2Icon, CircleDashedIcon, ExternalLinkIcon, Loader2Icon, PartyPopperIcon } from "lucide-react";
+import { ArrowRightIcon, CheckCircle2Icon, CheckIcon, CircleDashedIcon, ExternalLinkIcon, Loader2Icon, PartyPopperIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -170,15 +170,18 @@ export function OnboardingWizard({
             <CardTitle>What do you use?</CardTitle>
             <CardDescription>Pick your website builder, payment tools and ad platforms. The steps below adapt to your choices.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="divide-y">
             {[
-              { title: "Website", items: BUILDERS.map((b) => ({ key: b.key, label: b.label })) },
-              { title: "Payments & stores", items: revenue.map((i) => ({ key: i.provider, label: i.name })) },
-              { title: "Ad platforms", items: ads.map((i) => ({ key: i.provider, label: i.name })) },
+              { title: "Website", hint: "Where your site is built", items: BUILDERS.map((b) => ({ key: b.key, label: b.label })) },
+              { title: "Payments & CRM", hint: "Where the money comes in", items: revenue.map((i) => ({ key: i.provider, label: i.name })) },
+              { title: "Ad platforms", hint: "Where you buy ads", items: ads.map((i) => ({ key: i.provider, label: i.name })) },
             ].map((g) => (
-              <div key={g.title} role="group" aria-label={g.title}>
-                <div className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">{g.title}</div>
-                <div className="flex flex-wrap gap-2">
+              <div key={g.title} role="group" aria-label={g.title} className="grid min-w-0 gap-3 py-4 first:pt-0 last:pb-0 md:grid-cols-[9.5rem_minmax(0,1fr)] md:gap-6">
+                <div className="md:pt-2">
+                  <div className="text-sm font-medium">{g.title}</div>
+                  <div className="text-xs text-muted-foreground">{g.hint}</div>
+                </div>
+                <div className="flex min-w-0 flex-wrap gap-2">
                   {g.items.map((it) => {
                     const on = picked.includes(it.key);
                     return (
@@ -188,16 +191,18 @@ export function OnboardingWizard({
                         aria-pressed={on}
                         onClick={() => toggle(it.key)}
                         className={cn(
-                          "inline-flex min-h-10 items-center gap-2 rounded-full border py-1 pr-3.5 pl-1.5 text-sm transition-colors outline-none hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-8 sm:pr-3 sm:pl-1",
-                          on ? "border-primary bg-primary text-primary-foreground hover:border-primary" : "bg-background text-foreground/80 hover:text-foreground dark:bg-input/30",
+                          "inline-flex min-h-10 max-w-full items-center gap-2 rounded-lg border py-1 pr-3 pl-1.5 text-left text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-9",
+                          on
+                            ? "border-primary/50 bg-primary/[0.07] font-medium text-foreground ring-1 ring-primary/25"
+                            : "bg-background text-foreground/80 hover:border-foreground/20 hover:bg-muted/50 hover:text-foreground dark:bg-input/30",
                         )}
                       >
-                        {/* Brand marks sit on a white disc so dark logos stay visible in dark mode. */}
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-black/5">
+                        {/* Brand marks sit on a white tile so dark logos stay visible in dark mode. */}
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white ring-1 ring-black/5">
                           <BrandGlyph id={it.key} name={it.label} onWhite className="size-3.5 text-emerald-700" />
                         </span>
-                        {it.label}
-                        {on ? <CheckCircle2Icon className="-mr-1 size-3.5 opacity-80" /> : null}
+                        <span className="min-w-0">{it.label}</span>
+                        {on ? <CheckIcon className="size-3.5 shrink-0 text-primary" aria-hidden /> : null}
                       </button>
                     );
                   })}
@@ -225,7 +230,7 @@ export function OnboardingWizard({
           {builder ? (
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
               <div className="font-medium">{builder.label}</div>
-              <p className="mt-1 text-muted-foreground">{builder.tip}</p>
+              <p className="mt-1 text-muted-foreground [overflow-wrap:anywhere]">{builder.tip}</p>
               <a href={`${DOCS}/${builder.doc}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-primary hover:underline">
                 Step-by-step guide <ExternalLinkIcon className="size-3.5" />
               </a>

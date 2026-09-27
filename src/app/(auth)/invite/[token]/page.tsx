@@ -7,6 +7,7 @@ import { findInvitation, getSessionUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { roleLabel } from "@/lib/permissions";
 import { AcceptInviteForm } from "./accept-form";
+import { authCard, authTitle } from "../../styles";
 
 export const metadata = { title: "Join" };
 export const dynamic = "force-dynamic";
@@ -16,12 +17,12 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   const found = await findInvitation(token);
   if (!found) {
     return (
-      <Card className="shadow-xl shadow-primary/5">
+      <Card className={authCard}>
         <CardHeader>
           <span className="mb-2 flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <LinkIcon className="size-5" />
           </span>
-          <CardTitle className="text-xl">
+          <CardTitle className={authTitle}>
             <h1>This invitation isn&apos;t valid</h1>
           </CardTitle>
           <CardDescription>It may have expired, been revoked, or already been used. Ask the person who invited you for a new link.</CardDescription>
@@ -40,9 +41,9 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
   const current = await getSessionUser();
   const mode = current?.email === invitation.email ? "signed-in" : existing ? "existing" : "new";
   return (
-    <Card className="shadow-xl shadow-primary/5">
+    <Card className={authCard}>
       <CardHeader>
-        <CardTitle className="text-xl break-words">
+        <CardTitle className={`${authTitle} break-words`}>
           <h1>Join {organization.name}</h1>
         </CardTitle>
         <CardDescription>You&apos;ve been invited to see which ads are making {organization.name} money.</CardDescription>

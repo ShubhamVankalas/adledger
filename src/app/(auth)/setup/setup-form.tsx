@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { AuthField as Field, FormError, PasswordInput, authButton, authInput } from "../fields";
+import { authCard, authTitle } from "../styles";
 
 // Native selects: 40px tall and 16px text on phones (smaller text makes iOS zoom in on focus).
 const selectCls = "[&_select]:h-10 [&_select]:text-base sm:[&_select]:text-sm";
@@ -45,9 +46,9 @@ export function SetupForm() {
   const zones = TIMEZONES.includes(tz) ? TIMEZONES : [tz, ...TIMEZONES];
 
   return (
-    <Card data-wide className="shadow-xl shadow-primary/5">
+    <Card data-wide className={authCard}>
       <CardHeader>
-        <CardTitle className="text-xl">
+        <CardTitle className={authTitle}>
           <h1>Welcome to AdLedger</h1>
         </CardTitle>
         <CardDescription>Create your account. It takes 30 seconds, and nothing leaves your server.</CardDescription>

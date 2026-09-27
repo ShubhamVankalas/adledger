@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { ArrowRightIcon, BarChart3Icon, CheckCircle2Icon, CircleIcon, RouteIcon, SparklesIcon, TrendingUpIcon } from "lucide-react";
 import Link from "next/link";
 import { getLlmConfig } from "@/lib/ai/report";
+import { allIntegrations } from "@/lib/connectors/registry";
 import { rows, type DB } from "@/lib/db";
 import type { Workspace } from "@/lib/settings";
 import { cn } from "@/lib/utils";
@@ -14,13 +15,19 @@ export type SetupStep = { key: string; done: boolean; optional?: boolean; label:
 export type SetupStatus = Awaited<ReturnType<typeof getSetupStatus>>;
 
 export async function getSetupStatus(db: DB, ws: Workspace) {
+  // Every payment/CRM integration in the registry counts, so newly added connectors tick the step too.
+  const REVENUE_PROVIDERS = allIntegrations()
+    .filter((i) => i.category === "revenue")
+    .map((i) => i.provider);
   const [r] = rows<Record<string, string | boolean | null>>(
     await db.execute(sql`select
       exists(select 1 from pixel_sites where workspace_id = ${ws.id}) has_site,
       (select max(occurred_at) from events where workspace_id = ${ws.id}) last_event,
       exists(select 1 from leads where workspace_id = ${ws.id}) has_lead,
-      exists(select 1 from connections where workspace_id = ${ws.id} and enabled and provider in
-        ('stripe','shopify','woocommerce','paddle','lemonsqueezy','razorpay','paypal')) has_revenue_conn,
+      exists(select 1 from connections where workspace_id = ${ws.id} and enabled and provider in (${sql.join(
+        REVENUE_PROVIDERS.map((p) => sql`${p}`),
+        sql`, `,
+      )})) has_revenue_conn,
       exists(select 1 from revenue_events where workspace_id = ${ws.id}) has_payment,
       exists(select 1 from connections where workspace_id = ${ws.id} and enabled and (provider = 'meta' or provider like '%_ads')) has_ads_conn,
       exists(select 1 from ad_insights_daily where workspace_id = ${ws.id}) has_spend,
