@@ -11,50 +11,54 @@
     margin: 14mm 12mm 16mm;
   }
 
-  /* Always print in the light "Quiet Ledger" palette, whatever the screen theme. */
+  /* Always print in the light Quiet Ledger palette, whatever the screen theme: the base tokens
+     from globals.css :root (the shadcn names map onto these). Keep in sync with globals.css. */
   :root,
   html.dark {
     color-scheme: light;
-    --background: #ffffff;
-    --foreground: #111815;
-    --card: #ffffff;
-    --card-foreground: #111815;
-    --popover: #ffffff;
-    --popover-foreground: #111815;
-    --secondary: #eef1ef;
-    --secondary-foreground: #111815;
-    --muted: #f3f7f5;
-    --muted-foreground: #5d6561;
-    --border: #e3e6e4;
-    --input: #cdd2d0;
-    --primary: #111815;
-    --primary-foreground: #f8fbf9;
-    --chart-1: #019f68;
-    --chart-2: #5176cd;
-    --chart-3: #dc932e;
-    --chart-4: #738292;
-    --chart-5: #e06065;
-    /* Quiet Ledger names (BRIEF §2.2), for components already on the new tokens. */
-    --bg: #ffffff;
-    --bg-subtle: #f3f7f5;
-    --surface: #ffffff;
-    --fill: #eef1ef;
-    --fg: #111815;
-    --fg-muted: #5d6561;
-    --fg-faint: #818885;
-    --ink: #111815;
-    --ink-fg: #f8fbf9;
-    --chart-revenue: #019f68;
-    --chart-spend: #738292;
-    --chart-leads: #dc932e;
-    --chart-customers: #5176cd;
-    --chart-grid: #e3e6e4;
+    --bg: oklch(1 0 0);
+    --bg-subtle: oklch(0.972 0.004 165);
+    --surface: oklch(1 0 0);
+    --fill: oklch(0.955 0.004 165);
+    --fill-hover: oklch(0.935 0.005 165);
+    --fill-active: oklch(0.915 0.006 165);
+    --border: oklch(0.922 0.004 165);
+    --border-strong: oklch(0.86 0.006 165);
+    --fg-faint: oklch(0.62 0.01 165);
+    --fg-muted: oklch(0.5 0.012 165);
+    --fg: oklch(0.2 0.012 165);
+    --ink: oklch(0.2 0.012 165);
+    --ink-fg: oklch(0.985 0.003 165);
+    --brand: oklch(0.55 0.13 162);
+    --brand-hover: oklch(0.5 0.13 162);
+    --brand-soft: oklch(0.55 0.13 162 / 0.09);
+    --brand-fg: oklch(0.42 0.1 162);
+    --ring: oklch(0.55 0.13 162 / 0.45);
+    --positive: oklch(0.49 0.13 155);
+    --positive-soft: oklch(0.52 0.13 155 / 0.1);
+    --negative: oklch(0.55 0.19 27);
+    --negative-soft: oklch(0.55 0.19 27 / 0.09);
+    --warning: oklch(0.7 0.14 70);
+    --warning-soft: oklch(0.7 0.14 70 / 0.14);
+    --warning-fg: oklch(0.5 0.12 65);
+    --info: oklch(0.55 0.12 250);
+    --chart-revenue: oklch(0.62 0.14 160);
+    --chart-spend: oklch(0.6 0.03 250);
+    --chart-leads: oklch(0.72 0.14 70);
+    --chart-customers: oklch(0.58 0.14 265);
+    --chart-5: oklch(0.65 0.16 20);
+    --chart-grid: oklch(0.922 0.004 165);
+    --elev-hairline: none;
+    --elev-sm: none;
+    --elev-md: none;
+    --elev-lg: none;
+    --elev-card: none;
   }
 
   html,
   body {
     background: #ffffff !important;
-    color: #111815;
+    color: var(--fg);
     font-size: 11pt;
   }
 

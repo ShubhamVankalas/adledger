@@ -22,11 +22,11 @@ function Lines({ x, y, widths, gap = 4.5, h = 2 }: { x: number; y: number; width
 function Cover({ w }: { w: number }) {
   return (
     <>
-      <rect x={8} y={7} width={5} height={5} rx={1.2} className="fill-emerald-600" />
+      <rect x={8} y={7} width={5} height={5} rx={1.2} className="fill-brand" />
       <rect x={15} y={8.5} width={18} height={2} rx={1} className={text} />
       <rect x={w - 34} y={8.5} width={26} height={1.6} rx={0.8} className={faint} />
       <rect x={8} y={15} width={w - 16} height={0.5} className="fill-foreground/10" />
-      <rect x={8} y={20} width={6} height={1} rx={0.5} className="fill-emerald-600" />
+      <rect x={8} y={20} width={6} height={1} rx={0.5} className="fill-brand" />
       <rect x={8} y={24} width={22} height={1.4} rx={0.7} className={faint} />
       <rect x={8} y={28} width={40} height={4.5} rx={1.2} className="fill-foreground/70" />
       <rect x={8} y={35.5} width={46} height={1.6} rx={0.8} className={text} />
@@ -53,7 +53,7 @@ function Tiles({ x, y, cols, rows, w, h, spark = true }: { x: number; y: number;
               fill="none"
               strokeWidth={0.6}
               strokeLinejoin="round"
-              className={(r + c) % 3 === 0 ? "stroke-slate-400" : "stroke-emerald-500"}
+              className={(r + c) % 3 === 0 ? "stroke-chart-spend" : "stroke-chart-revenue"}
             />
           ) : null}
         </g>,
@@ -73,10 +73,10 @@ function Combo({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
         <rect key={t} x={x} y={y + h * t} width={w} height={0.3} className="fill-foreground/10" />
       ))}
       {rev.map((_, i) => (
-        <rect key={i} x={x + (i + 0.5) * (w / n) - bw / 2} y={y + h - h * 0.28} width={bw} height={h * 0.28} rx={0.4} className="fill-slate-400/45" />
+        <rect key={i} x={x + (i + 0.5) * (w / n) - bw / 2} y={y + h - h * 0.28} width={bw} height={h * 0.28} rx={0.4} className="fill-chart-spend/45" />
       ))}
-      <polygon points={`${x + 0.5 * (w / n)},${y + h} ${pts} ${x + (n - 0.5) * (w / n)},${y + h}`} className="fill-emerald-500/10" />
-      <polyline points={pts} fill="none" strokeWidth={0.8} strokeLinejoin="round" className="stroke-emerald-500" />
+      <polygon points={`${x + 0.5 * (w / n)},${y + h} ${pts} ${x + (n - 0.5) * (w / n)},${y + h}`} className="fill-chart-revenue/10" />
+      <polyline points={pts} fill="none" strokeWidth={0.8} strokeLinejoin="round" className="stroke-chart-revenue" />
     </>
   );
 }
@@ -121,10 +121,10 @@ function Weekly() {
       <Tiles x={8} y={42} cols={4} rows={2} w={104} h={11} spark={false} />
       <Combo x={8} y={71} w={104} h={26} />
       <Lines x={8} y={103} widths={[56, 50, 58, 44]} gap={4} h={1.4} />
-      <rect x={8} y={121} width={58} height={10} rx={1.5} className="fill-amber-400/20" />
-      <rect x={8} y={121} width={1.2} height={10} className="fill-amber-500" />
-      <circle cx={88} cy={115} r={10} fill="none" strokeWidth={4} className="stroke-emerald-500" strokeDasharray="36 63" />
-      <circle cx={88} cy={115} r={10} fill="none" strokeWidth={4} className="stroke-blue-500/80" strokeDasharray="27 63" strokeDashoffset={-36} />
+      <rect x={8} y={121} width={58} height={10} rx={1.5} className="fill-warning-soft" />
+      <rect x={8} y={121} width={1.2} height={10} className="fill-warning" />
+      <circle cx={88} cy={115} r={10} fill="none" strokeWidth={4} className="stroke-chart-revenue" strokeDasharray="36 63" />
+      <circle cx={88} cy={115} r={10} fill="none" strokeWidth={4} className="stroke-chart-customers/80" strokeDasharray="27 63" strokeDashoffset={-36} />
       <TableRows x={8} y={136} w={104} rows={3} gap={4.5} />
     </>
   );
@@ -132,11 +132,11 @@ function Weekly() {
 
 function Attribution() {
   const lines: [number, number, string][] = [
-    [52, 88, "stroke-emerald-500"],
-    [84, 60, "stroke-blue-500"],
-    [74, 70, "stroke-blue-500"],
+    [52, 88, "stroke-chart-revenue"],
+    [84, 60, "stroke-chart-customers"],
+    [74, 70, "stroke-chart-customers"],
     [92, 94, "stroke-foreground/30"],
-    [98, 102, "stroke-emerald-500"],
+    [98, 102, "stroke-chart-revenue"],
     [104, 106, "stroke-foreground/30"],
   ];
   return (
@@ -144,7 +144,7 @@ function Attribution() {
       <Cover w={120} />
       <rect x={8} y={42} width={104} height={10} rx={1.8} className="fill-card stroke-foreground/10" strokeWidth={0.4} />
       {[0, 1, 2, 3, 4, 5].map((i) => (
-        <rect key={i} x={11 + i * 17} y={45.5} width={11} height={3} rx={0.8} className={i >= 4 ? (i === 4 ? "fill-emerald-500/70" : "fill-blue-500/70") : "fill-foreground/45"} />
+        <rect key={i} x={11 + i * 17} y={45.5} width={11} height={3} rx={0.8} className={i >= 4 ? (i === 4 ? "fill-chart-revenue/70" : "fill-chart-customers/70") : "fill-foreground/45"} />
       ))}
       <rect x={30} y={58} width={0.4} height={52} className="fill-foreground/15" />
       <rect x={70} y={58} width={0.4} height={52} className="fill-foreground/15" />
@@ -154,7 +154,7 @@ function Attribution() {
           <rect x={74} y={b - 0.8} width={30 - i * 2} height={1.4} rx={0.7} className={faint} />
         </g>
       ))}
-      <rect x={8} y={115} width={50} height={16} rx={1.5} className="fill-emerald-500/10" />
+      <rect x={8} y={115} width={50} height={16} rx={1.5} className="fill-chart-revenue/10" />
       <rect x={62} y={115} width={50} height={16} rx={1.5} className="fill-foreground/[0.04]" />
       <Lines x={11} y={118} widths={[34, 42, 38]} gap={3.5} h={1.2} />
       <Lines x={65} y={118} widths={[30, 40, 26]} gap={3.5} h={1.2} />
@@ -164,14 +164,14 @@ function Attribution() {
 }
 
 function Ltv() {
-  const ramp = ["fill-emerald-100", "fill-emerald-200", "fill-emerald-300", "fill-emerald-500", "fill-emerald-600", "fill-emerald-700"];
+  const ramp = ["fill-chart-revenue/15", "fill-chart-revenue/30", "fill-chart-revenue/45", "fill-chart-revenue/65", "fill-chart-revenue/85", "fill-chart-revenue"];
   return (
     <>
-      <rect x={8} y={7} width={5} height={5} rx={1.2} className="fill-emerald-600" />
+      <rect x={8} y={7} width={5} height={5} rx={1.2} className="fill-brand" />
       <rect x={15} y={8.5} width={18} height={2} rx={1} className={text} />
       <rect x={126} y={8.5} width={26} height={1.6} rx={0.8} className={faint} />
       <rect x={8} y={15} width={144} height={0.5} className="fill-foreground/10" />
-      <rect x={8} y={20} width={6} height={1} rx={0.5} className="fill-emerald-600" />
+      <rect x={8} y={20} width={6} height={1} rx={0.5} className="fill-brand" />
       <rect x={8} y={24} width={40} height={4} rx={1.2} className="fill-foreground/70" />
       <rect x={8} y={31} width={60} height={1.5} rx={0.75} className={text} />
       {Array.from({ length: 6 }, (_, r) =>
@@ -180,14 +180,14 @@ function Ltv() {
       {Array.from({ length: 6 }, (_, r) => (
         <rect key={r} x={8} y={41 + r * 6.5} width={9} height={1.5} rx={0.75} className={faint} />
       ))}
-      <polyline points="10,112 26,100 44,94 62,90 80,88" fill="none" strokeWidth={0.8} className="stroke-emerald-500" />
-      <polyline points="10,110 26,101 44,97 62,95" fill="none" strokeWidth={0.8} className="stroke-blue-500" />
-      <polyline points="10,111 26,104 44,101" fill="none" strokeWidth={0.8} className="stroke-amber-500" />
+      <polyline points="10,112 26,100 44,94 62,90 80,88" fill="none" strokeWidth={0.8} className="stroke-chart-revenue" />
+      <polyline points="10,110 26,101 44,97 62,95" fill="none" strokeWidth={0.8} className="stroke-chart-customers" />
+      <polyline points="10,111 26,104 44,101" fill="none" strokeWidth={0.8} className="stroke-chart-leads" />
       {[0, 1, 2, 3, 4].map((i) => (
         <g key={i}>
           <rect x={92} y={86 + i * 6} width={16} height={1.5} rx={0.75} className={faint} />
           <rect x={112} y={85.5 + i * 6} width={36} height={3} rx={0.8} className="fill-foreground/[0.05]" />
-          <rect x={112} y={85.5 + i * 6} width={[16, 20, 36, 5, 3][i]} height={3} rx={0.8} className={i >= 3 ? "fill-red-500/70" : "fill-emerald-500/80"} />
+          <rect x={112} y={85.5 + i * 6} width={[16, 20, 36, 5, 3][i]} height={3} rx={0.8} className={i >= 3 ? "fill-negative/70" : "fill-chart-revenue/80"} />
         </g>
       ))}
     </>
@@ -199,7 +199,7 @@ function Waste() {
     <>
       <Cover w={120} />
       <rect x={8} y={42} width={104} height={10} rx={1.8} className="fill-card stroke-foreground/10" strokeWidth={0.4} />
-      <rect x={11} y={45.5} width={14} height={3} rx={0.8} className="fill-red-500/70" />
+      <rect x={11} y={45.5} width={14} height={3} rx={0.8} className="fill-negative/70" />
       {[1, 2, 3, 4].map((i) => (
         <rect key={i} x={11 + i * 21} y={45.5} width={11} height={3} rx={0.8} className="fill-foreground/45" />
       ))}
@@ -208,14 +208,14 @@ function Waste() {
           <circle cx={11} cy={60 + i * 9} r={2} className="fill-foreground/[0.07]" />
           <rect x={16} y={58.5 + i * 9} width={70 - i * 8} height={1.8} rx={0.9} className={text} />
           <rect x={16} y={62 + i * 9} width={56} height={1.2} rx={0.6} className={faint} />
-          <rect x={74} y={61.8 + i * 9} width={14} height={1.6} rx={0.6} className="fill-emerald-500/60" />
+          <rect x={74} y={61.8 + i * 9} width={14} height={1.6} rx={0.6} className="fill-chart-revenue/60" />
         </g>
       ))}
       {[40, 28, 26, 23, 13].map((w, i) => (
         <g key={i}>
           <rect x={8} y={90 + i * 5} width={24} height={1.5} rx={0.75} className={faint} />
           <rect x={40} y={89.5 + i * 5} width={62} height={2.6} rx={0.6} className="fill-foreground/[0.05]" />
-          <rect x={40} y={89.5 + i * 5} width={w * 1.5} height={2.6} rx={0.6} className="fill-red-500/75" />
+          <rect x={40} y={89.5 + i * 5} width={w * 1.5} height={2.6} rx={0.6} className="fill-negative/75" />
         </g>
       ))}
       <TableRows x={8} y={119} w={104} rows={5} gap={4.5} />
@@ -240,7 +240,7 @@ export function ReportThumbnail({ kind, orientation, className }: { kind: Report
       <svg
         viewBox={landscape ? "0 0 160 120" : "0 0 120 160"}
         className={cn(
-          "absolute left-1/2 -translate-x-1/2 rounded-[3px] bg-card shadow-[0_0_0_1px_oklch(0.2_0.02_165/0.08),0_8px_24px_-8px_oklch(0.2_0.02_165/0.18)] transition-transform duration-200 ease-out group-hover/report:-translate-y-1 motion-reduce:transition-none dark:shadow-[0_0_0_1px_oklch(1_0_0/0.08),0_8px_24px_-8px_oklch(0_0_0/0.5)]",
+          "absolute left-1/2 -translate-x-1/2 rounded-[3px] bg-card shadow-(--elev-md) transition-transform duration-200 ease-out group-hover/report:-translate-y-1 motion-reduce:transition-none",
           landscape ? "top-6 w-[66%] max-w-72" : "top-5 w-[46%] max-w-52",
         )}
       >

@@ -24,7 +24,7 @@ export type ScheduleRow = {
 
 function Status({ row }: { row: ScheduleRow }) {
   if (!row.lastStatus) return <span className="text-muted-foreground">Not sent yet</span>;
-  const tone = { sent: "bg-emerald-500", skipped: "bg-muted-foreground/50", error: "bg-red-500" }[row.lastStatus];
+  const tone = { sent: "bg-positive", skipped: "bg-fg-faint", error: "bg-negative" }[row.lastStatus];
   const label = { sent: "Sent", skipped: "Skipped", error: "Failed" }[row.lastStatus];
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5" title={row.lastError ?? undefined}>
@@ -66,7 +66,7 @@ export function SchedulesList({ rows }: { rows: ScheduleRow[] }) {
 
   return (
     <>
-      <ul role="list" className="divide-y overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+      <ul role="list" className="divide-y overflow-hidden rounded-xl bg-card shadow-(--elev-card)">
         {rows.map((r) => {
           const busy = pending && busyId === r.id;
           return (

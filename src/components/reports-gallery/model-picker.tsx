@@ -37,7 +37,7 @@ export function ModelPicker({ model }: { model: string }) {
       role="radiogroup"
       aria-label="Attribution model for reports"
       aria-busy={pending || undefined}
-      className={cn("flex h-8 items-center gap-0.5 rounded-lg bg-muted p-0.5 transition-opacity pointer-coarse:h-10", pending && "opacity-60")}
+      className={cn("flex h-7 items-center rounded-[7px] bg-fill p-0.5 transition-opacity pointer-coarse:h-9", pending && "opacity-60")}
     >
       {Object.entries(MODELS).map(([k, label]) => (
         <button
@@ -49,8 +49,8 @@ export function ModelPicker({ model }: { model: string }) {
           onClick={() => model !== k && set(k)}
           onKeyDown={onRadioKeyDown}
           className={cn(
-            "h-full rounded-md px-2.5 text-[0.8125rem] font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-            model === k && "bg-background text-foreground shadow-xs ring-1 ring-foreground/10 dark:bg-input/70",
+            "h-full rounded-[5px] px-2.5 text-ui font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 ease-out outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+            model === k && "bg-surface text-foreground shadow-sm",
           )}
         >
           {label}

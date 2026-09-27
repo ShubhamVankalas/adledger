@@ -96,8 +96,8 @@ function Result({ result }: { result: VerifyResult | { status: "limited" } }) {
   if (result.status === "found") {
     const r = result.report;
     return (
-      <div className="mt-6 rounded-lg border border-emerald-600/25 bg-emerald-600/[0.06] p-4 dark:border-emerald-400/25 dark:bg-emerald-400/[0.07]">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+      <div className="mt-6 rounded-lg bg-positive-soft p-4">
+        <p className="flex items-center gap-2 text-sm font-medium text-positive">
           <CircleCheckIcon aria-hidden className="size-4" strokeWidth={2} />
           Issued by this AdLedger
         </p>
@@ -126,7 +126,7 @@ function Result({ result }: { result: VerifyResult | { status: "limited" } }) {
   return (
     <div className="mt-6 rounded-lg border bg-muted/40 p-4">
       <p className="flex items-center gap-2 text-sm font-medium">
-        <CircleAlertIcon aria-hidden className="size-4 text-amber-600 dark:text-amber-400" strokeWidth={2} />
+        <CircleAlertIcon aria-hidden className="size-4 text-warning-foreground" strokeWidth={2} />
         {copy.title}
       </p>
       <p className="mt-1.5 text-sm leading-6 text-pretty text-muted-foreground">{copy.body}</p>

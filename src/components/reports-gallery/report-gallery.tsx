@@ -96,7 +96,7 @@ function ReportCard({ meta, anchor, model, canPdf, canSchedule, onSchedule }: Pr
   };
 
   return (
-    <article aria-labelledby={`${id}-title`} className="group/report flex h-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10 transition-shadow hover:ring-foreground/15">
+    <article aria-labelledby={`${id}-title`} className="group/report flex h-full flex-col overflow-hidden rounded-xl bg-card shadow-(--elev-card) transition-shadow duration-150 hover:shadow-(--elev-md)">
       <ReportThumbnail kind={meta.id} orientation={meta.orientation} className="border-b border-foreground/[0.06]" />
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="min-w-0">

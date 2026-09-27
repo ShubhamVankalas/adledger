@@ -23,24 +23,27 @@ const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")
 
 function Segmented<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid h-10 grid-cols-2 gap-0.5 rounded-lg bg-muted p-0.5 sm:h-9">
+    <div role="radiogroup" aria-label={label} className="grid h-10 grid-cols-2 gap-0.5 rounded-[7px] bg-fill p-0.5 sm:h-8">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          tabIndex={value === o.value ? 0 : -1}
           onClick={() => onChange(o.value)}
           onKeyDown={(e) => {
             if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
               e.preventDefault();
               const i = options.findIndex((x) => x.value === value);
-              onChange(options[(i + (e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1) + options.length) % options.length].value);
+              const j = (i + (e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1) + options.length) % options.length;
+              onChange(options[j].value);
+              (e.currentTarget.parentElement?.children[j] as HTMLElement | undefined)?.focus();
             }
           }}
           className={cn(
-            "rounded-md text-[13px] font-medium text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-            value === o.value && "bg-background text-foreground shadow-xs ring-1 ring-foreground/10 dark:bg-input/70",
+            "rounded-[5px] text-ui font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-150 ease-out outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+            value === o.value && "bg-surface text-foreground shadow-sm",
           )}
         >
           {o.label}
@@ -123,8 +126,8 @@ function ScheduleForm({ report, onOpenChange, model, timezone, members, currentU
       </DialogHeader>
 
       {!emailReady ? (
-        <div role="note" className="flex gap-2.5 rounded-lg bg-amber-500/10 p-3 text-[13px] leading-5 text-amber-900 ring-1 ring-amber-600/20 dark:text-amber-200">
-          <MailWarningIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <div role="note" className="flex gap-2.5 rounded-lg bg-warning-soft p-3 text-ui text-foreground">
+          <MailWarningIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warning-foreground" />
           <p>
             Email isn’t set up for this workspace yet, so scheduled reports can’t be delivered.{" "}
             {canConfigureEmail ? (
