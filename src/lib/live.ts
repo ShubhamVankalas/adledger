@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { simulateDemoActivity, stopDemoActivity } from "./live-demo";
 import { log } from "./log";
 import { liveCursor, liveFeed, liveSnapshot, type LiveFeedItem, type LiveSnapshot } from "./reports-live";
 import type { Workspace } from "./settings";
@@ -10,6 +11,7 @@ import type { Workspace } from "./settings";
 //   revenue webhooks, sync) can make new rows show up in well under a second;
 // - it stops polling when the last subscriber leaves.
 // Messages carry counts, ids, amounts and masked labels only (see reports-live.ts).
+// In a demo workspace each poll may also write one simulated moment (see live-demo.ts).
 
 export const POLL_MS = 2_000;
 export const SNAPSHOT_MS = 10_000;
@@ -37,7 +39,7 @@ type Hub = {
 };
 
 const g = globalThis as unknown as { __adledgerLive?: Map<string, Hub> };
-const hubs = (g.__adledgerLive ??= new Map());
+const hubs: Map<string, Hub> = (g.__adledgerLive ??= new Map<string, Hub>());
 
 export function liveSubscriberCount(workspaceId: string) {
   return hubs.get(workspaceId)?.listeners.size ?? 0;
@@ -70,6 +72,7 @@ export function subscribeLive(ws: Workspace, listener: Listener): (() => void) |
       if (h.timer) clearTimeout(h.timer);
       h.timer = null;
       hubs.delete(h.ws.id);
+      stopDemoActivity(h.ws.id);
     }
   };
 }
@@ -96,6 +99,8 @@ async function poll(hub: Hub) {
   hub.polling = true;
   try {
     const db = await getDb();
+    // Sample-data workspaces get a gentle trickle of simulated activity while someone watches.
+    if (hub.ws.isDemo) await simulateDemoActivity(db, hub.ws).catch((err) => log.error("live demo activity failed", err));
     if (hub.cursor === null) {
       // First poll: start from "now". Subscribers got their own catch-up when they connected.
       hub.cursor = await liveCursor(db);

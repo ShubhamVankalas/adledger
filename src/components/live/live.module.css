@@ -1,5 +1,6 @@
 /* Live view motion. Short, transform/opacity only, and reduced to a plain fade (or nothing) when asked. */
 
+/* Status dot: grey at rest, green and breathing when live, amber while (re)connecting. */
 .pulse {
   position: relative;
   display: inline-block;
@@ -7,7 +8,7 @@
   height: 0.5rem;
   flex: none;
   border-radius: 9999px;
-  background: var(--positive, var(--success));
+  background: var(--fg-faint, var(--muted-foreground));
 }
 .pulse::after {
   content: "";
@@ -15,26 +16,23 @@
   inset: 0;
   border-radius: inherit;
   background: inherit;
+  opacity: 0;
+}
+.pulse[data-state="live"] {
+  background: var(--positive, var(--success));
+}
+.pulse[data-state="live"]::after {
   animation: ring 2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
 }
-.pulse[data-state="paused"],
-.pulse[data-state="reconnecting"],
 .pulse[data-state="connecting"],
-.pulse[data-state="ended"] {
-  background: var(--muted-foreground);
-}
 .pulse[data-state="reconnecting"],
-.pulse[data-state="connecting"] {
+.pulse[data-state="busy"] {
   background: var(--warning);
-}
-.pulse:not([data-state="live"])::after {
-  animation: none;
-  opacity: 0;
 }
 @keyframes ring {
   0% {
     transform: scale(1);
-    opacity: 0.55;
+    opacity: 0.5;
   }
   70%,
   100% {
@@ -68,9 +66,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulse::after {
+  .pulse[data-state="live"]::after {
     animation: none;
-    opacity: 0;
   }
   .enter,
   .enter[data-kind="payment"] {
