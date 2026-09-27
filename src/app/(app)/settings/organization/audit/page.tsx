@@ -155,7 +155,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/settings/o
                               {[device, log.ipTrunc].filter(Boolean).join(", ")}
                             </span>
                           ) : null}
-                          {log.seq ? <span className="font-mono tabular-nums opacity-70">#{log.seq}</span> : null}
+                          {log.seq ? <span className="font-mono tabular-nums">#{log.seq}</span> : null}
                         </span>
                       </li>
                     );

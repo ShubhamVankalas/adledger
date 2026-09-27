@@ -55,6 +55,7 @@ export function CohortHeatmap({ report, average, currency, initialView }: { repo
   const full = (v: number | null) => (v === null ? "not yet" : view === "retention" ? pct(v, 1) : moneyWhole(v, currency));
   const avgRow = { retention: average.retention, cumulativeLtvMinor: average.cumulativeLtvMinor, revenueMinor: average.revenueMinor };
 
+  // Cells cap at a 60% tint so the normal text colour stays readable (AA) on every shade, in both themes.
   const cell = (v: number | null, k: number, opts: { payback?: boolean; label: string }) => {
     const muted = view === "retention" && k === 0;
     const t = v === null || muted ? 0 : Math.max(0, v) / max;
@@ -65,9 +66,9 @@ export function CohortHeatmap({ report, average, currency, initialView }: { repo
           className={cn(
             "relative flex h-8 w-[4.25rem] items-center justify-center rounded-[4px] px-1 text-caption tabular-nums",
             v === null ? "" : muted || t === 0 ? "bg-fill text-muted-foreground" : "",
-            t > 0.55 && "font-medium text-white dark:text-[color:var(--ink-fg)]",
+            t > 0.6 && "font-medium",
           )}
-          style={v !== null && !muted && t > 0 ? { background: `color-mix(in oklch, ${COLOR[view]} ${Math.round(12 + t * 78)}%, var(--fill))` } : undefined}
+          style={v !== null && !muted && t > 0 ? { background: `color-mix(in oklch, ${COLOR[view]} ${Math.round(10 + t * 50)}%, var(--fill))` } : undefined}
         >
           {fmt(v)}
           {opts.payback ? (

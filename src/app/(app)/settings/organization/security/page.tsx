@@ -63,7 +63,7 @@ export default async function OrganizationSecurityPage() {
           <CardDescription>Fixed per role. Viewers and clients always see contact emails masked, like p•••@gmail.com.</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          <div className="overflow-x-auto overscroll-x-contain">
+          <div tabIndex={0} aria-label="Permissions by role" className="overflow-x-auto overscroll-x-contain rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
             <table className="w-full min-w-[34rem] text-sm">
               <caption className="sr-only">Permissions by role</caption>
               <thead>

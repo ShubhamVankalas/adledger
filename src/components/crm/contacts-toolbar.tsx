@@ -99,7 +99,7 @@ export function ViewTabs({
               )}
             >
               {s.label}
-              <span className="num text-caption font-normal text-fg-faint">{(counts[s.id] ?? 0).toLocaleString("en-US")}</span>
+              <span className="num text-caption font-normal text-muted-foreground">{(counts[s.id] ?? 0).toLocaleString("en-US")}</span>
             </Link>
           );
         })}
