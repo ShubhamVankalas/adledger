@@ -17,7 +17,8 @@ function PanelHead() {
 
 /**
  * Cold-load placeholder for the analysis pages, matching their layout: header, tab row (real
- * labels), the answer line, four KPI tiles, then a wide and a narrow panel. Fades in after 200ms.
+ * labels), the answer line, four KPI tiles, then either a list beside a side panel or one full-width
+ * panel. Fades in after 200ms.
  */
 export function AnalysisSkeleton({ tabs, active, label, wide = "list" }: { tabs: SectionTab[]; active: string; label: string; wide?: "list" | "grid" }) {
   return (
@@ -47,13 +48,16 @@ export function AnalysisSkeleton({ tabs, active, label, wide = "list" }: { tabs:
               </Frame>
             ))}
           </div>
-          <div className="grid items-start gap-4 lg:grid-cols-12">
-            <Frame className="space-y-4 lg:col-span-8">
+          {wide === "grid" ? (
+            <Frame className="space-y-4">
               <PanelHead />
-              {wide === "grid" ? (
-                <Skeleton className="h-72 w-full" />
-              ) : (
-                Array.from({ length: 7 }, (_, i) => (
+              <Skeleton className="h-72 w-full" />
+            </Frame>
+          ) : (
+            <div className="grid items-start gap-4 lg:grid-cols-12">
+              <Frame className="space-y-4 lg:col-span-8">
+                <PanelHead />
+                {Array.from({ length: 7 }, (_, i) => (
                   <div key={i} className="flex items-center gap-4 border-t pt-3.5">
                     <Skeleton className="h-5 w-40" />
                     <span className="flex-1" />
@@ -61,14 +65,14 @@ export function AnalysisSkeleton({ tabs, active, label, wide = "list" }: { tabs:
                     <Skeleton className="hidden h-4 w-14 sm:block" />
                     <Skeleton className="h-4 w-10" />
                   </div>
-                ))
-              )}
-            </Frame>
-            <Frame className="space-y-4 lg:col-span-4">
-              <PanelHead />
-              <Skeleton className="h-48 w-full" />
-            </Frame>
-          </div>
+                ))}
+              </Frame>
+              <Frame className="space-y-4 lg:col-span-4">
+                <PanelHead />
+                <Skeleton className="h-48 w-full" />
+              </Frame>
+            </div>
+          )}
         </div>
       </div>
       <span className="sr-only">Loading…</span>

@@ -619,6 +619,36 @@ export async function cohortRetention(db: DB, ws: Workspace, p: Period): Promise
   };
 }
 
+export type CohortAverage = {
+  /** Customer-weighted share paying in month k, over cohorts that have reached month k. */
+  retention: (number | null)[];
+  /** Customer-weighted cumulative net revenue per customer at the end of month k. */
+  cumulativeLtvMinor: (number | null)[];
+  /** Net revenue in month k summed over cohorts. */
+  revenueMinor: number[];
+  /** Customers in cohorts that have reached month k. */
+  customers: number[];
+};
+
+/**
+ * The "all cohorts" row of the heatmap. Month k only averages cohorts old enough to have a month
+ * k, weighted by their size, so young cohorts never drag later months down.
+ */
+export function cohortAverages(report: Pick<CohortReport, "cohorts" | "months">): CohortAverage {
+  const out: CohortAverage = { retention: [], cumulativeLtvMinor: [], revenueMinor: [], customers: [] };
+  for (let k = 0; k < report.months; k++) {
+    const reached = report.cohorts.filter((c) => c.customers > 0 && c.retention[k] !== null && c.retention[k] !== undefined);
+    const customers = reached.reduce((a, c) => a + c.customers, 0);
+    out.customers.push(customers);
+    out.retention.push(customers > 0 ? reached.reduce((a, c) => a + c.payers[k], 0) / customers : null);
+    out.cumulativeLtvMinor.push(
+      customers > 0 ? Math.round(reached.reduce((a, c) => a + c.revenueMinor.slice(0, k + 1).reduce((x, y) => x + y, 0), 0) / customers) : null,
+    );
+    out.revenueMinor.push(report.cohorts.reduce((a, c) => a + (c.revenueMinor[k] ?? 0), 0));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- payback & LTV by channel
 
 export const LTV_MARKS = [30, 60, 90, 180] as const;
