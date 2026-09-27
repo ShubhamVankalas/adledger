@@ -58,10 +58,10 @@ const GRADIENTS: Gradient[] = [
   { id: "berry", name: "Berry", from: "purple", to: "rose" },
   { id: "lagoon", name: "Lagoon", from: "cyan", to: "emerald" },
   { id: "ember", name: "Ember", from: "red", to: "amber" },
-  { id: "orchid", name: "Orchid", from: "fuchsia", to: "indigo" },
-  { id: "citrus", name: "Citrus", from: "lime", to: "gold" },
+  { id: "nebula", name: "Nebula", from: "violet", to: "sky" },
+  { id: "mint", name: "Mint", from: "teal", to: "lime" },
   { id: "twilight", name: "Twilight", from: "indigo", to: "pink" },
-  { id: "mint", name: "Mint", from: "emerald", to: "sky" },
+  { id: "steel", name: "Steel", from: "slate", to: "sky" },
 ];
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;

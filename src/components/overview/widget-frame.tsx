@@ -79,6 +79,8 @@ export function WidgetFrame({
           className="absolute inset-0 rounded-[inherit] transition-colors hover:bg-foreground/[0.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
         />
       ) : null}
+      {/* Selected metric: a 2px bar in the organization's accent (gradient themes show both colours). */}
+      {pressed && !editing ? <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 bg-brand-gradient" /> : null}
 
       <div className={cn("h-full", editing && "pointer-events-none select-none")} inert={editing || undefined}>
         {node ?? (meta ? <PendingWidget title={title} description={meta.description} compact={isKpi} /> : <UnavailableWidget type={item.type} compact={isKpi} />)}

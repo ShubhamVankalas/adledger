@@ -208,6 +208,8 @@ same name) with re-attribution.
 - `G` then a letter jumps between pages, `/` focuses the page search, `[` collapses the sidebar,
   and `?` lists every shortcut for the page you are on.
 - Installable on your phone (PWA) with a bottom tab bar, and a dark mode that follows your system.
+- **Your colours**: admins pick one of 20 accent colours or 10 gradients for the whole organization
+  (Settings → Appearance). Profit and loss stay green and red.
 
 ### MCP server for AI assistants
 
