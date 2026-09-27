@@ -170,7 +170,7 @@ export function MembersPanel({
               {invites.map((i) => (
                 <div key={i.id} className="flex items-center justify-between gap-3 py-2.5 pr-2 pl-4 text-sm">
                   <div className="flex min-w-0 items-center gap-3">
-                    <UserAvatar email={i.email} size="lg" className="opacity-70 after:border-dashed after:border-foreground/30" />
+                    <UserAvatar email={i.email} size="lg" className="after:border-dashed after:border-foreground/40" />
                     <div className="min-w-0">
                       <div className="font-medium break-all">{i.email}</div>
                       <div className="text-xs text-muted-foreground">

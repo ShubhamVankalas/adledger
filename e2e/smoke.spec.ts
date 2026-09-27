@@ -39,7 +39,7 @@ async function login(page: Page) {
 
 test("overview shows KPIs, chart and the winner/waster story", async ({ page }) => {
   await login(page);
-  await expect(page.getByText("You're exploring demo data.")).toBeVisible();
+  await expect(page.getByText("You're exploring sample data.")).toBeVisible();
   for (const label of ["Ad spend", "Revenue", "ROAS", "Leads", "Customers"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
@@ -91,8 +91,8 @@ test("dashboard numbers equal the REST API", async ({ page, request }) => {
   expect(body.data.spendMinor).toBeGreaterThan(0);
   const shown = Number(total.replace(/[^0-9.]/g, ""));
   const api = body.data.spendMinor / 100;
-  // The 90-day view covers all demo spend.
-  expect(Math.abs(shown - api)).toBeLessThan(0.01);
+  // The 90-day view covers all demo spend; tables show whole currency units.
+  expect(shown).toBe(Math.round(api));
   expect(url.searchParams.get("model")).toBe("linear");
 });
 
