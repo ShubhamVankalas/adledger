@@ -608,3 +608,27 @@ export type UploadPlatform = "meta" | "google";
 export type UploadConversionType = "lead" | "purchase";
 export type UploadStatus = "pending" | "sent" | "failed" | "skipped";
 
+// ---------------------------------------------------------------- saved views
+
+/**
+ * A named snapshot of a report's URL state (filters, columns, sort, display). `user_id` null =
+ * shared with the whole workspace; otherwise personal to that user. Pinned views show in the
+ * sidebar. `params` only ever holds whitelisted query keys (see lib/views.ts), never PII.
+ */
+export const savedViews = pgTable(
+  "saved_views",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    page: text("page").$type<SavedViewPage>().notNull(),
+    name: text("name").notNull(),
+    params: jsonb("params").$type<Record<string, string>>().notNull().default({}),
+    pinned: boolean("pinned").notNull().default(false),
+    position: integer("position").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.workspaceId, t.page, t.position), index().on(t.userId)],
+);
+export type SavedViewPage = "performance";
+

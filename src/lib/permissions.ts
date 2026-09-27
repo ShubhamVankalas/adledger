@@ -14,6 +14,7 @@ export const ROLES: { role: Role; label: string; description: string }[] = [
 export type Permission =
   | "reports.view"
   | "reports.export"
+  | "views.share"
   | "insights.generate"
   | "apikeys.manage"
   | "workspace.settings"
@@ -27,6 +28,8 @@ export type Permission =
 const MATRIX: Record<Permission, Role[]> = {
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
   "reports.export": ["owner", "admin", "analyst"],
+  // Create, edit, pin and delete views shared with the whole workspace (personal views only need reports.view).
+  "views.share": ["owner", "admin", "analyst"],
   "insights.generate": ["owner", "admin", "analyst"],
   "apikeys.manage": ["owner", "admin", "analyst"],
   "workspace.settings": ["owner", "admin"],
