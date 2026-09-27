@@ -1,5 +1,7 @@
 import type { Platform } from "../connectors/types";
+import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   customType,
@@ -474,13 +476,67 @@ export const contacts = pgTable(
     firstSeenAt: tstz("first_seen_at").notNull(),
     lifecycle: text("lifecycle").$type<"lead" | "customer">().notNull().default("lead"),
     externalIds: jsonb("external_ids").$type<Record<string, string>>().notNull().default({}),
+    /** Pipeline stage (see lib/pipeline.ts). null = the workspace's first open stage. */
+    stageId: uuid("stage_id").references((): AnyPgColumn => pipelineStages.id, { onDelete: "set null" }),
+    /** When the contact entered its current stage (null = first_seen_at). Drives "days in stage". */
+    stageChangedAt: tstz("stage_changed_at"),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("contacts_email_hash_uq").on(t.workspaceId, t.emailHash),
     index().on(t.workspaceId, t.phoneHash),
+    index().on(t.workspaceId, t.stageId),
   ],
 );
+
+// ---------------------------------------------------------------- pipeline (CRM stages)
+
+export type StageKind = "open" | "won" | "lost";
+
+/** Workspace-configurable pipeline stages (default: New lead → Qualified → Call booked → Proposal → Won → Lost). */
+export const pipelineStages = pgTable(
+  "pipeline_stages",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+    kind: text("kind").$type<StageKind>().notNull().default("open"),
+    /** Swatch key from lib/pipeline.ts STAGE_COLORS (not a raw CSS colour). */
+    color: text("color").notNull().default("slate"),
+    /** An open contact older than this in the stage is "rotting". null = never. */
+    rotDays: integer("rot_days"),
+    /** Win probability 0–100, used for the weighted pipeline value. */
+    probability: integer("probability").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index().on(t.workspaceId, t.position),
+    uniqueIndex("pipeline_stages_name_uq").on(t.workspaceId, sql`lower(${t.name})`),
+  ],
+);
+
+/** Every stage change of a contact (manual move, first payment, …). Stage names are snapshotted. */
+export const contactStageEvents = pgTable(
+  "contact_stage_events",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    fromStageId: uuid("from_stage_id").references(() => pipelineStages.id, { onDelete: "set null" }),
+    toStageId: uuid("to_stage_id").references(() => pipelineStages.id, { onDelete: "set null" }),
+    fromName: text("from_name"),
+    toName: text("to_name").notNull(),
+    source: text("source").$type<StageEventSource>().notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    occurredAt: tstz("occurred_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.contactId, t.occurredAt), index().on(t.workspaceId, t.toStageId)],
+);
+export type StageEventSource = "manual" | "payment" | "system";
 
 export const leads = pgTable(
   "leads",
