@@ -1,23 +1,6 @@
 // Small building blocks shared by the Performance, Model comparison and LTV reports.
 import type { LucideIcon } from "lucide-react";
-import { formatMoney, toMajor } from "@/lib/money";
 import { cn } from "@/lib/utils";
-
-/** Compact money for dense cells and cards: "$786" under 1,000 (never "$785.6"), "$41.3K" above. */
-export function shortMoney(
-  minor: number | null | undefined,
-  currency: string,
-): string {
-  if (minor === null || minor === undefined) return "—";
-  if (Math.abs(toMajor(minor, currency)) < 1000) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(toMajor(minor, currency));
-  }
-  return formatMoney(minor, currency, { compact: true });
-}
 
 /**
  * Opaque tints for sticky table cells (sticky cells need a solid background so rows
@@ -82,7 +65,7 @@ export function ReportEmpty({
       <span className="mb-1.5 flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground ring-1 ring-foreground/5">
         <Icon className="size-4.5" aria-hidden />
       </span>
-      <p className="text-sm font-semibold">{title}</p>
+      <p className="max-w-md text-sm font-semibold text-balance break-words">{title}</p>
       {children ? (
         <div className="max-w-sm text-[0.8125rem] leading-5 text-pretty text-muted-foreground">{children}</div>
       ) : null}

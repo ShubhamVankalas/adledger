@@ -1,6 +1,7 @@
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { pct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function KpiCard({
@@ -29,7 +30,7 @@ export function KpiCard({
   const up = (delta ?? 0) > 0;
   const tone: "good" | "bad" | "neutral" | null = !hasDelta ? null : flat || goodWhenUp === null ? "neutral" : up === goodWhenUp ? "good" : "bad";
   const DeltaIcon = flat ? ArrowRightIcon : up ? ArrowUpRightIcon : ArrowDownRightIcon;
-  const deltaText = hasDelta ? `${Math.abs(delta * 100) >= 1000 ? ">999" : Math.abs(delta * 100).toFixed(1)}%` : "";
+  const deltaText = hasDelta ? (Math.abs(delta) >= 10 ? ">999%" : pct(Math.abs(delta))) : "";
   const deltaLabel = hasDelta
     ? `${flat ? "Unchanged" : `${up ? "Up" : "Down"} ${deltaText}`} vs previous period${tone === "good" ? " (good)" : tone === "bad" ? " (worse)" : ""}`
     : undefined;
@@ -42,7 +43,7 @@ export function KpiCard({
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={cn("label-caps truncate", hint && "underline decoration-dotted decoration-muted-foreground/50 underline-offset-4")}>
+        <span className={cn("label-caps min-w-0 truncate", hint && "underline decoration-dotted decoration-muted-foreground/50 underline-offset-4")}>
           {label}
         </span>
         {/* The icon is decoration: drop it in very narrow cards (6-up on small laptops) so the label never truncates. */}

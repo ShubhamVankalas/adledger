@@ -9,7 +9,7 @@ function inline(text: string, key: string) {
   return parts.map((p, i) => {
     const k = `${key}-${i}`;
     if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={k} className="font-semibold text-foreground">{p.slice(2, -2)}</strong>;
-    if (/^`[^`]+`$/.test(p)) return <code key={k} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">{p.slice(1, -1)}</code>;
+    if (/^`[^`]+`$/.test(p)) return <code key={k} translate="no" className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">{p.slice(1, -1)}</code>;
     if (/^(\*[^*]+\*|_[^_]+_)$/.test(p)) return <em key={k}>{p.slice(1, -1)}</em>;
     return <Fragment key={k}>{p}</Fragment>;
   });
@@ -21,7 +21,7 @@ export function Markdown({ source, className }: { source: string; className?: st
   let list: { ordered: boolean; items: string[] } | null = null;
   let para: string[] = [];
   const flushPara = () => {
-    if (para.length) blocks.push(<p key={`p${blocks.length}`}>{inline(para.join(" "), `p${blocks.length}`)}</p>);
+    if (para.length) blocks.push(<p key={`p${blocks.length}`} className="text-pretty">{inline(para.join(" "), `p${blocks.length}`)}</p>);
     para = [];
   };
   const flushList = () => {
