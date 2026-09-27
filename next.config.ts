@@ -4,6 +4,8 @@ import { SECURITY_HEADERS } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // CLAUDE.md is hand-written; stop `next dev` from appending its generated agent rules to it.
+  agentRules: false,
   // Lets phones/tablets on the same Wi-Fi open the dev server (pnpm dev) by LAN IP.
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*", "172.*.*.*"],
   serverExternalPackages: ["@electric-sql/pglite", "pg", "nodemailer"],
