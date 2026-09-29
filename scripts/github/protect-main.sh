@@ -35,6 +35,8 @@ RULESET_NAME="Protect main"
 # Job names from .github/workflows/ci.yml and pr-hygiene.yml (a check's name is its job id
 # unless the job sets `name:`). Keep in sync when a job is renamed.
 REQUIRED_CHECKS=(supply-chain check e2e postgres docker dco title)
+# Admins (the owner) can push to main directly ("always"); set BYPASS_MODE=pull_request to make them go through PRs too.
+BYPASS_MODE="${BYPASS_MODE:-always}"
 
 # GitHub Actions app id: pins each required check to checks reported by Actions, so another
 # app can't satisfy a check by posting a status with the same name.
@@ -152,7 +154,7 @@ ruleset_body="$(cat <<EOF
   "enforcement": "active",
   "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
   "bypass_actors": [
-    { "actor_id": $ADMIN_ROLE_ID, "actor_type": "RepositoryRole", "bypass_mode": "pull_request" }
+    { "actor_id": $ADMIN_ROLE_ID, "actor_type": "RepositoryRole", "bypass_mode": "$BYPASS_MODE" }
   ],
   "rules": [
     { "type": "deletion" },
