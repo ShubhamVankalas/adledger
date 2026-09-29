@@ -293,10 +293,25 @@ not yet verified on live accounts. Details: [docs/CONNECTORS.md](docs/CONNECTORS
 
 ## Security and compliance
 
-AdLedger holds no certifications and makes no compliance claims for you. It is **built to help you
-meet GDPR, UK GDPR, CCPA/CPRA and India's DPDP. When you self-host, you are the data controller.**
-Its controls map to common SOC 2 criteria, but the project itself is not audited. What it ships,
-named precisely:
+AdLedger is self-hosted software, so **it holds no certification and makes no compliance claim on your
+behalf**. It is **built to help you meet GDPR, UK GDPR, CCPA/CPRA and India's DPDP**; when you
+self-host, you are the data controller. SOC 2 and ISO 27001 assess the organisation that runs a
+service, so they apply to you, not to the project. What AdLedger gives that organisation is controls
+and evidence that make those audits easier.
+
+| Framework | What AdLedger provides | Guide |
+|---|---|---|
+| **GDPR / UK GDPR** | Consent modes, export, erasure, retention, hashing, masking, audit trail | [Art. by Art.](docs/COMPLIANCE.md#2-gdpr-and-uk-gdpr) |
+| **CCPA / CPRA** | Global Privacy Control, consent-aware uploads, access and delete | [Requirements](docs/COMPLIANCE.md#3-ccpa--cpra) |
+| **ePrivacy / PECR** | Consent-required and cookieless pixel modes, banner snippets | [Cookies](docs/COMPLIANCE.md#4-eprivacy-and-pecr-cookies) |
+| **SOC 2** | Controls that map to CC6 (access), CC7 (monitoring), CC8 (change), C1 and P criteria | [Mapping](docs/COMPLIANCE.md#5-soc-2-trust-services-criteria) |
+| **ISO/IEC 27001:2022** | Supports the relevant Annex A controls | [Mapping](docs/COMPLIANCE.md#6-isoiec-270012022-annex-a) |
+| **OWASP Top 10, ASVS, CIS Docker** | Self-assessed against the public lists; no formal verification | [Tables](docs/COMPLIANCE.md#7-owasp-top-10-2021-and-asvs-level-2) |
+
+Not covered: HIPAA and health data, and children's data. Card data never touches AdLedger (your
+payment provider holds it). See [what is not covered](docs/COMPLIANCE.md#9-what-is-not-covered) and the
+[go-live checklist](docs/COMPLIANCE.md#10-operator-checklist-for-going-live). What it ships, named
+precisely:
 
 | Area | Controls |
 |---|---|
@@ -312,8 +327,9 @@ named precisely:
 | **Web and supply chain** | CSP and security headers, SSRF guards, signed webhooks. CodeQL, dependency review, `pnpm audit`, Trivy image scans, Dependabot, SBOM and provenance on release images. |
 | **Disclosure** | `/.well-known/security.txt` on every install and private vulnerability reporting ([SECURITY.md](SECURITY.md)). |
 
-Read the full [Trust & security page](docs/SECURITY.md), including what AdLedger is not for (health
-records, card data, children's data) and the operator hardening checklist.
+Read the [Trust & security page](docs/SECURITY.md) for the mechanisms and the operator hardening
+checklist, and the [Compliance guide](docs/COMPLIANCE.md) for the framework mappings and the
+statements that are safe to make about your install.
 
 ## How it compares
 
@@ -360,6 +376,7 @@ Playwright. Details and design decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | [Reports](docs/REPORTS.md) | PDF reports, schedules, watermarks and verification |
 | [MCP](docs/MCP.md) · [API](docs/API.md) | AI assistant tools and the REST API |
 | [Trust & security](docs/SECURITY.md) | Controls, privacy, hardening checklist, disclosure |
+| [Compliance](docs/COMPLIANCE.md) | GDPR, CCPA, SOC 2, ISO 27001, OWASP and CIS mappings, go-live checklist, safe claims |
 | [Comparison](docs/COMPARISON.md) | AdLedger vs Hyros, Triple Whale, Cometly and Northbeam |
 | [FAQ](docs/FAQ.md) | Data, accuracy, iOS, cost, 2FA lockout, compliance questions |
 | [Architecture](docs/ARCHITECTURE.md) · [Product](docs/PRODUCT.md) · [Roadmap](docs/ROADMAP.md) | How it's built, who it's for, what's next |
