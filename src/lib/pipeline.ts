@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { rows, schema, type DB } from "./db";
 import type { StageEventSource } from "./db/schema";
+import { emitStageChanges, webhookStage, type StageChange } from "./webhooks/emit";
 import { DEFAULT_STAGES, MAX_MOVE, MAX_STAGES, STAGE_COLORS, stageInput, UNDO_WINDOW_MS, type MovedContact, type Stage, type StageColor, type StageInput } from "./pipeline-shared";
 
 export * from "./pipeline-shared";
@@ -114,6 +115,15 @@ export async function moveContacts(
       )
       .returning({ id: schema.contactStageEvents.id, contactId: schema.contactStageEvents.contactId });
     const eventOf = new Map(events.map((e) => [e.contactId, e.id]));
+    const stageOf = new Map(stages.map((s) => [s.id, s]));
+    await emitStageChanges(
+      tx,
+      args.workspaceId,
+      moving.map((c) => {
+        const from = stageOf.get(c.stageId ?? def.id);
+        return { contactId: c.id, from: from ? webhookStage(from) : null, to: webhookStage(target), source: args.source ?? "manual" };
+      }),
+    );
     return {
       stage: target,
       moved: moving.map((c) => ({
@@ -156,6 +166,8 @@ export async function undoMove(
         ),
       );
     const eventOk = new Map(events.map((e) => [e.id, e.contactId]));
+    const stageOf = new Map(stages.map((s) => [s.id, s]));
+    const changes: StageChange[] = [];
     let restored = 0;
     for (const e of args.entries) {
       if (eventOk.get(e.eventId) !== e.contactId) continue;
@@ -168,8 +180,12 @@ export async function undoMove(
         .returning({ id: schema.contacts.id });
       if (updated.length === 0) continue;
       await tx.delete(schema.contactStageEvents).where(eq(schema.contactStageEvents.id, e.eventId));
+      const from = stageOf.get(args.toStageId);
+      const to = stageOf.get(back);
+      if (to) changes.push({ contactId: e.contactId, from: from ? webhookStage(from) : null, to: webhookStage(to), source: "undo" });
       restored++;
     }
+    await emitStageChanges(tx, args.workspaceId, changes);
     return restored;
   });
 }
@@ -204,6 +220,7 @@ export async function autoWinOnPayment(tx: Q, workspaceId: string, contactId: st
     userId: null,
     occurredAt: at,
   });
+  await emitStageChanges(tx, workspaceId, [{ contactId, from: webhookStage(from), to: webhookStage(won), source: "payment" }]);
   return true;
 }
 

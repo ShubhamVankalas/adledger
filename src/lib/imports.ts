@@ -120,7 +120,7 @@ export async function importConversions(db: DB, ws: Workspace, input: Conversion
           const [vis] = await tx.select().from(schema.visitors).where(and(eq(schema.visitors.workspaceId, ws.id), eq(schema.visitors.anonymousId, v.visitor_id)));
           if (vis) await linkVisitor(tx, vis.id, contact.id);
         }
-        await recordLead(tx, { workspaceId: ws.id, contactId: contact.id, source: "api", formName: v.form_name ?? v.source ?? null, occurredAt: at, raw: { external_id: v.external_id } });
+        await recordLead(tx, { workspaceId: ws.id, contactId: contact.id, source: "api", formName: v.form_name ?? v.source ?? null, occurredAt: at, raw: { external_id: v.external_id }, phone: v.phone });
         leads++;
       });
       continue;

@@ -1172,3 +1172,72 @@ export const contactDuplicateDismissals = pgTable(
   (t) => [uniqueIndex("contact_dup_dismissals_uq").on(t.workspaceId, t.contactAId, t.contactBId), index().on(t.contactBId)],
 );
 
+// ---------------------------------------------------------------- developer platform (outbound webhooks)
+
+/** Events AdLedger can POST to a developer's URL (catalogue and payloads: src/lib/webhooks/catalog.ts). */
+export type WebhookEventType = "lead.created" | "contact.created" | "contact.updated" | "payment.succeeded" | "payment.refunded";
+
+/**
+ * A URL that receives signed JSON events. The signing secret is AES-GCM encrypted (like
+ * connection secrets). Raw emails and phones are only sent when `include_pii` is on, which only a
+ * member with contacts.pii can switch on.
+ */
+export const webhookEndpoints = pgTable(
+  "webhook_endpoints",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    url: text("url").notNull(),
+    description: text("description").notNull().default(""),
+    events: text("events").array().$type<WebhookEventType[]>().notNull().default(sql`'{}'::text[]`),
+    secretEnc: text("secret_enc").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    includePii: boolean("include_pii").notNull().default(false),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index().on(t.workspaceId)],
+);
+
+export type WebhookDeliveryStatus = "pending" | "delivered" | "failed";
+
+/**
+ * One event on its way to one endpoint (the outbox). `payload` never holds raw PII: for endpoints
+ * with include_pii the raw email/phone ride along encrypted in `pii_enc` and are merged in at send
+ * time. Rows older than 30 days are pruned by the webhooks job.
+ */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: id(),
+    workspaceId: workspaceId(),
+    endpointId: uuid("endpoint_id")
+      .notNull()
+      .references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    /** evt_… — the same for every endpoint (and every redelivery) of one event, so receivers can dedupe. */
+    eventId: text("event_id").notNull(),
+    event: text("event").$type<WebhookEventType>().notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    piiEnc: text("pii_enc"),
+    status: text("status").$type<WebhookDeliveryStatus>().notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    /** Test events and manual redeliveries are tried once; real events retry with backoff. */
+    maxAttempts: integer("max_attempts").notNull().default(8),
+    responseCode: integer("response_code"),
+    /** First 1 KB of the response body, PII-redacted. */
+    responseBody: text("response_body"),
+    lastError: text("last_error"),
+    durationMs: integer("duration_ms"),
+    nextAttemptAt: tstz("next_attempt_at"),
+    lastAttemptAt: tstz("last_attempt_at"),
+    deliveredAt: tstz("delivered_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index().on(t.endpointId, t.createdAt),
+    index().on(t.workspaceId, t.createdAt),
+    index("webhook_deliveries_due_idx").on(t.nextAttemptAt).where(sql`status = 'pending'`),
+  ],
+);
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyIcon, Loader2Icon, LockKeyholeIcon, PencilIcon, PlusIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, Loader2Icon, LockKeyholeIcon, PencilIcon, PlusIcon, ShieldCheckIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -31,8 +31,8 @@ export type RoleRow = {
   assignable: boolean;
 };
 
-/** "Basic read-only": every page and its numbers, nothing else. */
-const BASIC: Permission[] = [...PAGES.map((p) => p.permission), "reports.view", "dashboard.edit"];
+/** "Basic read-only": every dashboard page and its numbers, nothing else (Developers is not read-only). */
+const BASIC: Permission[] = [...PAGES.filter((p) => p.permission !== "page.developers").map((p) => p.permission), "reports.view", "dashboard.edit"];
 
 const TOTAL = PERMISSION_GROUPS.reduce((n, g) => n + g.items.length, 0);
 
@@ -259,7 +259,16 @@ function RoleEditor({ role, roles, mine, onClose }: { role: RoleRow | null; role
                           onChange={(e) => toggle(i.permission, e.target.checked)}
                         />
                         <span className="min-w-0">
-                          <span className="block text-sm leading-5">{i.label}</span>
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm leading-5">
+                            {i.label}
+                            {i.sensitive ? (
+                              <span className="inline-flex items-center gap-1 rounded-sm bg-warning-soft px-1.5 text-micro text-warning-foreground">
+                                <TriangleAlertIcon aria-hidden className="size-3" />
+                                <span className="sr-only">Sensitive: </span>
+                                {i.sensitive}
+                              </span>
+                            ) : null}
+                          </span>
                           <span className="block text-xs text-pretty text-muted-foreground">{i.description}</span>
                         </span>
                       </label>

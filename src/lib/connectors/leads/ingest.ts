@@ -44,6 +44,7 @@ export async function ingestNativeLeads(db: DB, workspaceId: string, connector: 
         formName: l.formName,
         occurredAt: l.occurredAt,
         raw: { provider, externalLeadId: l.externalLeadId, campaignId: l.campaignExternalId, adGroupId: l.adGroupExternalId, adId: l.adExternalId, ...l.details },
+        phone: l.phone,
       });
       const paid = !l.organic && Boolean(l.campaignExternalId || l.adGroupExternalId || l.adExternalId);
       if (paid) {

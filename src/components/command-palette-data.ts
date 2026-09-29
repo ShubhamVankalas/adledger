@@ -67,6 +67,8 @@ export type PaletteCan = {
   editContacts: boolean;
   /** roles.manage */
   roles?: boolean;
+  /** developers.access (outbound webhooks) */
+  webhooks?: boolean;
   /** Page permissions the viewer holds (page.performance…); entries for other pages are hidden. */
   pages: readonly string[];
 };
@@ -130,7 +132,13 @@ export const NAV: NavEntry[] = [
   { id: "nav.settings.import", label: "Import data", href: "/settings/workspace/import", icon: UploadIcon, section: "Settings", keywords: ["csv", "upload", "import contacts", "crm import", "spend", "revenue", "conversions"], show: (c) => c.settings },
   { id: "nav.settings.duplicates", label: "Duplicates", href: "/settings/workspace/duplicates", icon: CopyCheckIcon, section: "Settings", keywords: ["merge", "dedupe", "duplicate contacts", "same person"], show: (c) => c.settings },
   { id: "nav.settings.ai", label: "AI model", href: "/settings/workspace/ai", icon: BotIcon, section: "Settings", keywords: ["openai", "anthropic", "gemini", "ollama", "llm", "api key"], show: (c) => c.settings },
-  { id: "nav.settings.api", label: "API & MCP", href: "/settings/workspace/api", icon: CodeIcon, section: "Settings", keywords: ["api keys", "tokens", "mcp", "claude", "developer", "rest"], show: (c) => c.api },
+  { id: "nav.settings.api", label: "API & MCP", href: "/settings/workspace/api", icon: CodeIcon, section: "Settings", keywords: ["api keys", "tokens", "mcp", "claude", "developer", "rest"], show: (c) => c.api && !c.pages.includes("page.developers") },
+  // Developers (page.developers; hrefAllowed hides these for roles without it).
+  { id: "nav.developers", label: "Developers", href: "/developers", icon: CodeIcon, keywords: ["api", "developer", "integrations", "quickstart", "zapier", "make", "n8n"] },
+  { id: "nav.developers.keys", label: "API keys", href: "/developers/keys", icon: CodeIcon, section: "Developers", keywords: ["api keys", "tokens", "mcp", "claude", "rest"], show: (c) => c.api },
+  { id: "nav.developers.webhooks", label: "Webhooks", href: "/developers/webhooks", icon: CodeIcon, section: "Developers", keywords: ["webhook", "events", "zapier", "make", "n8n", "real time", "lead created", "payment"], show: (c) => Boolean(c.webhooks) },
+  { id: "nav.developers.reference", label: "API reference", href: "/developers/reference", icon: CodeIcon, section: "Developers", keywords: ["rest", "openapi", "endpoints", "curl", "python", "javascript"] },
+  { id: "nav.developers.recipes", label: "Developer recipes", href: "/developers/recipes", icon: CodeIcon, section: "Developers", keywords: ["twilio", "sms", "cal.com", "slack", "google sheets", "automation"] },
   { id: "nav.settings.organization", label: "Organization & workspaces", href: "/settings/organization", icon: Building2Icon, section: "Settings", keywords: ["company", "branding", "logo", "new workspace", "clients"] },
   { id: "nav.settings.members", label: "Members & roles", href: "/settings/organization/members", icon: UsersIcon, section: "Settings", keywords: ["team", "invite", "teammates", "permissions", "users"], show: (c) => c.members },
   { id: "nav.settings.roles", label: "Roles & permissions", href: "/settings/organization/roles", icon: UsersIcon, section: "Settings", keywords: ["custom roles", "permissions", "access", "hide pages", "lock"], show: (c) => Boolean(c.roles) },

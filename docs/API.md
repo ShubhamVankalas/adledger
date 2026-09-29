@@ -7,9 +7,11 @@ load it into Postman, Insomnia, Scalar or an SDK generator.
 
 REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.
 
-**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.
+**Authentication.** Create an API key in Developers → API keys (Settings → API & MCP for roles without the Developers page) and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.
 
 **Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.
+
+**Outbound webhooks.** For data out in real time (a new lead, a payment, a stage change), add a webhook endpoint in Developers → Webhooks instead of polling. Events are listed under Webhook events below; docs/WEBHOOKS.md covers signatures and retries.
 
 ## Endpoints
 
@@ -21,6 +23,7 @@ REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQ
 | GET | [`/api/v1/reports/{report}/pdf`](#get-apiv1reportsreportpdf) | Download a PDF report | API key |
 | GET | [`/api/v1/contacts`](#get-apiv1contacts) | List contacts | API key |
 | GET | [`/api/v1/contacts/{id}/journey`](#get-apiv1contactsidjourney) | Contact journey | API key |
+| GET | [`/api/v1/leads`](#get-apiv1leads) | List leads | API key |
 | POST | [`/api/v1/search`](#post-apiv1search) | Search the workspace | API key |
 | GET | [`/api/v1/live`](#get-apiv1live) | Live activity stream (Server-Sent Events) | session |
 | GET | [`/api/v1/live/pulse`](#get-apiv1livepulse) | Today's revenue and visitors now | API key |
@@ -203,6 +206,27 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 | 200 | The journey. — `application/json`: [Journey](#journey) |
 | 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
 | 404 | Not found. — `application/json`: [Error](#error) |
+
+### GET /api/v1/leads
+
+**List leads.** Every lead (form fill, lead ad, WhatsApp chat, API or CSV lead), newest first, with cursor pagination: pass `next_cursor` back as `cursor` until it is `null`. API keys need `contacts:read`. Emails are masked unless the key has `contacts:pii` or the member's role may see contact PII. For real-time delivery use the `lead.created` webhook instead of polling.
+
+Auth: `Authorization: Bearer al_...` (or a dashboard session).
+
+| Parameter | In | Type | Required | Description |
+|---|---|---|---|---|
+| `since` | query | string (date-time) | no | Only leads at or after this time (ISO 8601 with offset). |
+| `until` | query | string (date-time) | no | Only leads before this time (ISO 8601 with offset). |
+| `source` | query | `pixel`, `webhook`, `api`, `csv` | no | Only leads from one source. |
+| `limit` | query | integer | no | Page size. (default `50`, min 1, max 200) |
+| `cursor` | query | string | no | `next_cursor` from the previous page. |
+
+| Status | Response |
+|---|---|
+| 200 | A page of leads. — `application/json`: object |
+| 400 | A query parameter failed validation. — `application/json`: [ValidationError](#validationerror) |
+| 401 | Missing or invalid API key. — `application/json`: [Error](#error) |
+| 403 | The session role lacks the permission, or the request is cross-site. — `application/json`: [Error](#error) |
 
 ## Search
 
@@ -725,6 +749,118 @@ Auth: dashboard session only (API keys are refused).
 | 302 | Redirect to the platform consent screen, the account picker or the connect page with an error. |
 | 404 | Not found. — `application/json`: [Error](#error) |
 
+## Webhook events
+
+Outbound: what AdLedger POSTs to the endpoints you add in Developers → Webhooks. Verify the signature before trusting a body (see docs/WEBHOOKS.md).
+
+| Event | Summary |
+|---|---|
+| [`lead.created`](#leadcreated) | Lead created |
+| [`contact.created`](#contactcreated) | Contact created |
+| [`contact.updated`](#contactupdated) | Contact stage changed |
+| [`payment.succeeded`](#paymentsucceeded) | Payment succeeded |
+| [`payment.refunded`](#paymentrefunded) | Payment refunded |
+
+### lead.created
+
+**Lead created.** A form fill, lead-ads lead, WhatsApp chat or API lead was recorded. CSV imports don't fire it.
+
+Sent as `POST` to your endpoint URL.
+
+| Header | Description |
+|---|---|
+| `AdLedger-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the endpoint's signing secret>`. |
+| `AdLedger-Event` | The event type. |
+| `AdLedger-Event-Id` | Same as the body's `id`. |
+| `AdLedger-Delivery` | This delivery's id (changes on resend). |
+| `AdLedger-Attempt` | 1 for the first try, then 2, 3… on retries. |
+
+Body: `application/json`: [WebhookLeadCreated](#webhookleadcreated)
+
+| Your response | Meaning |
+|---|---|
+| 2XX | Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h). |
+
+### contact.created
+
+**Contact created.** A person appeared for the first time: from a lead, a payment or a pixel identify. CSV imports don't fire it.
+
+Sent as `POST` to your endpoint URL.
+
+| Header | Description |
+|---|---|
+| `AdLedger-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the endpoint's signing secret>`. |
+| `AdLedger-Event` | The event type. |
+| `AdLedger-Event-Id` | Same as the body's `id`. |
+| `AdLedger-Delivery` | This delivery's id (changes on resend). |
+| `AdLedger-Attempt` | 1 for the first try, then 2, 3… on retries. |
+
+Body: `application/json`: [WebhookContactCreated](#webhookcontactcreated)
+
+| Your response | Meaning |
+|---|---|
+| 2XX | Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h). |
+
+### contact.updated
+
+**Contact stage changed.** A contact moved to another pipeline stage: dragged on the board (`manual`), won by a payment (`payment`), or a move was undone (`undo`). Deleting a stage doesn't fire it.
+
+Sent as `POST` to your endpoint URL.
+
+| Header | Description |
+|---|---|
+| `AdLedger-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the endpoint's signing secret>`. |
+| `AdLedger-Event` | The event type. |
+| `AdLedger-Event-Id` | Same as the body's `id`. |
+| `AdLedger-Delivery` | This delivery's id (changes on resend). |
+| `AdLedger-Attempt` | 1 for the first try, then 2, 3… on retries. |
+
+Body: `application/json`: [WebhookContactUpdated](#webhookcontactupdated)
+
+| Your response | Meaning |
+|---|---|
+| 2XX | Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h). |
+
+### payment.succeeded
+
+**Payment succeeded.** A new payment from a revenue source or the conversions API. Replays of the same payment don't fire it again.
+
+Sent as `POST` to your endpoint URL.
+
+| Header | Description |
+|---|---|
+| `AdLedger-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the endpoint's signing secret>`. |
+| `AdLedger-Event` | The event type. |
+| `AdLedger-Event-Id` | Same as the body's `id`. |
+| `AdLedger-Delivery` | This delivery's id (changes on resend). |
+| `AdLedger-Attempt` | 1 for the first try, then 2, 3… on retries. |
+
+Body: `application/json`: [WebhookPaymentSucceeded](#webhookpaymentsucceeded)
+
+| Your response | Meaning |
+|---|---|
+| 2XX | Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h). |
+
+### payment.refunded
+
+**Payment refunded.** A new refund was recorded.
+
+Sent as `POST` to your endpoint URL.
+
+| Header | Description |
+|---|---|
+| `AdLedger-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" with the endpoint's signing secret>`. |
+| `AdLedger-Event` | The event type. |
+| `AdLedger-Event-Id` | Same as the body's `id`. |
+| `AdLedger-Delivery` | This delivery's id (changes on resend). |
+| `AdLedger-Attempt` | 1 for the first try, then 2, 3… on retries. |
+
+Body: `application/json`: [WebhookPaymentRefunded](#webhookpaymentrefunded)
+
+| Your response | Meaning |
+|---|---|
+| 2XX | Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h). |
+
 ## Schemas
 
 Fields ending in `Minor` are integers in minor currency units (e.g. cents).
@@ -955,3 +1091,177 @@ string — Calendar date.
 | `platform` | string \\| null | yes | Ad platform for campaigns, ad sets and ads; null for contacts. |
 | `status` | string \\| null | yes | `lead` or `customer` for contacts; the platform's delivery status for ads. |
 | `url` | string | yes | Dashboard path that opens the result, e.g. `/contacts/{id}`. |
+
+### Lead
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `occurredAt` | string (date-time) | yes |  |
+| `source` | `pixel`, `webhook`, `api`, `csv` | yes |  |
+| `formName` | string \\| null | yes |  |
+| `contact` | object | yes |  |
+
+### WebhookStage
+
+A pipeline stage.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `name` | string | yes |  |
+| `kind` | `open`, `won`, `lost` | yes |  |
+
+### WebhookContact
+
+A contact as sent in webhook events. `email` and `phone` are raw only for endpoints with Include personal data on; otherwise null, with the masked email and SHA-256 hashes for matching.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `name` | string \\| null | yes |  |
+| `email` | string \\| null | yes | Raw email (personal data on) or null. |
+| `email_masked` | string \\| null | yes | e.g. `p•••••@example.com`. |
+| `email_sha256` | string \\| null | yes | SHA-256 hex of the lowercased, trimmed email. |
+| `phone` | string \\| null | yes | Raw phone as submitted (personal data on, when known at the time of the event) or null. |
+| `phone_sha256` | string \\| null | yes | SHA-256 hex of the phone's digits. |
+| `lifecycle` | `lead`, `customer` | yes |  |
+| `stage` | [WebhookStage](#webhookstage) or null | yes |  |
+| `first_seen_at` | string (date-time) | yes |  |
+| `url` | string \\| null | yes | Link to the contact in AdLedger (needs PUBLIC_URL). |
+
+### WebhookPayment
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `source` | string | yes | stripe, shopify, paddle, api, csv… |
+| `external_id` | string | yes | The payment's id in its source. |
+| `amount_minor` | integer | yes | Always positive. Integer minor units (cents). |
+| `currency` | string | yes | ISO 4217, upper case. |
+| `occurred_at` | string (date-time) | yes |  |
+
+### WebhookRefund
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `source` | string | yes | stripe, shopify, paddle, api, csv… |
+| `external_id` | string | yes | The payment's id in its source. |
+| `amount_minor` | integer | yes | Always positive. Integer minor units (cents). |
+| `currency` | string | yes | ISO 4217, upper case. |
+| `occurred_at` | string (date-time) | yes |  |
+| `related_external_id` | string \\| null | yes | external_id of the refunded payment. |
+
+### WebhookLead
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string (uuid) | yes |  |
+| `source` | `pixel`, `webhook`, `api`, `csv` | yes |  |
+| `form_name` | string \\| null | yes |  |
+| `occurred_at` | string (date-time) | yes |  |
+
+### LeadCreatedData
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `lead` | [WebhookLead](#webhooklead) | yes |  |
+| `contact` | [WebhookContact](#webhookcontact) | yes |  |
+
+### WebhookLeadCreated
+
+Body of a lead.created delivery.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | evt_… Unique per event; retries and resends keep it (dedupe on it). |
+| `type` | `"lead.created"` | yes |  |
+| `api_version` | string | yes | Payload format version. |
+| `created_at` | string (date-time) | yes |  |
+| `workspace_id` | string (uuid) | yes |  |
+| `test` | boolean | yes | true for Send test event (sample data). |
+| `data` | [LeadCreatedData](#leadcreateddata) | yes |  |
+
+### ContactCreatedData
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `contact` | [WebhookContact](#webhookcontact) | yes |  |
+
+### WebhookContactCreated
+
+Body of a contact.created delivery.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | evt_… Unique per event; retries and resends keep it (dedupe on it). |
+| `type` | `"contact.created"` | yes |  |
+| `api_version` | string | yes | Payload format version. |
+| `created_at` | string (date-time) | yes |  |
+| `workspace_id` | string (uuid) | yes |  |
+| `test` | boolean | yes | true for Send test event (sample data). |
+| `data` | [ContactCreatedData](#contactcreateddata) | yes |  |
+
+### ContactUpdatedData
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `contact` | [WebhookContact](#webhookcontact) | yes |  |
+| `changes` | object | yes |  |
+
+### WebhookContactUpdated
+
+Body of a contact.updated delivery.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | evt_… Unique per event; retries and resends keep it (dedupe on it). |
+| `type` | `"contact.updated"` | yes |  |
+| `api_version` | string | yes | Payload format version. |
+| `created_at` | string (date-time) | yes |  |
+| `workspace_id` | string (uuid) | yes |  |
+| `test` | boolean | yes | true for Send test event (sample data). |
+| `data` | [ContactUpdatedData](#contactupdateddata) | yes |  |
+
+### PaymentSucceededData
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `payment` | [WebhookPayment](#webhookpayment) | yes |  |
+| `contact` | [WebhookContact](#webhookcontact) or null | yes | null when the payment couldn't be matched to a person. |
+
+### WebhookPaymentSucceeded
+
+Body of a payment.succeeded delivery.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | evt_… Unique per event; retries and resends keep it (dedupe on it). |
+| `type` | `"payment.succeeded"` | yes |  |
+| `api_version` | string | yes | Payload format version. |
+| `created_at` | string (date-time) | yes |  |
+| `workspace_id` | string (uuid) | yes |  |
+| `test` | boolean | yes | true for Send test event (sample data). |
+| `data` | [PaymentSucceededData](#paymentsucceededdata) | yes |  |
+
+### PaymentRefundedData
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `refund` | [WebhookRefund](#webhookrefund) | yes |  |
+| `contact` | [WebhookContact](#webhookcontact) or null | yes | null when the payment couldn't be matched to a person. |
+
+### WebhookPaymentRefunded
+
+Body of a payment.refunded delivery.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | yes | evt_… Unique per event; retries and resends keep it (dedupe on it). |
+| `type` | `"payment.refunded"` | yes |  |
+| `api_version` | string | yes | Payload format version. |
+| `created_at` | string (date-time) | yes |  |
+| `workspace_id` | string (uuid) | yes |  |
+| `test` | boolean | yes | true for Send test event (sample data). |
+| `data` | [PaymentRefundedData](#paymentrefundeddata) | yes |  |

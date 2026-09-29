@@ -106,7 +106,11 @@ token, 7-day expiry), `audit_log`, `sessions` (hashed token, current workspace),
 `pixel_sites` (public key, allowed domains, consent_mode optout|required|cookieless), `lead_webhooks` (token, field mapping),
 `notification_rules` (event × channel, settings such as hour or threshold), `connections`
 (any provider id from the integration registry, `llm`, or a `notify_*` channel; mode mock|live, config jsonb,
-`secrets_enc` AES-256-GCM, last_synced_at, last_error), `app_meta` (generated app secret).
+`secrets_enc` AES-256-GCM, last_synced_at, last_error), `app_meta` (generated app secret),
+`webhook_endpoints` (outbound webhooks: url, events text[], `secret_enc` AES-256-GCM, enabled,
+include_pii, created_by) and `webhook_deliveries` (the outbox: event id, PII-free payload, `pii_enc`
+for include_pii endpoints, status pending|delivered|failed, attempts, next_attempt_at, response code
+and first 1 KB of the response; pruned after 30 days).
 
 **Ads** — `ad_accounts`, `campaigns`, `ad_groups`, `ads`, `ad_insights_daily`
 (unique `(workspace_id, platform, ad_id, date)`, idempotent upserts; `platform_conversions` and
@@ -525,6 +529,20 @@ variation) and logs each metric at most once per day. Rules run hourly as the `a
 `jobs.ts` appends to the scheduler (`BUILTIN_JOBS`); `requestAlertCheck(workspaceId)` re-checks one
 workspace soon after new data. Settings → Alerts (`/settings/workspace/alerts`, `alerts.manage`) has
 the rule builder with a live "right now" preview, the anomaly toggle and the history.
+
+**Outbound webhooks.** `src/lib/webhooks/` (catalog, signature, emit, deliver, endpoints; see
+[WEBHOOKS.md](WEBHOOKS.md)). Emitters are called where the data is written: `upsertContact()` and
+`recordLead()` (tracking/identity.ts), `ingestRevenue()` (new rows only) and the pipeline moves
+(`moveContacts`, `undoMove`, `autoWinOnPayment`). They run inside the caller's transaction, inside a
+savepoint, and write one `webhook_deliveries` row per subscribed endpoint (the outbox), so an event
+exists only if its change committed and a webhook problem never fails an ingest. Enabled endpoints
+per workspace are cached for 10 s so hot paths cost at most one small query. Delivery is in-process:
+a 1.5 s timer after new rows plus the every-minute `webhooks` job in `BUILTIN_JOBS` (retries, hourly
+pruning). Rows are claimed with `FOR UPDATE SKIP LOCKED` and a 2-minute lease, so several instances
+never send the same attempt twice. Each attempt goes through `safeFetch` (SSRF re-check, no
+redirects for POST), 10 s timeout, signed `AdLedger-Signature: t=…,v1=HMAC-SHA256("<t>.<body>")`;
+backoff 1 min → 24 h, 8 attempts. Management is `src/app/actions/developers.ts`
+(`developers.access`; personal data also needs `contacts.pii`), UI under `src/app/(app)/developers`.
 
 **Share links.** `src/lib/share.ts`. A link is a 256-bit random token shown once; only its SHA-256 is
 stored. Its filters (rolling range or fixed dates, model, optional platform) are locked at creation:

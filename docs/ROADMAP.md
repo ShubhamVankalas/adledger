@@ -43,6 +43,7 @@ end to end in that form. Status below.
 | Conversion upload: Meta Conversions API, Google Ads click conversions + enhanced conversions for leads (Data Manager API) | 🟡 Beta | Hourly, idempotent, retried with backoff; hashed PII only; consent-aware (Google consent, Meta LDU, skips without consent); not yet verified on live accounts |
 | Pixel consent modes (opt-out, consent required, cookieless), GPC, CMP snippets, AI assistants channel | ✅ | Hotfix lane of the redesign addendum |
 | Notifications: email, Slack, Discord, Teams, SMS, webhook | ✅ | Weekly report, daily digest, wasted spend, sync failed, new customer, large payment |
+| Developer platform: Developers area, outbound webhooks, API reference, recipes | ✅ | `lead.created`, `contact.created`, `contact.updated`, `payment.succeeded`, `payment.refunded`; HMAC-signed, retried, delivery log with redeliver and test events; `GET /api/v1/leads` with cursor pagination. Next: `contact.updated` for owner/tag changes, webhook management through the API |
 | WordPress/WooCommerce plugin, Shopify pixel, GTM tag, site-builder guides | ✅ | `integrations/`, `docs/integrations/` |
 | First-run choice + guided setup checklist with live checks | ✅ | |
 | Real brand logos | ✅ | Simple Icons (CC0) + drawn marks |

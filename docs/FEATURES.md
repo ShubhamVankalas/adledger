@@ -304,7 +304,7 @@ A workspace is one brand or client, with its own data and integrations.
 | **Import data** | Contacts CSV import with column mapping and a new / update / invalid preview before anything is written; spend CSV for any other ad network; payments CSV for any other checkout. |
 | **Duplicates** | Suggested duplicate pairs (same phone, Gmail variants such as dots and `+tags`, same name where one side has no email), merge in one transaction with re-attribution, or mark "Not the same person". |
 | **AI model** | Pick the provider and model for insights and Ask, or none. |
-| **API & MCP** | API keys with scopes (`reports:read` by default; `mcp`, `contacts:read` with masked emails, `contacts:pii`, `ingest:write`) and optional expiry; the MCP setup commands. |
+| **API & MCP** | Moved to **Developers → API keys** (the old URL redirects). Roles that manage keys without the Developers page (Analyst by default) still get it here: API keys with scopes (`reports:read` by default; `mcp`, `contacts:read` with masked emails, `contacts:pii`, `ingest:write`) and optional expiry; the MCP setup commands. |
 
 ### Organization
 
@@ -351,8 +351,23 @@ Integration setup: [CONNECTORS.md](CONNECTORS.md) and the [site-builder guides](
 
 ## Data out: API, MCP and exports
 
+- **Developers** (`/developers`, sidebar; owners and admins by default, the `page.developers`
+  permission): **Overview** with a three-step quickstart and delivery health, **API keys**,
+  **Webhooks**, **API reference** (every API-key endpoint from the OpenAPI spec with curl,
+  JavaScript and Python examples and copy buttons, plus the webhook payloads) and **Recipes**
+  (text new leads via Twilio, Cal.com booking links, Slack payment shout-outs, Zapier / Make / n8n,
+  Google Sheets).
+- **Outbound webhooks** (Developers → Webhooks, the `developers.access` permission, marked
+  "Exports data" in the role editor): endpoints receive `lead.created`, `contact.created`,
+  `contact.updated` (pipeline stage changes), `payment.succeeded` and `payment.refunded` within
+  seconds, signed with HMAC-SHA256 (`AdLedger-Signature: t=…,v1=…`), retried with backoff for about
+  two days, with a 30-day delivery log (payload, response, redeliver) and **Send test event**.
+  Raw emails and phones only for endpoints with **Include personal data** on, which needs the
+  contact-email permission; otherwise masked email and SHA-256 hashes. Private and internal URLs are
+  blocked. Creating an endpoint raises a security alert. See [WEBHOOKS.md](WEBHOOKS.md).
 - **REST API** under `/api/v1/...` with bearer API keys, described by OpenAPI 3.1 at
-  `/api/v1/openapi.json`. See [API.md](API.md).
+  `/api/v1/openapi.json` (including the webhook events). `GET /api/v1/leads` pages through leads
+  with a cursor. See [API.md](API.md).
 - **MCP server** at `/api/mcp` with 14 read-only tools. See [MCP.md](MCP.md).
 - **CSV exports**: performance tables, contacts (masked unless you hold the contact-export permission),
   audit log. **PDF** reports. **Workspace JSON** export. **Pause drafts** for ad editors.

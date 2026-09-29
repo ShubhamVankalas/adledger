@@ -46,8 +46,10 @@ export function SettingsNav({
   canShare,
   canBrand = false,
   canRoles = false,
+  canDevelopers = false,
 }: {
   canRoles?: boolean;
+  canDevelopers?: boolean;
   workspaceName: string;
   organizationName: string;
   canWorkspace: boolean;
@@ -84,7 +86,10 @@ export function SettingsNav({
         { href: "/settings/workspace/import", label: "Import data", short: "Import", icon: UploadIcon, show: canWorkspace },
         { href: "/settings/workspace/duplicates", label: "Duplicates", icon: CopyCheckIcon, show: canWorkspace },
         { href: "/settings/workspace/ai", label: "AI model", icon: BotIcon, show: canWorkspace },
-        { href: "/settings/workspace/api", label: "API & MCP", icon: CodeIcon, show: canApi },
+        // API keys live under Developers; roles with keys but without that page keep the old page.
+        canDevelopers
+          ? { href: "/developers", label: "Developers", icon: CodeIcon }
+          : { href: "/settings/workspace/api", label: "API & MCP", icon: CodeIcon, show: canApi },
       ],
     },
     {

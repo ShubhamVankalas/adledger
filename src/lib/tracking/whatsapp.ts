@@ -98,6 +98,7 @@ export async function ingestWhatsAppMessages(db: DB, workspaceId: string, messag
         occurredAt: m.occurredAt,
         // No message text or numbers: only what's needed for dedupe and debugging.
         raw: { channel: "whatsapp", ref, message_id: m.messageId, visitor_matched: Boolean(visitorId) },
+        phone: m.from,
       });
       result.leads++;
     });

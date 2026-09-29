@@ -8,6 +8,7 @@ import {
   ChevronsUpDownIcon,
   CircleHelpIcon,
   CompassIcon,
+  CodeXmlIcon,
   FileTextIcon,
   GitForkIcon,
   KanbanIcon,
@@ -301,6 +302,14 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                   </span>
                   {setup.next ? <span className="truncate text-caption text-muted-foreground">Next: {setup.next}</span> : null}
                 </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : null}
+          {hrefAllowed("/developers", can.pages) ? (
+            <SidebarMenuItem>
+              <SidebarMenuButton isActive={isActive(pathname, "/developers")} tooltip="Developers" render={<Link href="/developers" />}>
+                <CodeXmlIcon strokeWidth={1.75} />
+                <span className="flex-1">Developers</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
