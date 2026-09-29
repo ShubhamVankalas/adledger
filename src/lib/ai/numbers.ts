@@ -30,8 +30,17 @@ function addVariants(v: number, into: Set<string>) {
 
 /** Returns the numbers in `text` that don't appear in `facts` (ignoring small counts and dates). */
 export function unverifiedNumbers(text: string, facts: unknown): string[] {
+  return numberChecker(facts)(text);
+}
+
+/** unverifiedNumbers() with the facts indexed once, for checking many strings against the same facts. */
+export function numberChecker(facts: unknown): (text: string) => string[] {
   const allowed = new Set<string>();
   collect(facts, allowed);
+  return (text) => check(text, allowed);
+}
+
+function check(text: string, allowed: Set<string>): string[] {
   const withoutDates = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ");
   const bad = new Set<string>();
   for (const m of withoutDates.match(NUM_RE) ?? []) {

@@ -1,7 +1,9 @@
 import { desc, eq } from "drizzle-orm";
-import { FileCheck2Icon } from "lucide-react";
+import { FileCheck2Icon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { PageBody, PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { DOCUMENT_TEMPLATES } from "@/lib/ai/document-prompts";
 import { ModelPicker } from "@/components/reports-gallery/model-picker";
 import { ReportGallery } from "@/components/reports-gallery/report-gallery";
 import { SchedulesList, type ScheduleRow } from "@/components/reports-gallery/schedules-list";
@@ -73,6 +75,43 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <ModelPicker model={model} />
       </PageHeader>
       <PageBody>
+        {canPdf && user.can("insights.generate") ? (
+          <section aria-labelledby="ai-doc-title" className="relative overflow-hidden rounded-xl bg-card shadow-(--elev-card)">
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-brand-gradient" />
+            <div className="flex flex-col gap-4 p-4 pl-5 sm:p-5 sm:pl-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 gap-3.5">
+                <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand-foreground">
+                  <SparklesIcon className="size-5" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <h2 id="ai-doc-title" className="text-title-sm">
+                    Need something the library doesn&apos;t have? Ask for it.
+                  </h2>
+                  <p className="mt-0.5 text-ui text-pretty text-muted-foreground">
+                    Describe any document (a board update, a client report, a post-mortem) and your AI model writes it from your ledger. AdLedger draws every chart and table from SQL.
+                  </p>
+                  <ul role="list" className="mt-2.5 flex flex-wrap gap-1.5">
+                    {DOCUMENT_TEMPLATES.slice(0, 4).map((t) => (
+                      <li key={t.id}>
+                        <Link
+                          href={`/reports/ai-document?template=${t.id}${model === "linear" ? "" : `&model=${model}`}`}
+                          className="inline-flex h-7 items-center rounded-full border bg-surface px-2.5 text-caption text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        >
+                          {t.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <Button render={<Link href={`/reports/ai-document${model === "linear" ? "" : `?model=${model}`}`} />} className="h-10 shrink-0 md:h-9">
+                <SparklesIcon aria-hidden />
+                Write an AI document
+              </Button>
+            </div>
+          </section>
+        ) : null}
+
         <section aria-labelledby="library-title" className="space-y-4">
           <SectionTitle id="library-title">Report library</SectionTitle>
           {!canPdf ? (

@@ -34,7 +34,9 @@ function contrastOnWhite([r, g, b]: [number, number, number]) {
 export function oklchToPrintHex(value: string): string | null {
   const m = OKLCH.exec(value.trim());
   if (!m) return null;
-  let [l, c, h] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  let l = Number(m[1]);
+  let c = Number(m[2]);
+  const h = Number(m[3]);
   if (![l, c, h].every(Number.isFinite)) return null;
   for (let i = 0; i < 20; i++) {
     const rgb = oklchToRgb(l, c, h);
