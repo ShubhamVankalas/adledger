@@ -1,0 +1,3 @@
+# Screenshots are copied from docs/screenshots at deploy time (.github/workflows/pages.yml).
+# To preview locally: cp docs/screenshots/*.png site/screenshots/
+screenshots/
