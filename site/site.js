@@ -56,9 +56,21 @@
 
   var menu = doc.querySelector(".menu");
   if (menu) {
+    var toggle = menu.querySelector("summary");
     menu.addEventListener("click", function (e) { if (e.target.closest("a")) menu.open = false; });
+    menu.addEventListener("toggle", function () { toggle.setAttribute("aria-label", menu.open ? "Close menu" : "Menu"); });
     doc.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && menu.open) { menu.open = false; menu.querySelector("summary").focus(); }
+      if (!menu.open) return;
+      if (e.key === "Escape") { menu.open = false; toggle.focus(); return; }
+      if (e.key !== "Tab") return;
+      // keep keyboard focus inside the open menu: the toggle and its links
+      var items = [toggle].concat($all(".menu-panel a", menu));
+      var first = items[0];
+      var last = items[items.length - 1];
+      var at = doc.activeElement;
+      if (!menu.contains(at)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && at === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
     });
     doc.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
   }
