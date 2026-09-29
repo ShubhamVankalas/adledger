@@ -13,6 +13,7 @@ import {
   CableIcon,
   CodeIcon,
   FileClockIcon,
+  InfoIcon,
   LockKeyholeIcon,
   MousePointerClickIcon,
   PaletteIcon,
@@ -95,6 +96,10 @@ export function SettingsNav({
         { href: "/settings/organization/audit", label: "Audit log", icon: FileClockIcon, show: canAudit },
       ],
     },
+    {
+      title: "About",
+      items: [{ href: "/settings/about", label: "About AdLedger", short: "About", icon: InfoIcon }],
+    },
   ];
   const visible = groups.map((g) => ({ ...g, items: g.items.filter((i) => i.show !== false) }));
   const active = (href: string) => (["/settings/workspace", "/settings/organization", "/settings/account"].includes(href) ? pathname === href : pathname.startsWith(href));
@@ -142,8 +147,12 @@ export function SettingsNav({
         </div>
       </nav>
 
-      {/* Desktop: grouped vertical list. */}
-      <nav aria-label="Settings" className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
+      {/* Desktop: grouped vertical list. It sticks below the 52px page header and scrolls on its own
+          (own max-height, overscroll-contain), so the wheel over the menu never scrolls the page. */}
+      <nav
+        aria-label="Settings"
+        className="hidden lg:sticky lg:top-[calc(52px+env(safe-area-inset-top)+1rem)] lg:block lg:max-h-[calc(100dvh-52px-env(safe-area-inset-top)-2rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:-mx-1 lg:px-1 lg:pb-2 lg:[scrollbar-width:thin]"
+      >
         <div className="flex flex-col gap-6">
           {visible.map((g) => (
             <div key={g.title} className="min-w-0">
