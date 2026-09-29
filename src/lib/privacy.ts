@@ -203,6 +203,11 @@ export async function eraseContact(db: DB, workspaceId: string, contactId: strin
       touchpointsScrubbed = tps.length;
     }
 
+    // Outbound webhook deliveries carry a snapshot of the contact (and, for PII endpoints, their encrypted email).
+    await tx
+      .delete(schema.webhookDeliveries)
+      .where(and(eq(schema.webhookDeliveries.workspaceId, workspaceId), sql`${schema.webhookDeliveries.payload} -> 'data' -> 'contact' ->> 'id' = ${contactId}`));
+
     const leads = await tx
       .delete(schema.leads)
       .where(and(eq(schema.leads.workspaceId, workspaceId), eq(schema.leads.contactId, contactId)))
@@ -364,6 +369,7 @@ export const EXPORT_TABLES: { table: string; omit?: string[] }[] = [
   { table: "lead_webhooks", omit: ["token"] },
   { table: "connections", omit: ["secrets_enc"] },
   { table: "api_keys", omit: ["key_hash"] },
+  { table: "webhook_endpoints", omit: ["secret_enc"] },
   { table: "notification_rules" },
   { table: "ad_accounts" },
   { table: "campaigns" },
