@@ -7,10 +7,11 @@ import { MobileNav } from "@/components/mobile-nav";
 import { DEMO_PILL_COOKIE } from "@/components/shell-constants";
 import { getSetupStatus } from "@/components/onboarding";
 import { ShortcutsSheet } from "@/components/shortcuts-sheet";
+import { ProductTour } from "@/components/tour/product-tour";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
-import { PAGES } from "@/lib/permissions";
+import { ALL_PERMISSIONS, PAGES } from "@/lib/permissions";
 import { overdueTaskCount } from "@/lib/reports-crm";
 import { livePulse } from "@/lib/reports-live";
 import { themeCss } from "@/lib/themes";
@@ -96,6 +97,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           />
           <ShortcutsSheet />
           <MobileNav pages={pages} />
+          {/* DISABLE_TOUR switches off the automatic welcome (end-to-end tests); replaying it still works. */}
+          <ProductTour
+            permissions={ALL_PERMISSIONS.filter((p) => user.can(p))}
+            autoStart={user.tourCompletedAt === null && process.env.DISABLE_TOUR !== "true"}
+            completed={user.tourCompletedAt !== null}
+            userId={user.id}
+          />
         </SidebarInset>
       </ShellProvider>
     </SidebarProvider>

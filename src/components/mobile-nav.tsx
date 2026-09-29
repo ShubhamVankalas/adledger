@@ -98,6 +98,7 @@ export function MobileNav({ pages }: { pages: readonly string[] }) {
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
+                  data-tour={`tab-${href === "/" ? "overview" : href.slice(1)}`}
                   className={cn(item, active ? "bg-fill-active text-foreground" : "text-muted-foreground hover:text-foreground")}
                 >
                   <Tab icon={icon} label={label} active={active} />
@@ -110,6 +111,7 @@ export function MobileNav({ pages }: { pages: readonly string[] }) {
               type="button"
               aria-haspopup="dialog"
               aria-expanded={openMobile}
+              data-tour="tab-more"
               onClick={() => setOpenMobile(true)}
               className={cn(item, !onTab || openMobile ? "bg-fill-active text-foreground" : "text-muted-foreground hover:text-foreground")}
             >

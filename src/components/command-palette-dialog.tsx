@@ -6,6 +6,7 @@ import {
   BookmarkPlusIcon,
   CalendarRangeIcon,
   ClipboardCopyIcon,
+  CompassIcon,
   EyeIcon,
   EyeOffIcon,
   CornerDownLeftIcon,
@@ -48,7 +49,7 @@ import {
   isReportPath,
   type PaletteCan,
 } from "./command-palette-data";
-import { OPEN_SHORTCUTS_EVENT, pushRecent, readRecent, SAVE_VIEW_EVENT, type RecentEntry } from "./command-palette-store";
+import { OPEN_SHORTCUTS_EVENT, pushRecent, readRecent, SAVE_VIEW_EVENT, startProductTour, type RecentEntry } from "./command-palette-store";
 
 // The ⌘K palette's dialog (loaded on idle by command-palette.tsx, so the first open is instant).
 // Base UI Autocomplete inside a Base UI Dialog: combobox + listbox semantics, the highlighted row
@@ -329,6 +330,13 @@ export function PaletteDialog({ open, onOpenChange, via, initialQuery, session, 
       run: () => {
         window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT));
       },
+    });
+    list.push({
+      id: "tour",
+      label: "Take the product tour",
+      keywords: ["walkthrough", "onboarding", "guide", "help", "getting started", "show me around", "tutorial"],
+      icon: CompassIcon,
+      run: startProductTour,
     });
     return list;
   }, [can, dark, pathname, router, setStreamer, setTheme, streamer]);

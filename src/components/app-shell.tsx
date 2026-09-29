@@ -116,6 +116,7 @@ export function HeaderSearchButton() {
       type="button"
       onClick={openPalette}
       aria-label="Search"
+      data-tour="search"
       className="-mr-1.5 inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-100 outline-none hover:bg-fill-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:hidden"
     >
       <SearchIcon aria-hidden className="size-[18px]" strokeWidth={1.75} />

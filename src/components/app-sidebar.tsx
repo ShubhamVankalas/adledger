@@ -7,6 +7,7 @@ import {
   CheckIcon,
   ChevronsUpDownIcon,
   CircleHelpIcon,
+  CompassIcon,
   FileTextIcon,
   GitForkIcon,
   KanbanIcon,
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 import { switchOrganizationAction, switchWorkspaceAction } from "@/app/actions/account";
 import { logoutAction } from "@/app/actions/auth";
 import { openPalette, openShortcuts } from "@/components/app-shell";
+import { startProductTour } from "@/components/command-palette-store";
 import { OrgLogo, UserAvatar } from "@/components/avatars";
 import { LiveNavBadge, LivePulse, type PulseData } from "@/components/live/live-pulse";
 import { PinnedViews } from "@/components/performance/pinned-views";
@@ -174,7 +176,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<SidebarMenuButton size="lg" className="h-11 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Workspace: ${workspace.name}`} />}
+                render={<SidebarMenuButton size="lg" data-tour="workspace" className="h-11 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Workspace: ${workspace.name}`} />}
                 disabled={pending}
               >
                 <OrgLogo id={organization.id} name={organization.name} src={organization.logoUrl} size="sm" />
@@ -222,6 +224,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={openPalette}
+              data-tour="search"
               tooltip={`Search (${paletteHint})`}
               className="mt-1 h-8 border border-sidebar-border bg-surface text-muted-foreground shadow-none hover:border-border-strong hover:bg-surface hover:text-foreground group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
             >
@@ -237,13 +240,13 @@ export function AppSidebar({ user, organization, organizations, workspace, works
         {NAV.map((group) => ({ ...group, items: group.items.filter((item) => (item.badge !== "tasks" || can.tasks) && hrefAllowed(item.href, can.pages)) }))
           .filter((group) => group.items.length > 0)
           .map((group, i) => (
-          <SidebarGroup key={group.label ?? i} className={i === 0 ? "pt-1.5" : undefined}>
+          <SidebarGroup key={group.label ?? i} data-tour={group.label ? `nav-group-${group.label.toLowerCase()}` : undefined} className={i === 0 ? "pt-1.5" : undefined}>
             {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton isActive={isActive(pathname, item.href)} tooltip={item.label} render={<Link href={item.href} />}>
+                    <SidebarMenuButton isActive={isActive(pathname, item.href)} tooltip={item.label} data-tour={`nav-${item.href === "/" ? "overview" : item.href.slice(1)}`} render={<Link href={item.href} />}>
                       <item.icon strokeWidth={1.75} />
                       <span className="flex-1">{item.label}</span>
                       {item.badge === "live" ? <LiveNavBadge initial={pulse} className="group-data-[collapsible=icon]:hidden" /> : null}
@@ -322,7 +325,7 @@ export function AppSidebar({ user, organization, organizations, workspace, works
           </SidebarMenuItem>
           <SidebarMenuItem className="mt-1">
             <DropdownMenu>
-              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="h-10 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Account: ${user.name || user.email}`} />}>
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" data-tour="profile" className="h-10 gap-2.5 px-2 data-popup-open:bg-fill-hover group-data-[collapsible=icon]:p-1!" aria-label={`Account: ${user.name || user.email}`} />}>
                 <UserAvatar id={user.id} name={user.name} email={user.email} src={user.avatarUrl} size="sm" />
                 <span className="grid min-w-0 flex-1 text-left leading-tight">
                   <span className="truncate text-ui font-medium text-foreground">{user.name || user.email}</span>
@@ -350,6 +353,9 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                   ) : null}
                   <DropdownMenuItem render={<a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs" target="_blank" rel="noreferrer" />}>
                     <BookOpenIcon /> Documentation
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={startProductTour}>
+                    <CompassIcon /> Take the product tour
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />

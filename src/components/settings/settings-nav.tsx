@@ -31,6 +31,9 @@ import { cn } from "@/lib/utils";
 
 type Item = { href: string; label: string; short?: string; icon: LucideIcon; show?: boolean };
 
+/** Anchor for the product tour: "/settings/workspace/alerts" becomes "settings-alerts". */
+const tourName = (href: string) => `settings-${href.split("/").pop()}`;
+
 export function SettingsNav({
   workspaceName,
   organizationName,
@@ -125,6 +128,7 @@ export function SettingsNav({
                     key={i.href}
                     href={i.href}
                     aria-current={on ? "page" : undefined}
+                    data-tour={tourName(i.href)}
                     className={cn(
                       "flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
                       on
@@ -159,6 +163,7 @@ export function SettingsNav({
                       <Link
                         href={i.href}
                         aria-current={on ? "page" : undefined}
+                        data-tour={tourName(i.href)}
                         className={cn(
                           "relative flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
                           on && "bg-muted font-medium text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-brand-gradient",

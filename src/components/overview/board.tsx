@@ -75,7 +75,7 @@ function StaticBoard({ layout, lookup }: { layout: Layout; lookup: NodeLookup })
   return (
     <div className="flex flex-col gap-7 md:gap-8">
       {layout.pinned.length ? (
-        <section aria-label="Pinned metrics" className={PINNED_GRID} style={pinnedStyle(layout.pinned.length)}>
+        <section aria-label="Pinned metrics" data-tour="kpis" className={PINNED_GRID} style={pinnedStyle(layout.pinned.length)}>
           {layout.pinned.map((w) => frame(w, PINNED))}
         </section>
       ) : null}
@@ -89,9 +89,9 @@ function StaticBoard({ layout, lookup }: { layout: Layout; lookup: NodeLookup })
 }
 
 function SectionView({ section, children }: { section: Section; children: React.ReactNode }) {
-  if (!section.title) return <div className={SECTION_GRID}>{children}</div>;
+  if (!section.title) return <div data-tour="widgets" className={SECTION_GRID}>{children}</div>;
   return (
-    <details open={!section.collapsed} className="group/section">
+    <details open={!section.collapsed} data-tour="widgets" className="group/section">
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md py-1 outline-none select-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <h2 className="text-xs font-medium tracking-[0.04em] text-muted-foreground uppercase">{section.title}</h2>
         <span aria-hidden className="h-px flex-1 bg-border" />

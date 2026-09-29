@@ -125,7 +125,7 @@ export function ReportControls(props: Props) {
 
   const shared = { ...props, compare, update };
   return (
-    <div className={cn("transition-opacity duration-150", pending && "opacity-60")} aria-busy={pending || undefined}>
+    <div data-tour="filters" className={cn("transition-opacity duration-150", pending && "opacity-60")} aria-busy={pending || undefined}>
       <InlineControls {...shared} />
       <CompactControls {...shared} />
     </div>
