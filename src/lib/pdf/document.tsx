@@ -15,7 +15,18 @@ const PAD_X = 36;
 /** Fingerprint as printed: first 20 hex characters in groups of four ("7f3a 9c21 …"). */
 export const shortFingerprint = (fp: string) => (fp.slice(0, 20).match(/.{1,4}/g) ?? []).join(" ");
 
-export function ReportDocument({ meta, ctx, methodology, children }: { meta: ReportMeta; ctx: RenderContext; methodology: Methodology; children: ReactNode }) {
+/** What the frame prints about the document: a report kind's meta, or an AI document's. */
+export type DocumentMeta = Pick<ReportMeta, "title" | "description" | "orientation" | "length" | "usesModel"> & { id: string };
+
+/** Optional overrides for documents that are not built-in report kinds (AI documents). */
+export type FrameOptions = {
+  /** Big cover title (default: the workspace name) and a line under it. */
+  cover?: { title: string; subtitle?: string | null };
+  /** Replaces the methodology "Source" line. */
+  sourceNote?: string;
+};
+
+export function ReportDocument({ meta, ctx, methodology, children, frame }: { meta: DocumentMeta; ctx: RenderContext; methodology: Methodology; children: ReactNode; frame?: FrameOptions }) {
   const families = registerFonts();
   const period = dateRange(methodology.start, methodology.end);
   const workspace = safeText(ctx.workspaceName, 60);
@@ -48,16 +59,16 @@ export function ReportDocument({ meta, ctx, methodology, children }: { meta: Rep
         }}
       >
         <Masthead meta={meta} ctx={ctx} period={period} />
-        <Cover meta={meta} ctx={ctx} methodology={methodology} compact={compact} />
+        <Cover meta={meta} ctx={ctx} methodology={methodology} compact={compact} cover={frame?.cover} />
         {children}
-        <MethodologyAppendix meta={meta} ctx={ctx} m={methodology} compact={compact} twoColumns={compact || meta.orientation === "landscape"} />
+        <MethodologyAppendix meta={meta} ctx={ctx} m={methodology} compact={compact} twoColumns={compact || meta.orientation === "landscape"} sourceNote={frame?.sourceNote} />
         <Footer ctx={ctx} />
       </Page>
     </Document>
   );
 }
 
-function Masthead({ meta, ctx, period }: { meta: ReportMeta; ctx: RenderContext; period: string }) {
+function Masthead({ meta, ctx, period }: { meta: DocumentMeta; ctx: RenderContext; period: string }) {
   return (
     <View fixed style={{ position: "absolute", top: 22, left: PAD_X, right: PAD_X }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 9, borderBottomWidth: 0.6, borderColor: C.border }}>
@@ -70,7 +81,7 @@ function Masthead({ meta, ctx, period }: { meta: ReportMeta; ctx: RenderContext;
   );
 }
 
-function Cover({ meta, ctx, methodology: m, compact }: { meta: ReportMeta; ctx: RenderContext; methodology: Methodology; compact: boolean }) {
+function Cover({ meta, ctx, methodology: m, compact, cover }: { meta: DocumentMeta; ctx: RenderContext; methodology: Methodology; compact: boolean; cover?: FrameOptions["cover"] }) {
   const bits = [
     m.compareStart && m.compareEnd ? `compared with ${dateRange(m.compareStart, m.compareEnd)}` : null,
     meta.usesModel ? `${MODEL_LABELS[m.model] ?? m.model} attribution` : "All attribution models",
@@ -80,7 +91,10 @@ function Cover({ meta, ctx, methodology: m, compact }: { meta: ReportMeta; ctx: 
     <View style={{ marginBottom: compact ? 4 : 8 }}>
       <View style={{ width: 22, height: 2, backgroundColor: ctx.theme.brand, borderRadius: 1, marginBottom: compact ? 7 : 10 }} />
       <Text style={s.eyebrow}>{meta.title}</Text>
-      <Text style={{ fontSize: compact ? TYPE.title + 2 : TYPE.display, fontWeight: 600, letterSpacing: compact ? -0.3 : -0.6, color: C.fg, marginTop: compact ? 3 : 5 }}>{safeText(ctx.workspaceName, 60)}</Text>
+      <Text style={{ fontSize: compact ? TYPE.title + 2 : TYPE.display, fontWeight: 600, letterSpacing: compact ? -0.3 : -0.6, color: C.fg, marginTop: compact ? 3 : 5, lineHeight: 1.15 }}>
+        {safeText(cover?.title ?? ctx.workspaceName, cover ? 90 : 60)}
+      </Text>
+      {cover?.subtitle ? <Text style={{ fontSize: TYPE.titleSm, color: C.fgMuted, marginTop: 4, lineHeight: 1.35 }}>{safeText(cover.subtitle, 160)}</Text> : null}
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: compact ? 3 : 6 }}>
         <Text style={{ fontSize: TYPE.body, fontWeight: 500, color: C.fg }}>{dateRange(m.start, m.end)}</Text>
         {bits.map((b, i) => (
@@ -120,7 +134,7 @@ export function syncSummary(syncs: Methodology["syncs"]): string {
 /** Full fingerprint in eight groups of eight so it wraps cleanly. */
 const groupedFingerprint = (fp: string) => (fp.match(/.{1,8}/g) ?? []).join(" ");
 
-function MethodologyAppendix({ meta, ctx, m, compact, twoColumns }: { meta: ReportMeta; ctx: RenderContext; m: Methodology; compact: boolean; twoColumns: boolean }) {
+function MethodologyAppendix({ meta, ctx, m, compact, twoColumns, sourceNote }: { meta: DocumentMeta; ctx: RenderContext; m: Methodology; compact: boolean; twoColumns: boolean; sourceNote?: string }) {
   const rows: [string, string][] = [
     ["Attribution", meta.usesModel ? `${MODEL_LABELS[m.model] ?? m.model} model, ${m.windowDays}-day window` : `First touch, last touch and linear side by side, ${m.windowDays}-day window`],
     ["Period", `${dateRange(m.start, m.end)} (${m.timezone})${m.compareStart && m.compareEnd ? `, compared with ${dateRange(m.compareStart, m.compareEnd)}` : ""}`],
@@ -128,7 +142,7 @@ function MethodologyAppendix({ meta, ctx, m, compact, twoColumns }: { meta: Repo
     ["Currency", m.exclusions.length ? `${m.currency}. ${m.exclusions.join(" ")}` : `${m.currency}. Nothing in other currencies was excluded.`],
     ["Last sync", syncSummary(m.syncs)],
     ["Pixel", m.pixel.lastEventAt ? `${m.pixel.events24h.toLocaleString("en-US")} events in the last 24 hours, latest ${when(m.pixel.lastEventAt)}` : "No website events recorded yet"],
-    ["Source", "Every figure is computed by SQL from this AdLedger ledger. No number was written or calculated by AI."],
+    ["Source", sourceNote ?? "Every figure is computed by SQL from this AdLedger ledger. No number was written or calculated by AI."],
     ["Fingerprint", `${groupedFingerprint(ctx.fingerprint)}. ${ctx.verifyUrl ? `Check it at ${ctx.verifyUrl}` : "Check it on the /verify page of your AdLedger"}.`],
   ];
   const size = compact ? TYPE.micro : TYPE.caption;

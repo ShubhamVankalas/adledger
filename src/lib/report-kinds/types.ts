@@ -10,7 +10,19 @@ import type { Workspace } from "../settings";
 // The loaded object (ReportData) is what gets fingerprinted: web, PDF and tests read the
 // exact same numbers.
 
-export const REPORT_KIND_IDS = ["executive-summary", "weekly-performance", "attribution-models", "ltv-cohorts", "wasted-spend"] as const;
+export const REPORT_KIND_IDS = [
+  "executive-summary",
+  "weekly-performance",
+  "attribution-models",
+  "ltv-cohorts",
+  "wasted-spend",
+  "channel-mix",
+  "lead-quality",
+  "ad-leaderboard",
+  "conversion-funnel",
+  "pipeline-activity",
+  "profit-refunds",
+] as const;
 export type ReportKindId = (typeof REPORT_KIND_IDS)[number];
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;

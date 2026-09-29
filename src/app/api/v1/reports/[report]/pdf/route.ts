@@ -6,7 +6,7 @@ import { json, rateLimit } from "@/lib/http";
 import { log } from "@/lib/log";
 import { Busy, pdfLimiter } from "@/lib/pdf/limiter";
 import { resolvePeriodParams } from "@/lib/period";
-import { getReportKind, reportRequestSchema } from "@/lib/report-kinds";
+import { getReportKind, REPORT_KIND_IDS, reportRequestSchema } from "@/lib/report-kinds";
 import { generateReportPdf, type Exporter } from "@/lib/report-kinds/render";
 
 // GET /api/v1/reports/{kind}/pdf?start=YYYY-MM-DD&end=YYYY-MM-DD&model=linear|first_touch|last_touch&compare=previous|none
@@ -24,7 +24,7 @@ const NO_STORE = { "Cache-Control": "private, no-store", "X-Content-Type-Options
 export async function GET(req: Request, { params }: { params: Promise<{ report: string }> }) {
   const { report } = await params;
   const kind = getReportKind(report);
-  if (!kind) return json({ error: "unknown report", hint: "One of: executive-summary, weekly-performance, attribution-models, ltv-cohorts, wasted-spend." }, { status: 404, headers: NO_STORE });
+  if (!kind) return json({ error: "unknown report", hint: `One of: ${REPORT_KIND_IDS.join(", ")}.` }, { status: 404, headers: NO_STORE });
 
   const principal = await authenticatePrincipal(req);
   if (!principal) return json({ error: "unauthorized", hint: "Send `Authorization: Bearer al_...` (create a key in Settings → API keys)." }, { status: 401, headers: NO_STORE });

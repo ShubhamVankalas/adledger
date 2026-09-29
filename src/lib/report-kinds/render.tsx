@@ -6,7 +6,8 @@ import { schema, type DB } from "../db";
 import { pdfLogoBytes } from "../media";
 import { ReportDocument } from "../pdf/document";
 import { longDate } from "../pdf/format";
-import { pdfTheme } from "../pdf/theme";
+import { orgPrintAccent } from "../pdf/brand";
+import { pdfTheme, type PdfTheme } from "../pdf/theme";
 import type { Workspace } from "../settings";
 import { getReportKind } from "./index";
 import type { RenderContext, ReportKindId, ReportMeta, ReportRequest } from "./types";
@@ -56,7 +57,7 @@ export function reportFingerprint(input: { exportId: string; dataHash: string; e
 }
 
 /** Calendar date of `d` in the workspace timezone, printed like the rest of the report. */
-const issuedOn = (d: Date, tz: string) => {
+export const issuedOn = (d: Date, tz: string) => {
   try {
     return longDate(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d));
   } catch {
@@ -70,6 +71,37 @@ export function reportFilename(ws: Workspace, kind: string, req: ReportRequest) 
 }
 
 export class UnknownReportKind extends Error {}
+
+export type PrintBrand = { organizationName: string; logo: Uint8Array | null; theme: PdfTheme };
+
+/** The organization's name, logo and accent colour as printed on every PDF. */
+export async function loadPrintBrand(db: DB, ws: Workspace): Promise<PrintBrand> {
+  const [org] = await db
+    .select({ name: schema.organizations.name, logoPng: schema.organizations.logoPng, logo: schema.organizations.logo, logoType: schema.organizations.logoType, theme: schema.organizations.theme })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.id, ws.organizationId));
+  // react-pdf reads PNG/JPEG only: the PNG copy made at upload, else the original when it is
+  // already PNG/JPEG. Older WebP-only logos fall back to the org-name wordmark until re-uploaded.
+  const logo = pdfLogoBytes(org?.logoPng ?? null, org?.logo ?? null, org?.logoType ?? null);
+  return { organizationName: org?.name ?? ws.name, logo: logo ? new Uint8Array(logo) : null, theme: pdfTheme(orgPrintAccent(org?.theme ?? null)) };
+}
+
+/** Everything the page frame needs besides the data (shared by report kinds and AI documents). */
+export function renderContextFor(ws: Workspace, brand: PrintBrand, exporter: Exporter, ids: { issuedAt: Date; exportId: string; fingerprint: string }): RenderContext {
+  const base = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
+  return {
+    workspaceName: ws.name,
+    organizationName: brand.organizationName,
+    logo: brand.logo,
+    theme: brand.theme,
+    preparedFor: exporter.name,
+    issuedAt: ids.issuedAt,
+    issuedOn: issuedOn(ids.issuedAt, ws.timezone),
+    fingerprint: ids.fingerprint,
+    exportId: ids.exportId,
+    verifyUrl: base ? `${base}/verify` : null,
+  };
+}
 
 /** Drop parameters a kind ignores, so the fingerprint and export log describe what was printed. */
 export function normalizeRequest(meta: ReportMeta, req: ReportRequest): ReportRequest {
@@ -87,34 +119,13 @@ export async function generateReportPdf(
   const kind = getReportKind(kindId);
   if (!kind) throw new UnknownReportKind(`Unknown report: ${kindId}`);
   req = normalizeRequest(kind.meta, req);
-  const [data, [org]] = await Promise.all([
-    kind.load(db, ws, req),
-    db
-      .select({ name: schema.organizations.name, logoPng: schema.organizations.logoPng, logo: schema.organizations.logo, logoType: schema.organizations.logoType })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, ws.organizationId)),
-  ]);
-  // react-pdf reads PNG/JPEG only: the PNG copy made at upload, else the original when it is
-  // already PNG/JPEG. Older WebP-only logos fall back to the org-name wordmark until re-uploaded.
-  const logo = pdfLogoBytes(org?.logoPng ?? null, org?.logo ?? null, org?.logoType ?? null);
+  const [data, brand] = await Promise.all([kind.load(db, ws, req), loadPrintBrand(db, ws)]);
 
   const issuedAt = opts.now ?? new Date();
   const exportId = randomUUID();
   const dataHash = reportDataHash(kind.meta.id, req, data);
   const fingerprint = reportFingerprint({ exportId, dataHash, exporter, issuedAt });
-  const base = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
-  const ctx: RenderContext = {
-    workspaceName: ws.name,
-    organizationName: org?.name ?? ws.name,
-    logo: logo ? new Uint8Array(logo) : null,
-    theme: pdfTheme(null),
-    preparedFor: exporter.name,
-    issuedAt,
-    issuedOn: issuedOn(issuedAt, ws.timezone),
-    fingerprint,
-    exportId,
-    verifyUrl: base ? `${base}/verify` : null,
-  };
+  const ctx = renderContextFor(ws, brand, exporter, { issuedAt, exportId, fingerprint });
   const Body = kind.Body;
   const pdf = await renderToBuffer(
     <ReportDocument meta={kind.meta} ctx={ctx} methodology={data.methodology}>

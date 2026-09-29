@@ -44,7 +44,7 @@ export async function lookupFingerprint(db: DB, input: string | null | undefined
     status: "found",
     report: {
       kind: r.report_kind,
-      title: isReportKindId(r.report_kind) ? REPORT_CATALOG[r.report_kind].title : "Report",
+      title: isReportKindId(r.report_kind) ? REPORT_CATALOG[r.report_kind].title : r.report_kind === "ai-document" ? "AI document" : "Report",
       workspace: r.name,
       start: date(params?.start),
       end: date(params?.end),

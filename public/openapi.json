@@ -252,7 +252,7 @@
         ],
         "operationId": "getReportPdf",
         "summary": "Download a PDF report",
-        "description": "Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape) or `wasted-spend`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.",
+        "description": "Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape), `wasted-spend`, `channel-mix`, `lead-quality`, `ad-leaderboard`, `conversion-funnel`, `pipeline-activity` or `profit-refunds`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.",
         "parameters": [
           {
             "name": "report",
@@ -266,7 +266,13 @@
                 "weekly-performance",
                 "attribution-models",
                 "ltv-cohorts",
-                "wasted-spend"
+                "wasted-spend",
+                "channel-mix",
+                "lead-quality",
+                "ad-leaderboard",
+                "conversion-funnel",
+                "pipeline-activity",
+                "profit-refunds"
               ]
             }
           },

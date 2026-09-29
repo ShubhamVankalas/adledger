@@ -84,13 +84,13 @@ Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 ### GET /api/v1/reports/{report}/pdf
 
-**Download a PDF report.** Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape) or `wasted-spend`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.
+**Download a PDF report.** Branded PDF of one report kind: `executive-summary` (1 page), `weekly-performance`, `attribution-models` (all models side by side; `model` is ignored), `ltv-cohorts` (landscape), `wasted-spend`, `channel-mix`, `lead-quality`, `ad-leaderboard`, `conversion-funnel`, `pipeline-activity` or `profit-refunds`. Every number comes from the same SQL as the JSON reports. Each download is written to the export log and carries a fingerprint that `/verify` confirms. Dashboard sessions need the `reports.pdf` permission. At most two PDFs render at once (plus a short queue); beyond that the answer is 429.
 
 Auth: `Authorization: Bearer al_...` (or a dashboard session).
 
 | Parameter | In | Type | Required | Description |
 |---|---|---|---|---|
-| `report` | path | `executive-summary`, `weekly-performance`, `attribution-models`, `ltv-cohorts`, `wasted-spend` | yes | Which report. |
+| `report` | path | `executive-summary`, `weekly-performance`, `attribution-models`, `ltv-cohorts`, `wasted-spend`, `channel-mix`, `lead-quality`, `ad-leaderboard`, `conversion-funnel`, `pipeline-activity`, `profit-refunds` | yes | Which report. |
 | `start` | query | [Date](#date) | no | First day, YYYY-MM-DD (workspace timezone). Omit start and end for the report's default range ending on the latest day with data. |
 | `end` | query | [Date](#date) | no | Last day, inclusive, YYYY-MM-DD. At most two years after start. |
 | `model` | query | [AttributionModel](#attributionmodel) | no | Attribution model. (default `"linear"`) |

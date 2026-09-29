@@ -1,6 +1,12 @@
+import { adLeaderboard } from "./ad-leaderboard";
 import { attributionModels } from "./attribution-models";
+import { channelMix } from "./channel-mix";
+import { conversionFunnel } from "./conversion-funnel";
 import { executiveSummary } from "./executive-summary";
+import { leadQuality } from "./lead-quality";
 import { ltvCohorts } from "./ltv-cohorts";
+import { pipelineActivity } from "./pipeline-activity";
+import { profitRefunds } from "./profit-refunds";
 import type { ReportKind, ReportKindId } from "./types";
 import { wastedSpendReport } from "./wasted-spend";
 import { weeklyPerformance } from "./weekly-performance";
@@ -14,6 +20,12 @@ export const REPORT_KINDS: Record<ReportKindId, ReportKind> = {
   "attribution-models": attributionModels,
   "ltv-cohorts": ltvCohorts,
   "wasted-spend": wastedSpendReport,
+  "channel-mix": channelMix,
+  "lead-quality": leadQuality,
+  "ad-leaderboard": adLeaderboard,
+  "conversion-funnel": conversionFunnel,
+  "pipeline-activity": pipelineActivity,
+  "profit-refunds": profitRefunds,
 };
 
 export function getReportKind(id: string): ReportKind | undefined {
