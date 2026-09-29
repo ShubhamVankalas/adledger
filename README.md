@@ -22,13 +22,7 @@ Free to self-host. Source available ([FSL-1.1](LICENSE)). Your server, your data
 
 **[Website](https://shubhamvankalas.github.io/adledger/)** · **[Install](#install-in-60-seconds)** · **[Docs](#documentation)** · **[Features](#what-you-get)** · **[Developers](#developers-api-webhooks-recipes)** · **[Roadmap](docs/ROADMAP.md)**
 
-<!--
-TODO(launch-video): the 2-minute demo is being produced in AdLedger-launch/video.
-When it is ready, add the file as docs/readme/demo.gif (keep it under ~5 MB) or upload the MP4 to a
-GitHub issue/release and paste its URL on its own line right here, then delete this comment.
-Suggested markup for the GIF:
-  <a href="https://shubhamvankalas.github.io/adledger/"><img src="docs/readme/demo.gif" alt="A 2-minute tour of AdLedger" width="100%" /></a>
--->
+<a href="https://shubhamvankalas.github.io/adledger/"><img src="docs/readme/demo.webp" alt="AdLedger in motion: the dashboard assembles in 3D and each module lifts out" width="100%" /></a>
 
 </div>
 
