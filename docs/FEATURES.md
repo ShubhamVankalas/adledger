@@ -27,6 +27,7 @@ number.
 | **Sample data pill** | Demo workspaces show a dismissible "Sample data" pill with a link to start with real data. |
 | **Phone and tablet** | Installable as an app (PWA). A floating tab bar (Overview, Performance, Live, Contacts, More) that hides while you scroll, tables that fold into cards, and a bottom sheet for filters. |
 | **Dark mode** | Follows your system setting. |
+| **Menus and scrollbars** | Dropdowns, selects, popovers and the command palette share one look: 8px radius, soft shadow, a brand-tinted highlighted row, brand check marks and a short grow-in animation. Long lists scroll inside the available height. Scrollbars are thin, rounded and tinted from the theme (they follow dark mode and the organization accent); touch screens keep their native bars. |
 | **Printing** | `Ctrl P` / `⌘P` on any page prints without the sidebar, filters or buttons, in light colours, with charts scaled to the paper. See [REPORTS.md](REPORTS.md#printing-any-page). |
 | **Loading and errors** | Every page has a same-shape loading placeholder and an error screen with Retry; widgets fail one at a time instead of taking the page down. |
 
@@ -315,6 +316,8 @@ An organization holds many workspaces and the people who can open them.
 | **Audit log** | Every sign-in, 2FA change, role change, key creation, export, reveal and settings change, with truncated IP and browser; filters, CSV export and **Verify chain**. |
 
 ### First run
+
+Sign-in, setup, invitation and two-factor pages share a split layout: the form on one side and a brand showcase (promise, feature highlights, an animated mini dashboard and the trust line) on the other from the large breakpoint up. On phones and tablets the showcase collapses into a compact header above the form. Passwords have a show/hide toggle and errors appear next to the field.
 
 - **Setup** (`/setup`): create the owner account and choose **Explore with demo data** or set up your
   own business. Headless installs can skip it with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
