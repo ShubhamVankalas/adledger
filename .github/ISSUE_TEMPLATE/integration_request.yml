@@ -1,0 +1,79 @@
+name: Integration request
+description: Ask for a new ad platform or revenue source
+title: "integration: "
+labels: ["integration", "enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Connectors live in `src/lib/connectors/` (ads and revenue). Each one needs a mock mode serving realistic
+        data in the platform's real API format, so we can build it without a live account. The more of the
+        details below you can fill in, the faster it can be built. Pull requests are very welcome. See
+        [CONTRIBUTING.md](https://github.com/ShubhamVankalas/adledger/blob/main/CONTRIBUTING.md).
+  - type: input
+    id: platform
+    attributes:
+      label: Platform or service
+      placeholder: "Bing Ads, Amazon Ads, Klaviyo, Gumroad, ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of integration?
+      options:
+        - Ad platform (spend, campaigns, ads)
+        - Revenue source (payments, refunds, subscriptions)
+        - Leads or CRM
+        - Notification channel
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: API documentation link
+      description: The official developer docs for the API you'd want us to use.
+      placeholder: "https://developers.example.com/..."
+    validations:
+      required: true
+  - type: dropdown
+    id: auth
+    attributes:
+      label: How does the API authenticate?
+      options:
+        - OAuth 2.0
+        - API key or access token
+        - Signed webhooks only (no API access)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: What data do you need from it?
+      description: For example daily spend per campaign, click ids, order events, refunds.
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: How would you use it?
+      description: Your setup and how many accounts or how much volume, roughly. Helps us prioritise.
+  - type: dropdown
+    id: access
+    attributes:
+      label: Can you test it?
+      options:
+        - "Yes, I have a live account and can test a beta"
+        - "Yes, I have a sandbox or test account"
+        - "No, but I can share sample API responses (with private data removed)"
+        - "No"
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to build this myself (I'll wait for a maintainer's go-ahead on the approach first).
+        - label: I removed tokens, keys and private data from anything I pasted.
+          required: true

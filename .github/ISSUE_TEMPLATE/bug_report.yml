@@ -1,0 +1,83 @@
+name: Bug report
+description: Something in AdLedger is broken or behaves unexpectedly
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. **Security problem?** Don't post it here. Use
+        [private vulnerability reporting](https://github.com/ShubhamVankalas/adledger/security/advisories/new).
+
+        Please search [existing issues](https://github.com/ShubhamVankalas/adledger/issues) first.
+  - type: input
+    id: version
+    attributes:
+      label: AdLedger version
+      description: Shown in Settings -> About and in the response of `/api/v1/health`. For a source install, the commit hash.
+      placeholder: "0.1.0 or a commit hash"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run AdLedger?
+      options:
+        - Docker Compose (docker compose up -d)
+        - install.sh one-line installer
+        - Render or Railway one-click
+        - Single Docker container (embedded database)
+        - From source (pnpm dev / pnpm start)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, browser (for UI bugs), and whether you use an external PostgreSQL or a reverse proxy.
+      placeholder: "Ubuntu 24.04, Chrome 130, bundled Postgres, Caddy"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps that shows the problem. Demo data or a mock connector is ideal.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead. Screenshots are welcome (blur anything private).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant lines from `docker compose logs app` or the browser console.
+        **Remove personal data first.** Logs can contain emails, phone numbers, IP addresses, ad account ids, API keys, tokens and webhook secrets.
+        Never paste secrets. If a secret was exposed, revoke it now.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched for an existing issue.
+          required: true
+        - label: I removed emails, phone numbers, tokens, keys and other private data from everything above.
+          required: true
+        - label: This is not a security vulnerability (those go through private reporting).
+          required: true

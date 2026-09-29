@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest an improvement or a new capability
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AdLedger answers one question: **which ad actually made me money?** Ideas that help with that, or keep
+        installing and running it simple, are the best fit. New ad platforms and revenue sources have their own
+        form ("Integration request").
+
+        Building it yourself? Open the issue first so we can agree on the approach before you write code. See
+        [CONTRIBUTING.md](https://github.com/ShubhamVankalas/adledger/blob/main/CONTRIBUTING.md#proposing-a-big-change).
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation and who is affected, not just the solution.
+      placeholder: "When I ..., I can't ..., so I have to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to see?
+      description: Your proposed behaviour. Sketches and screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Workarounds you use today, or other ways to solve it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Dashboard and reports
+        - Attribution
+        - Pixel and tracking
+        - Leads and CRM
+        - Notifications and alerts
+        - AI insights
+        - MCP server or REST API
+        - Security and privacy
+        - Install and deployment
+        - Documentation
+        - Other
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project fit
+      description: AdLedger keeps installation dead simple. Tick what applies.
+      options:
+        - label: It would work without a new service or container (no Redis, queue or worker).
+        - label: It would work with every env var left unset.
+        - label: I'm willing to help build or test it.

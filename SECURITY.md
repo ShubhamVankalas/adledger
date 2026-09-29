@@ -1,30 +1,103 @@
 # Security policy
 
+Thank you for helping keep AdLedger and the people who run it safe.
+
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for security problems.
+**Please do not open a public issue, pull request or discussion for a security problem.** Public
+reports put every self-hoster at risk before a fix exists.
 
-Report privately through GitHub: open the repository's **Security** tab and click
-**Report a vulnerability** (GitHub private vulnerability reporting). Include the version or
-commit, how AdLedger is deployed (Docker, `pnpm start`, behind which proxy) and the steps to
-reproduce. A proof of concept against your own install is welcome; please don't test against
-installs you don't own.
+Report privately through GitHub:
+**[Report a vulnerability](https://github.com/ShubhamVankalas/adledger/security/advisories/new)**
+(or open the repository's **Security** tab, then **Report a vulnerability**). This is GitHub private
+vulnerability reporting: only you and the maintainer see the report, and we can collaborate on a fix
+and a CVE in the same private space.
 
-What to expect:
+Please include:
 
-- An acknowledgement within 3 working days, and a triage (severity and plan) within 10.
-- Safe harbour: good-faith research on your own install, reported privately, won't be pursued
-  legally.
-- A fix on `main` and a patched release as soon as it's ready; critical issues first.
-- Credit in the release notes if you'd like it. We don't run a paid bounty.
+- the version or commit, and how AdLedger is deployed (Docker, `pnpm start`, behind which proxy);
+- what you found, its impact, and the steps to reproduce (a proof of concept against your own install is ideal);
+- whether you'd like credit, and how.
 
-Supported versions: the latest release and `main`. Self-hosters should update regularly
-(`docker compose pull && docker compose up -d`).
+Don't include real customer data, real credentials or anyone else's personal information in a report.
+
+### What to expect
+
+| Step | Target |
+|---|---|
+| Acknowledgement that we received your report | within **3 working days** |
+| Triage: severity, whether it is in scope, and a plan | within **10 working days** |
+| Fix for a critical or high severity issue | as fast as we can, aiming for **30 days** |
+| Fix for medium or low severity | in a regular release, aiming for **90 days** |
+| Public advisory (and CVE where it applies) | when the patched release is out, coordinated with you |
+
+AdLedger has a single maintainer, so these are targets, not guarantees. If you hear nothing within
+the acknowledgement window, ping the advisory thread once. We'll keep you updated on progress and
+agree a disclosure date with you (90 days at most from the report, sooner once a fix ships). We're
+happy to credit you in the advisory and release notes. We don't run a paid bounty.
+
+## Supported versions
+
+| Version | Supported |
+|---|---|
+| Latest release (currently 0.1.x) | Yes: security fixes and patched releases |
+| `main` | Yes: fixes land here first |
+| Older releases | No. Please update to the latest release |
+
+Self-hosters should update regularly (`docker compose pull && docker compose up -d`). Container images
+are published to `ghcr.io/shubhamvankalas/adledger` (`:latest` for releases, `:edge` for `main`).
+
+## Scope
+
+**In scope:** the AdLedger code in this repository and the official image and install paths built
+from it, for example:
+
+- authentication, sessions, two-factor sign-in, permissions and role checks, API key scopes;
+- access to another workspace's or organization's data (tenant isolation);
+- injection (SQL, XSS, SSRF, CSRF, path traversal), and bypasses of the SSRF guard or CSP;
+- exposure of secrets, raw emails or phone numbers where the docs promise they are protected;
+- webhook signature verification and replay handling;
+- the tracking pixel (`public/p/al.js`) and its collection endpoints;
+- the MCP server and the REST API;
+- flaws in `Dockerfile`, `docker-compose.yml`, `install.sh` or the GitHub workflows that put users or the release pipeline at risk.
+
+**Out of scope:**
+
+- an install you don't own or run, and any testing that degrades the service for others;
+- denial of service through volume alone, spam, or social engineering of the maintainer or users;
+- findings that need a compromised admin account, a compromised server or physical access, or that only
+  affect a deployment that ignores the [hardening notes](#hardening-notes-for-self-hosters) (for example
+  no HTTPS, or `ALLOW_PRIVATE_URLS=true` on purpose);
+- vulnerabilities in third-party services AdLedger connects to (Meta, Google, Stripe, ...): report those
+  to the vendor;
+- missing best-practice headers with no demonstrated impact, self-XSS, and results from automated
+  scanners without a working proof of concept;
+- known limits already documented below (in-memory rate limits, the DNS-rebinding race in the SSRF check).
+
+If you're unsure whether something is in scope, report it anyway.
+
+## Safe harbour
+
+We consider security research done in good faith under this policy to be authorized. If you follow
+it, we won't pursue or support legal action against you, and we'll work with you to understand and
+fix the issue. Good faith means you:
+
+- test only against **your own install** (never other people's deployments or data);
+- make a reasonable effort to avoid privacy violations, data destruction and service disruption;
+- stop and report as soon as you can show the issue, and don't access more data than needed to prove it;
+- give us a reasonable time to fix the issue before you disclose it publicly;
+- don't extort, sell or share the finding.
+
+This safe harbour covers the AdLedger project and its code. It can't bind third parties (your hosting
+provider, or any service AdLedger talks to).
+
+## Other security resources
 
 Every install also serves `/.well-known/security.txt` (RFC 9116). Set `SECURITY_CONTACT` to list
 your own contact there for problems with your install. For how AdLedger handles data and what it
 does and doesn't claim, read [docs/SECURITY.md](docs/SECURITY.md) (Trust & security). For
 GDPR, CCPA, SOC 2, ISO 27001 and OWASP mappings, see [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
+Contributors: the security expectations for pull requests are in [CONTRIBUTING.md](CONTRIBUTING.md#security-expectations).
 
 ## Hardening notes for self-hosters
 
