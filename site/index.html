@@ -17,7 +17,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" />
 <link rel="stylesheet" href="site.css" />
+<script>
+  /* Decide before first paint whether the 3D product story can run, so the layout never jumps.
+     site-3d.js removes the class again if WebGL or the 3D library fails to load. */
+  (function (d) {
+    d.classList.add("js");
+    try {
+      if (window.WebGL2RenderingContext && matchMedia("(min-width: 768px) and (min-height: 500px) and (prefers-reduced-motion: no-preference)").matches) d.classList.add("want-3d");
+    } catch (e) { /* no matchMedia: keep the static page */ }
+  })(document.documentElement);
+</script>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
 <script src="site.js" defer></script>
+<script type="module" src="site-3d.js"></script>
 </head>
 <body>
 <a class="skip" href="#top">Skip to content</a>
@@ -49,7 +61,6 @@
       <a href="#product">Product</a>
       <a href="#security">Security</a>
       <a href="#install">Install</a>
-      <a href="#compare">Compare</a>
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-end">
@@ -68,8 +79,7 @@
           <a href="#product">Product tour</a>
           <a href="#security">Security &amp; compliance</a>
           <a href="#install">Install</a>
-          <a href="#compare">Compare</a>
-          <a href="#faq">FAQ</a>
+              <a href="#faq">FAQ</a>
           <a href="trust.html">Trust &amp; Security</a>
           <a href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
           <a class="btn btn-ink" href="#install">Install free</a>
@@ -80,364 +90,262 @@
 </header>
 
 <main id="top">
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="wrap">
-      <div class="hero-copy">
-        <a class="pill gborder" href="https://github.com/ShubhamVankalas/adledger"><b>AGPL-3.0</b>Open source, self-hosted, free forever</a>
-        <h1 id="hero-title" class="display">Every sale gets a <span class="grad">receipt.</span></h1>
-        <p class="lede">See which ad earned each payment, what that customer cost, and when it paid back. Ad spend, website visits, leads and revenue in one ledger, on your own server.</p>
-        <div class="cta">
-          <a class="btn btn-ink btn-lg" href="#install" data-magnetic>Install free <svg class="ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-          <a class="btn btn-line btn-lg" href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Star on GitHub</a>
-        </div>
-        <p class="byline">
-          <span>Built by <a href="https://github.com/ShubhamVankalas"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Shubham Vankalas</a></span>
-          <span>Running in 5 minutes</span>
-          <span>No per-seat pricing</span>
-        </p>
-      </div>
+  <div class="story" data-story>
+    <div class="stage">
+      <canvas class="stage-canvas" aria-hidden="true"></canvas>
+      <svg class="wire" aria-hidden="true" focusable="false"><path class="wire-path" d="M0 0" /><circle class="wire-ring" r="10" /><circle class="wire-dot" r="4" /><circle class="wire-end" r="3" /></svg>
+      <nav class="story-nav" aria-label="Product tour chapters" hidden>
+        <div class="story-now"><span class="num"></span><span class="lbl"></span></div>
+        <div class="segs"></div>
+      </nav>
+    </div>
 
-      <div class="hero-visual" data-tilt>
-        <div class="tilt">
+    <section class="hero" data-snap aria-labelledby="hero-title">
+      <div class="wrap">
+        <div class="hero-copy">
+          <a class="pill gborder" href="https://github.com/ShubhamVankalas/adledger"><b>AGPL-3.0</b>Open source, self-hosted, free forever</a>
+          <h1 id="hero-title" class="display">Every sale gets a <span class="grad">receipt.</span></h1>
+          <p class="lede">See which ad earned each payment, on your own server.</p>
+          <div class="cta">
+            <a class="btn btn-ink btn-lg" href="#install" data-magnetic>Install free <svg class="ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            <a class="btn btn-line btn-lg" href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Star on GitHub</a>
+          </div>
+          <p class="byline">
+            <span>Built by <a href="https://github.com/ShubhamVankalas"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Shubham Vankalas</a></span>
+            <span>Running in 5 minutes</span>
+            <span>No per-seat pricing</span>
+          </p>
+        </div>
+
+        <div class="hero-visual">
           <figure class="frame hero-frame">
             <div class="frame-bar"><i></i><i></i><i></i><svg class="ico lock" aria-hidden="true"><use href="#i-lock" /></svg><span>your-adledger.com/</span></div>
-            <img src="screenshots/overview.png" width="1440" height="900" fetchpriority="high" decoding="async" alt="AdLedger overview: revenue, ad spend, ROAS, MER, customers and unattributed revenue with a chart of revenue against the previous period" />
-          </figure>
-
-          <figure class="receipt" aria-label="Example ad receipt for one payment">
-            <div class="r-head">
-              <div>
-                <strong>Ad receipt</strong>
-                <small>Stripe payment, Sep 14</small>
-              </div>
-              <span class="r-amount money">$249.00</span>
-            </div>
-            <div class="r-sec">
-              <div class="r-label"><span>Earned by</span><span>Linear model</span></div>
-              <ul class="r-lines">
-                <li><span class="ad"><span class="plat">META</span>Lookalike 1%, UGC video v3</span><span class="share num">50%</span><span class="amt num">$124.50</span></li>
-                <li><span class="ad"><span class="plat">GOOGLE</span>Brand search</span><span class="share num">25%</span><span class="amt num">$62.25</span></li>
-                <li><span class="ad"><span class="plat">META</span>Retargeting, visitors 30d</span><span class="share num">25%</span><span class="amt num">$62.25</span></li>
-              </ul>
-              <div class="r-total"><span>Credited</span><span class="num">$249.00</span></div>
-            </div>
-            <div class="r-sec r-grid">
-              <div><span>This customer cost</span><b>$41.18</b><span>3 paid clicks over 9 days</span></div>
-              <div><span>Paid back</span><b class="money">6.0×</b><span>on the first payment</span></div>
-            </div>
-            <div class="r-foot"><span>Example from the demo workspace</span><span>Totals reconcile to the cent</span></div>
+            <img src="screenshots/overview.png" width="3200" height="2000" fetchpriority="high" decoding="async" alt="AdLedger overview: revenue, ad spend, ROAS, MER, customers and unattributed revenue with a chart of revenue against the previous period" />
           </figure>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <div class="proof">
-    <ul class="wrap" aria-label="At a glance">
-      <li><b>9</b><span>ad platforms, plus CSV and API</span></li>
-      <li><b>7</b><span>payment sources and stores</span></li>
-      <li><b>1.7&nbsp;KB</b><span>first-party pixel</span></li>
-      <li><b>$0</b><span>AGPL-3.0, unlimited seats</span></li>
-    </ul>
-  </div>
-
-  <section id="features" class="sec">
-    <div class="wrap">
-      <div class="sec-head" data-reveal>
-        <span class="kicker">Why AdLedger</span>
-        <h2 class="h2">Built for one question: which ad made money?</h2>
-        <p>Ad platforms grade their own homework. AdLedger joins spend, clicks, leads and real payments in one ledger, then shows its working.</p>
-      </div>
-      <div class="bento">
-        <article class="cell c-receipts" data-glow data-reveal>
-          <h3>Ad receipts</h3>
-          <p>Every payment shows which ads earned it, what that customer cost, and when they paid it back. Open any contact and the receipt is there.</p>
-          <div class="viz">
-            <table class="mini" aria-label="Example: what three customers cost to acquire">
-              <thead><tr><th scope="col">Customer</th><th scope="col">First ad</th><th scope="col" class="n">Ad cost</th><th scope="col" class="n">Paid back</th></tr></thead>
-              <tbody>
-                <tr><td>Priya Raman</td><td>Meta, Lookalike 1%</td><td class="n num">$41.18</td><td class="n num">day 0</td></tr>
-                <tr><td>Tomás Ferreira</td><td>Google, Brand search</td><td class="n num">$12.90</td><td class="n num">day 0</td></tr>
-                <tr><td>Lena Fischer</td><td>Meta, Retargeting</td><td class="n num">$88.40</td><td class="n num">day 34</td></tr>
-              </tbody>
-            </table>
-            <div class="eq" aria-label="The sum of every customer's ad cost plus unallocated spend equals total ad spend">
-              <span class="term">Σ customer ad cost</span><span class="op">+</span><span class="term">unallocated</span><span class="op">=</span><span class="term"><b>total spend</b></span>
+    <section id="product" class="tour" aria-labelledby="product-title">
+      <div class="wrap">
+        <ol class="chapters">
+          <li class="chapter chapter-head" id="tour" data-label="Take it apart">
+            <div class="note">
+              <span class="kicker">Product tour</span>
+              <h2 id="product-title" class="h2">One ledger. Every piece earns its place.</h2>
+              <p>Real screens from the demo workspace, taken apart.</p>
             </div>
-          </div>
-        </article>
-        <article class="cell c-truth" data-glow data-reveal>
-          <h3>Truth gap</h3>
-          <p>Meta says 212 sales. Your bank saw 118. See every platform’s over-claim, reconciled to real payments.</p>
-          <div class="viz bars" aria-label="Example: Meta reported 212 purchases, 118 were matched to real payments">
-            <div class="bar"><div><span>Meta reported</span><b>212</b></div><i style="width:100%"></i></div>
-            <div class="bar verified"><div><span>Matched to payments</span><b>118</b></div><i style="width:55.7%"></i></div>
-          </div>
-        </article>
-        <article class="cell c-profit" data-glow data-reveal>
-          <h3>Profit ledger</h3>
-          <p>Stop optimising ROAS. See profit per ad after refunds, fees and cost of goods, and which ads bring buyers who refund.</p>
-          <ul class="pl viz" aria-label="Example profit and loss for one campaign">
-            <li><span>Revenue</span><span>$42,044</span></li>
-            <li class="neg"><span>Refunds, fees, cost of goods</span><span>−$14,980</span></li>
-            <li class="neg"><span>Ad spend</span><span>−$13,777</span></li>
-            <li class="sum"><span>Profit after ads</span><span class="money">$13,287</span></li>
-          </ul>
-        </article>
-        <article class="cell c-time" data-glow data-reveal>
-          <h3>Time-to-money guardrails</h3>
-          <p>Don’t kill an ad that hasn’t paid out yet. Each campaign learns how long its buyers take, and pause suggestions stay drafts until you act.</p>
-          <div class="viz"><span class="tag warn">Too early to judge</span><p style="margin-top:8px;font-size:13.5px">80% of this campaign’s buyers pay within 11 days. It is 4 days old.</p></div>
-        </article>
-        <article class="cell c-verified" data-glow data-reveal>
-          <h3>Verified reports</h3>
-          <p>White-label PDF reports whose numbers anyone can check. Fingerprinted, watermarked, and backed by the audit trail.</p>
-          <div class="viz fp" aria-label="Example report footer"><span>All figures computed by SQL from your ledger</span><span><b>0 unverified numbers</b> in the AI summary</span><span>Fingerprint 7f3a 91c2 0be4 d8e1</span></div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <section id="how" class="sec">
-    <div class="wrap">
-      <div class="sec-head" data-reveal>
-        <span class="kicker">How it works</span>
-        <h2 class="h2">Four sources, one ledger.</h2>
-        <p>AdLedger stitches an anonymous visitor to a lead and then to a paying customer, across devices.</p>
-      </div>
-      <div class="flow">
-        <div data-reveal><span class="k"><b>1</b>Click</span><h3>Pixel</h3><p>One script tag, or the WordPress plugin or Shopify pixel, records landings, UTMs and click IDs like gclid and fbclid in a first-party cookie.</p></div>
-        <div data-reveal><span class="k"><b>2</b>Lead</span><h3>Forms</h3><p>Any form on your site, or Typeform, Tally, Webflow and Zapier through a webhook. Email and phone are hashed.</p></div>
-        <div data-reveal><span class="k"><b>3</b>Cash</span><h3>Payments</h3><p>Stripe, Shopify, WooCommerce and four more send payments, renewals and refunds by webhook, matched to the person who clicked.</p></div>
-        <div data-reveal><span class="k"><b>4</b>Spend</span><h3>Ad platforms</h3><p>Spend from nine ad platforms syncs every 6 hours down to the ad, then each sale is credited to its ads.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <section id="product" class="sec" aria-labelledby="product-title">
-    <div class="wrap">
-      <div class="sec-head" data-reveal>
-        <span class="kicker">Product tour</span>
-        <h2 id="product-title" class="h2">See the whole path from click to cash.</h2>
-        <p>Real screens from the app with its demo data: 90 days, 8 campaigns, 42 ads and about 26,000 visitors. Load the same demo on your install with one click.</p>
-      </div>
-
-      <div class="show" data-show>
-        <ol class="steps">
-          <li class="step" id="p-overview" data-label="Overview" data-url="your-adledger.com/">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">01</span>Overview</span>
-              <h3>Your whole business on one board.</h3>
-              <p>Revenue, spend, ROAS, MER, CAC and leads against the previous period, with a one-line briefing on what mattered. Arrange the widgets into the board you want.</p>
-              <ul class="ticks">
-                <li><span>Switch first-touch, last-touch or linear credit instantly</span></li>
-                <li><span>Presets for e-commerce, lead gen and agencies</span></li>
-                <li><span>A personal layout for everyone, and a workspace default</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/</span></div>
-              <img src="screenshots/overview.png" width="1440" height="900" loading="lazy" decoding="async" alt="Overview dashboard with KPI tiles and a revenue chart against the previous period" />
-            </figure>
           </li>
 
-          <li class="step" id="p-live" data-label="Live" data-url="your-adledger.com/live">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">02</span>Live</span>
+          <li class="chapter" id="tour-overview" data-label="Overview" data-side="right">
+            <article class="note">
+              <span class="note-k"><span class="n">01</span>Overview</span>
+              <h3>Six numbers that run the business.</h3>
+              <p>Against the previous period, with a one-line briefing.</p>
+              <ul class="chips"><li>Revenue</li><li>ROAS &amp; MER</li><li>CAC</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:276;--w:2592;--h:248"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="KPI tiles for revenue, ad spend, ROAS, MER, customers and unattributed revenue" /></figure>
+          </li>
+
+          <li class="chapter" id="tour-trend" data-label="Revenue trend" data-side="left">
+            <article class="note">
+              <span class="note-k"><span class="n">02</span>Revenue trend</span>
+              <h3>The trend, not a snapshot.</h3>
+              <p>This period drawn over the last one, for any range.</p>
+              <ul class="chips"><li>Any range</li><li>Any platform</li><li>Your layout</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:660;--w:2592;--h:760"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Revenue chart for the last 30 days against the previous period" /></figure>
+          </li>
+
+          <li class="chapter" id="tour-attribution" data-label="Attribution" data-side="right">
+            <article class="note">
+              <span class="note-k"><span class="n">03</span>Attribution</span>
+              <h3>Every ad, ranked by money.</h3>
+              <p>Spend to revenue, down to the single ad.</p>
+              <ul class="chips"><li>First, last, linear</li><li>Verified sales</li><li>CSV export</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:224;--w:2592;--h:1120"><img src="screenshots/performance.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Performance table with spend, leads, customers, revenue and ROAS per campaign" /></figure>
+          </li>
+
+          <li class="chapter" id="tour-live" data-label="Live" data-side="left">
+            <article class="note">
+              <span class="note-k"><span class="n">04</span>Live</span>
               <h3>Watch sales land in real time.</h3>
-              <p>Visitors in the last five minutes, today against the same time yesterday, and a live feed of ad clicks, leads, payments and refunds as they happen.</p>
-              <ul class="ticks">
-                <li><span>A streaming activity feed, no refresh needed</span></li>
-                <li><span>Sale alerts: a toast for every payment</span></li>
-                <li><span>Streamer mode hides names on a shared screen</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/live</span></div>
-              <img src="screenshots/live.png" width="1440" height="900" loading="lazy" decoding="async" alt="Live page with visitors right now, today against yesterday and a real-time activity feed" />
-            </figure>
+              <p>Clicks, leads and payments as they happen.</p>
+              <ul class="chips"><li>Live feed</li><li>Sale alerts</li><li>Streamer mode</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:806;--w:1498;--h:1120"><img src="screenshots/live.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Live activity feed with ad clicks, leads and payments" /></figure>
           </li>
 
-          <li class="step" id="p-performance" data-label="Performance &amp; attribution" data-url="your-adledger.com/performance">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">03</span>Performance &amp; attribution</span>
-              <h3>Every campaign, ad set and ad, ranked by money.</h3>
-              <p>Spend, CPL, CAC, revenue and ROAS down to the single ad. Compare how first-touch, last-touch and linear share the credit, and see the paths customers took.</p>
-              <ul class="ticks">
-                <li><span>Drill from campaign to ad in one click</span></li>
-                <li><span>Time to convert and attribution paths per campaign</span></li>
-                <li><span>Export any table as CSV</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/performance</span></div>
-              <img src="screenshots/performance.png" width="1440" height="900" loading="lazy" decoding="async" alt="Performance table with spend, leads, customers, revenue and ROAS per campaign" />
-            </figure>
+          <li class="chapter" id="tour-crm" data-label="CRM" data-side="right">
+            <article class="note">
+              <span class="note-k"><span class="n">05</span>CRM &amp; pipeline</span>
+              <h3>Every lead knows its ad.</h3>
+              <p>A pipeline tied to the click that started it.</p>
+              <ul class="chips"><li>Drag to Won</li><li>One timeline</li><li>No seats</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:480;--y:104;--w:2720;--h:1880"><img src="screenshots/pipeline.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Pipeline board with contacts in stages from New lead to Won" /></figure>
           </li>
 
-          <li class="step" id="p-receipts" data-label="Receipts &amp; truth gap" data-url="your-adledger.com/receipts">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">04</span>Receipts &amp; truth gap</span>
-              <h3>A receipt for every payment, a reality check for every platform.</h3>
-              <p>Each payment lists the ads that earned it, what the customer cost and when they paid back. The truth gap puts each platform’s claims next to the payments you actually received.</p>
-              <ul class="ticks">
-                <li><span>Customer costs plus unallocated equals total spend, to the cent</span></li>
-                <li><span>A payback meter and profit on every receipt</span></li>
-                <li><span>Claimed against verified conversions for Meta, Google and TikTok</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/receipts</span></div>
-              <img src="screenshots/receipts.png" width="1440" height="900" loading="lazy" decoding="async" alt="Ad receipts: where the ad spend went, and a list of payments with the ad that earned each one and its payback" />
-            </figure>
+          <li class="chapter" id="tour-reports" data-label="Reports" data-side="left">
+            <article class="note">
+              <span class="note-k"><span class="n">06</span>Reports</span>
+              <h3>Reports clients can check.</h3>
+              <p>Branded PDFs from the same SQL as the dashboard.</p>
+              <ul class="chips"><li>Scheduled</li><li>Fingerprinted</li><li>Your logo</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:496;--w:842;--h:930"><img src="screenshots/reports.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Executive summary report card with a PDF download button" /></figure>
           </li>
 
-          <li class="step" id="p-crm" data-label="CRM &amp; pipeline" data-url="your-adledger.com/pipeline">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">05</span>CRM &amp; pipeline</span>
-              <h3>A CRM where every contact knows which ad brought them in.</h3>
-              <p>Leads, customers, notes, tasks and a pipeline, all tied to the click that started it. No per-seat pricing and no separate tool to keep in sync.</p>
-              <ul class="ticks">
-                <li><span>Drag leads from New to Won; a payment moves them on its own</span></li>
-                <li><span>One timeline per person: clicks, visits, forms, payments and notes</span></li>
-                <li><span>Saved views, CSV import with a preview, and duplicate merging</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/pipeline</span></div>
-              <img src="screenshots/pipeline.png" width="1440" height="900" loading="lazy" decoding="async" alt="Pipeline board with contacts in stages from New to Won and the cost per stage" />
-            </figure>
+          <li class="chapter" id="tour-ai" data-label="Ask AI" data-side="right">
+            <article class="note">
+              <span class="note-k"><span class="n">07</span>Ask AI &amp; MCP</span>
+              <h3>Ask. Every number is checked.</h3>
+              <p>Answers read from your ledger, never invented.</p>
+              <ul class="chips"><li>Any model</li><li>Local LLMs</li><li>MCP server</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:544;--y:304;--w:1792;--h:806"><img src="screenshots/insights-ask.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Ask tab with suggested questions about campaigns, spend and platforms" /></figure>
           </li>
 
-          <li class="step" id="p-reports" data-label="Reports &amp; PDFs" data-url="your-adledger.com/reports">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">06</span>Reports &amp; PDFs</span>
-              <h3>Client reports your clients can check.</h3>
-              <p>Branded PDFs built from the same SQL as the dashboard. Schedule them to email or Slack, or share an expiring link that shows totals, never contacts.</p>
-              <ul class="ticks">
-                <li><span>Executive summary, weekly performance, attribution models, LTV and cohorts, wasted spend</span></li>
-                <li><span>Watermarked and fingerprinted; anyone can check one at /verify</span></li>
-                <li><span>Your logo on every page</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/reports</span></div>
-              <img src="screenshots/reports.png" width="1440" height="900" loading="lazy" decoding="async" alt="Report library with executive summary, weekly performance, attribution models, LTV and cohorts and wasted spend" />
-            </figure>
+          <li class="chapter" id="tour-security" data-label="Security" data-side="left">
+            <article class="note">
+              <span class="note-k"><span class="n">08</span>Security layer</span>
+              <h3>Security you can see.</h3>
+              <p>On by default, free for everyone.</p>
+              <ul class="chips"><li>2FA</li><li>Audit chain</li><li>AES-256-GCM</li></ul>
+            </article>
+            <figure class="ch-shot frame crop" style="--x:1072;--y:318;--w:2064;--h:1148"><img src="screenshots/settings-security.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Security checklist for this install" /></figure>
           </li>
 
-          <li class="step" id="p-ai" data-label="Ask AI &amp; MCP" data-url="your-adledger.com/insights?tab=ask">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">07</span>Ask AI &amp; MCP</span>
-              <h3>Ask in plain language. Every number is checked.</h3>
-              <p>Answers are read from your ledger through read-only SQL tools, with the table each one came from. Bring any model, including a local one, or connect Claude, Cursor or any MCP client.</p>
-              <ul class="ticks">
-                <li><span>The model never computes numbers, and invented ones are flagged</span></li>
-                <li><span>OpenAI, Anthropic, Gemini, Ollama, LM Studio, OpenRouter, DeepSeek</span></li>
-                <li><span>A read-only MCP server that masks emails</span></li>
-              </ul>
+          <li class="chapter chapter-end" id="tour-end" data-label="All together">
+            <div class="note">
+              <h2 class="h2">Put it back together. <span class="grad">It’s yours.</span></h2>
+              <p>One ledger, on a server you control.</p>
+              <div class="cta">
+                <a class="btn btn-ink btn-lg" href="#install" data-magnetic>Install free <svg class="ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+                <a class="btn btn-line btn-lg" href="#features">See what else is inside</a>
+              </div>
             </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/insights?tab=ask</span></div>
-              <img src="screenshots/insights-ask.png" width="1440" height="900" loading="lazy" decoding="async" alt="Ask tab answering a question about campaigns with the table it read" />
-            </figure>
-          </li>
-
-          <li class="step" id="p-alerts" data-label="Alerts &amp; goals" data-url="your-adledger.com/settings/workspace/alerts">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">08</span>Alerts &amp; goals</span>
-              <h3>Hear about problems before the invoice does.</h3>
-              <p>Rules on CAC, CPL, ROAS, spend, revenue or leads, detection of unusual days, and monthly goals with a projection of where the month will land.</p>
-              <ul class="ticks">
-                <li><span>Email, Slack, Discord, Microsoft Teams, SMS or a signed webhook</span></li>
-                <li><span>A live “right now” preview, starter rules and cooldowns</span></li>
-                <li><span>Pacing for revenue, leads, ROAS and CAC, with a budget check</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/settings/workspace/alerts</span></div>
-              <img src="screenshots/settings-alerts.png" width="1440" height="900" loading="lazy" decoding="async" alt="Alert rules with thresholds, channels and a live preview" />
-            </figure>
-          </li>
-
-          <li class="step" id="p-themes" data-label="Themes &amp; custom roles" data-url="your-adledger.com/ · dark mode">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">09</span>Themes &amp; custom roles</span>
-              <h3>Make it yours, and decide who sees what.</h3>
-              <p>Pick your organization’s accent from 20 colours or 10 gradients, in light or dark mode. Create roles that hide pages, limit exports or restrict workspaces, and invite clients to only what you choose.</p>
-              <ul class="ticks">
-                <li><span>Every theme passes WCAG AA contrast</span></li>
-                <li><span>Blocked pages disappear from the sidebar and ⌘K</span></li>
-                <li><span>Unlimited seats, with client access built in</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/ · dark mode</span></div>
-              <img src="screenshots/overview-dark.png" width="1440" height="900" loading="lazy" decoding="async" alt="AdLedger overview in dark mode" />
-            </figure>
-          </li>
-
-          <li class="step" id="p-api" data-label="Developer API &amp; webhooks" data-url="Terminal · your-adledger.com/api/v1">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">10</span>Developer API &amp; webhooks</span>
-              <h3>An API for everything, described by OpenAPI.</h3>
-              <p>Versioned REST under <code>/api/v1</code> with scoped, expiring keys. Pull any report as JSON, push spend and conversions from anything, and get signed webhooks when something happens.</p>
-              <ul class="ticks">
-                <li><span>An OpenAPI 3.1 spec served by every install</span></li>
-                <li><span>Key scopes such as <code>reports:read</code>, <code>ingest:write</code> and <code>mcp</code></span></li>
-                <li><span>Outgoing webhooks signed with HMAC-SHA256</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>Terminal · your-adledger.com/api/v1</span></div>
-              <div class="tty"><pre><span class="c"># Pull any report as JSON: the same SQL as the dashboard</span>
-<span class="p">$</span> export AL=https://your-adledger.com
-<span class="p">$</span> curl -H <span class="s">"Authorization: Bearer al_…"</span> \
-    <span class="s">"$AL/api/v1/reports/overview?start=2026-09-01&amp;end=2026-09-28"</span>
-{
-  "start": "2026-09-01", "end": "2026-09-28",
-  "model": "last_touch", "currency": "USD",
-  "data": { "spendMinor": 1377700,
-            "revenueMinor": 4204400, "roas": 3.05, … }
-}
-
-<span class="c"># Push spend from any ad network (key scope ingest:write)</span>
-<span class="p">$</span> curl -X POST <span class="s">"$AL/api/v1/spend"</span> \
-    -H <span class="s">"Authorization: Bearer al_…"</span> -d @spend.json
-
-<span class="c"># Give Claude read-only access over MCP</span>
-<span class="p">$</span> claude mcp add --transport http adledger <span class="s">"$AL/api/mcp"</span> \
-    --header <span class="s">"Authorization: Bearer al_…"</span></pre></div>
-            </figure>
-          </li>
-
-          <li class="step" id="p-security" data-label="Security" data-url="your-adledger.com/settings/organization/security">
-            <div class="step-copy">
-              <span class="step-k"><span class="n">11</span>Security</span>
-              <h3>Security you can see, not just read about.</h3>
-              <p>A posture checklist for your install, required two-factor sign-in, session limits and an audit log you can verify, all included for free.</p>
-              <ul class="ticks">
-                <li><span>Authenticator-app two-factor sign-in with recovery codes</span></li>
-                <li><span>A hash-chained audit log with a Verify button</span></li>
-                <li><span>Emails masked by role, and every reveal audited</span></li>
-              </ul>
-            </div>
-            <figure class="step-shot frame">
-              <div class="frame-bar"><i></i><i></i><i></i><span>your-adledger.com/settings/organization/security</span></div>
-              <img src="screenshots/settings-security.png" width="1440" height="900" loading="lazy" decoding="async" alt="Security policy page with a checklist for this install and sign-in rules" />
-            </figure>
           </li>
         </ol>
       </div>
+    </section>
+  </div>
+
+  <section class="statement" data-snap aria-label="Why AdLedger">
+    <div class="wrap">
+      <p class="lightup" data-lightup>Ad platforms grade their own homework. <span class="grad">AdLedger checks it against your bank.</span></p>
+    </div>
+    <div class="proof">
+      <ul class="wrap" aria-label="At a glance">
+        <li><b>9</b><span>ad platforms</span></li>
+        <li><b>7</b><span>payment sources</span></li>
+        <li><b>1.7&nbsp;KB</b><span>first-party pixel</span></li>
+        <li><b>$0</b><span>unlimited seats</span></li>
+      </ul>
     </div>
   </section>
 
-  <section id="integrations" class="sec">
+  <section id="features" class="sec" data-snap aria-labelledby="features-title">
     <div class="wrap">
-      <div class="sec-head" data-reveal>
+      <div class="sec-head center" data-reveal>
+        <span class="kicker">Inside</span>
+        <h2 id="features-title" class="h2">Built for one question: which ad made money?</h2>
+      </div>
+      <div class="mods">
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj">
+              <div class="m-card m-receipt">
+                <div class="m-row m-head"><b>Ad receipt</b><span class="m-money">$249.00</span></div>
+                <div class="m-line"><span class="m-plat">META</span><i style="--w:100%"></i><span>$124.50</span></div>
+                <div class="m-line"><span class="m-plat">GOOGLE</span><i style="--w:50%"></i><span>$62.25</span></div>
+                <div class="m-line"><span class="m-plat">META</span><i style="--w:50%"></i><span>$62.25</span></div>
+              </div>
+              <span class="m-float m-f1">Paid back 6.0×</span>
+            </div>
+          </div>
+          <h3>Ad receipts</h3>
+          <p>Every payment shows the ads that earned it.</p>
+        </article>
+
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj">
+              <div class="m-card m-bars">
+                <div class="m-bar"><i style="--h:100%"></i><b>212</b><span>Meta says</span></div>
+                <div class="m-bar is-real"><i style="--h:56%"></i><b>118</b><span>Paid</span></div>
+              </div>
+              <span class="m-float m-f2">94 not real</span>
+            </div>
+          </div>
+          <h3>Truth gap</h3>
+          <p>Platform claims, checked against real payments.</p>
+        </article>
+
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj">
+              <div class="m-card m-pl">
+                <div class="m-row"><span>Revenue</span><span>$42,044</span></div>
+                <div class="m-row m-dim"><span>Refunds, fees, goods</span><span>−$14,980</span></div>
+                <div class="m-row m-dim"><span>Ad spend</span><span>−$13,777</span></div>
+              </div>
+              <span class="m-float m-f3"><small>Profit after ads</small>$13,287</span>
+            </div>
+          </div>
+          <h3>Profit per ad</h3>
+          <p>After refunds, fees and cost of goods.</p>
+        </article>
+
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj">
+              <div class="m-card m-alert">
+                <span class="m-dot"></span>
+                <div><b>CAC above $120</b><span>Meta · Broad audience · today</span></div>
+              </div>
+              <div class="m-ring" style="--p:72"><b>72%</b><span>of goal</span></div>
+            </div>
+          </div>
+          <h3>Alerts &amp; goals</h3>
+          <p>Hear about a bad day before the invoice does.</p>
+        </article>
+
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj m-board">
+              <div class="m-col"><span>New</span><i class="m-deal">Priya · Meta</i><i class="m-deal">Tomás · Google</i></div>
+              <div class="m-col"><span>Call</span><i class="m-deal m-up">Lena · Meta</i></div>
+              <div class="m-col"><span>Won</span><i class="m-deal m-won">Omar · $610</i></div>
+            </div>
+          </div>
+          <h3>CRM pipeline</h3>
+          <p>Every lead remembers the ad that brought it.</p>
+        </article>
+
+        <article class="mod" data-mod data-reveal>
+          <div class="mod-stage" aria-hidden="true">
+            <div class="mod-obj">
+              <div class="m-card m-term"><code><b>GET</b> /api/v1/reports/overview</code><code>{ "roas": 3.05, "revenueMinor": 4204400 }</code><code><b>POST</b> webhook · lead.created</code></div>
+              <span class="m-float m-f4">MCP · read-only</span>
+            </div>
+          </div>
+          <h3>API, webhooks &amp; MCP</h3>
+          <p>Every number is one request away.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="integrations" class="sec" data-snap aria-labelledby="integrations-title">
+    <div class="wrap">
+      <div class="sec-head center" data-reveal>
         <span class="kicker">Integrations</span>
-        <h2 class="h2">Works with the tools you already use.</h2>
-        <p>Every integration has a demo mode, so you can try it before you connect a real account.</p>
+        <h2 id="integrations-title" class="h2">Plugs into what you already use.</h2>
+        <ol class="flow-chips" aria-label="How it works">
+          <li><b>1</b>Click</li><li><b>2</b>Lead</li><li><b>3</b>Payment</li><li><b>4</b>Ad spend</li>
+        </ol>
       </div>
       <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
         <defs>
@@ -559,107 +467,46 @@
           </ul>
         </div>
       </div>
-      <p class="intg-note">Brand marks from Simple Icons (CC0) and the app's own drawings. Trademarks belong to their owners and are shown only to identify integrations. Ad and payment connectors other than Meta, Google Ads and Stripe are in beta.</p>
+      <p class="intg-note">Every integration has a demo mode. Brand marks from Simple Icons (CC0); trademarks belong to their owners. Connectors other than Meta, Google Ads and Stripe are in beta.</p>
     </div>
   </section>
 
-  <section id="security" class="sec band" aria-labelledby="security-title">
+  <section id="security" class="sec band" data-snap aria-labelledby="security-title">
     <div class="wrap">
-      <div class="comp">
-        <div class="comp-intro" data-reveal>
+      <div class="shield-grid">
+        <div class="shield-copy" data-reveal>
           <span class="kicker">Security &amp; compliance</span>
-          <h2 id="security-title" class="h2">Compliance-ready, on infrastructure you control.</h2>
-          <p>AdLedger runs on your server, so your data never passes through ours and you stay the data controller. It ships the controls that privacy laws and security reviews ask about, on by default and free for everyone.</p>
-          <div class="honest">
-            <strong>What we won’t claim</strong>
-            <span>AdLedger is not “SOC 2 certified” or “ISO 27001 certified”, and no codebase can be: those audits cover the organisation that runs a service. Because you run AdLedger, certification is yours to pursue. Our controls and mapping make that work shorter.</span>
+          <h2 id="security-title" class="bigline">Your server. Your data. <span class="grad">Your audit trail.</span></h2>
+          <ul class="fw-chips" aria-label="Frameworks AdLedger helps you meet">
+            <li>GDPR &amp; UK GDPR</li><li>CCPA / CPRA</li><li>ePrivacy &amp; PECR</li><li>SOC 2-aligned controls</li><li>ISO 27001 mapping</li><li>OWASP ASVS</li>
+          </ul>
+          <ul class="ctl-list">
+            <li><svg class="ico" aria-hidden="true"><use href="#i-users" /></svg>Two-factor sign-in and custom roles</li>
+            <li><svg class="ico" aria-hidden="true"><use href="#i-audit" /></svg>Hash-chained audit log with Verify</li>
+            <li><svg class="ico" aria-hidden="true"><use href="#i-lock" /></svg>AES-256-GCM secrets, hashed emails</li>
+            <li><svg class="ico" aria-hidden="true"><use href="#i-box" /></svg>Non-root, scanned image with an SBOM</li>
+          </ul>
+          <p class="honest-line">No certification badges: you run AdLedger, so the audit is yours. <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/COMPLIANCE.md">Compliance mapping</a> · <a href="trust.html">Trust &amp; Security</a></p>
+        </div>
+        <div class="shield3d" data-mod aria-hidden="true">
+          <div class="mod-obj">
+            <div class="s-plate"></div>
+            <svg class="s-shield" viewBox="0 0 120 132"><path d="M60 4c14 8 30 12 52 12v38c0 34-22 60-52 74C30 114 8 88 8 54V16c22 0 38-4 52-12z" /><rect x="40" y="58" width="40" height="32" rx="7" /><path d="M47 58V47a13 13 0 0 1 26 0v11" /><circle cx="60" cy="72" r="4" /></svg>
+            <span class="s-chip s-c1">2FA</span>
+            <span class="s-chip s-c2">Audit chain #8 7598</span>
+            <span class="s-chip s-c3">AES-256-GCM</span>
           </div>
-          <div class="comp-links">
-            <a class="btn btn-ink" href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/COMPLIANCE.md">Compliance mapping</a>
-            <a class="btn btn-line" href="trust.html">Trust &amp; Security</a>
-          </div>
         </div>
-
-        <div class="fws">
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>GDPR &amp; UK GDPR</h3><span class="tag good">GDPR-ready</span></div>
-            <p>Subject access export and one-click erasure per person, retention rules for raw events, hashed identifiers outside the contacts table and truncated IP addresses.</p>
-          </article>
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>CCPA / CPRA</h3><span class="tag good">Ready</span></div>
-            <p>The pixel always honours Global Privacy Control. Requests to know or delete are one export or one erase away, and AdLedger itself receives nothing.</p>
-          </article>
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>ePrivacy &amp; PECR</h3><span class="tag good">Consent modes</span></div>
-            <p>Per-site pixel modes: opt-out, consent required (nothing stored before consent) and cookieless. Ready-made glue for Google Consent Mode v2, Cookiebot, CookieYes, Osano and Klaro.</p>
-          </article>
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>SOC 2</h3><span class="tag plain">Aligned controls</span></div>
-            <p>Access control, change logging, encryption and monitoring that map to common Trust Services Criteria, plus a security posture checklist inside the app.</p>
-          </article>
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>ISO/IEC 27001</h3><span class="tag plain">Control mapping</span></div>
-            <p>Controls mapped to Annex A themes such as access control, cryptography, logging and secure development, ready to feed your statement of applicability.</p>
-          </article>
-          <article class="fw" data-glow data-reveal>
-            <div class="fw-top"><h3>OWASP Top 10 &amp; ASVS</h3><span class="tag plain">Practices</span></div>
-            <p>Content Security Policy and security headers, SSRF guards, same-origin checks on changes, constant-time signature checks and parameterised SQL.</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div class="ctl" data-reveal>
-          <h3><svg class="ico" aria-hidden="true"><use href="#i-users" /></svg>Access</h3>
-          <ul>
-            <li><strong>Role-based access</strong> with five roles and custom roles limited to pages and workspaces</li>
-            <li><strong>Two-factor sign-in</strong> (TOTP) with recovery codes, and an org-wide requirement</li>
-            <li><strong>Sessions and devices</strong>: idle timeout, maximum lifetime, sign out everywhere</li>
-            <li><strong>API keys</strong> that are scoped, hashed and can expire</li>
-          </ul>
-        </div>
-        <div class="ctl" data-reveal>
-          <h3><svg class="ico" aria-hidden="true"><use href="#i-lock" /></svg>Data protection</h3>
-          <ul>
-            <li><strong>AES-256-GCM</strong> for connector secrets and 2FA keys</li>
-            <li><strong>scrypt</strong> passwords and hashed session tokens</li>
-            <li><strong>PII hashing and masking</strong>, with every reveal audited</li>
-            <li><strong>Export, erase and retention</strong> for people and raw events</li>
-          </ul>
-        </div>
-        <div class="ctl" data-reveal>
-          <h3><svg class="ico" aria-hidden="true"><use href="#i-audit" /></svg>Accountability</h3>
-          <ul>
-            <li><strong>Tamper-evident audit log</strong>: a hash chain with a Verify button</li>
-            <li><strong>Security alerts</strong> for new keys, role changes and bulk exports</li>
-            <li><strong>Watermarked, fingerprinted</strong> PDFs and expiring share links</li>
-            <li><strong>Audit trail export</strong> as CSV for your reviews</li>
-          </ul>
-        </div>
-        <div class="ctl" data-reveal>
-          <h3><svg class="ico" aria-hidden="true"><use href="#i-box" /></svg>Supply chain</h3>
-          <ul>
-            <li><strong>Hardened container</strong>: runs as non-root, with no npm in the image</li>
-            <li><strong>Scanned</strong> by Trivy, CodeQL, dependency review and <code>pnpm audit</code></li>
-            <li><strong>SBOM and provenance</strong> on release images</li>
-            <li><strong>Tested</strong> against a real PostgreSQL on every change</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="duty" data-reveal>
-        <div><h3>AdLedger ships</h3><p>The controls above, secure defaults, a posture checklist, a control mapping and documentation for each one.</p></div>
-        <div><h3>You own</h3><p>Hosting and HTTPS, backups, who gets access, your privacy notice and records of processing, contracts with the tools you connect, and any certification audit.</p></div>
       </div>
     </div>
   </section>
 
-  <section id="install" class="sec" aria-labelledby="install-title">
+  <section id="install" class="sec" data-snap aria-labelledby="install-title">
     <div class="wrap">
-      <div class="sec-head" data-reveal>
+      <div class="sec-head center" data-reveal>
         <span class="kicker">Install your way</span>
         <h2 id="install-title" class="h2">Running in minutes, whoever you are.</h2>
-        <p>Pick the path that fits you. Every option ends at the same place: open AdLedger in your browser, create your account, and set everything else up on screen. There are no config files to edit.</p>
+        <p>Every path ends in your browser. No config files.</p>
       </div>
 
       <div class="tabs" data-tabs>
@@ -681,25 +528,18 @@
             <span class="t-sub">From source with pnpm, no Docker</span>
           </button>
         </div>
-
         <div class="panels">
           <section class="panel" id="install-nocode" role="tabpanel" aria-labelledby="tab-nocode" tabindex="0">
-            <div class="panel-main">
-              <div class="panel-head">
-                <div class="meta"><span class="tag good">About 10 minutes</span><span class="tag plain">No terminal</span></div>
-                <h3>No-code: deploy to a cloud platform</h3>
-                <p>A hosting platform builds AdLedger from this repository and runs it next to a managed database. Nothing to install on your computer. You pay the platform for hosting; AdLedger itself is free.</p>
+            <h3>Deploy to a cloud platform</h3>
+            <p>Render or Railway, next to a managed database.</p>
+            <div class="deploys">
+                <a class="deploy" href="https://render.com/deploy?repo=https://github.com/ShubhamVankalas/adledger"><b><svg class="ico" aria-hidden="true"><use href="#i-cloud" /></svg>Deploy to Render</b></a>
+                <a class="deploy" href="https://railway.com/new"><b><svg class="ico" aria-hidden="true"><use href="#i-cloud" /></svg>Deploy on Railway</b></a>
               </div>
-              <div class="deploys">
-                <a class="deploy" href="https://render.com/deploy?repo=https://github.com/ShubhamVankalas/adledger">
-                  <b><svg class="ico" aria-hidden="true"><use href="#i-cloud" /></svg>Deploy to Render</b>
-                  <span>Blueprint: the app, PostgreSQL 16 and a generated secret</span>
-                </a>
-                <a class="deploy" href="https://railway.com/new">
-                  <b><svg class="ico" aria-hidden="true"><use href="#i-cloud" /></svg>Deploy on Railway</b>
-                  <span>From your fork, built with the Dockerfile</span>
-                </a>
-              </div>
+            <details class="steps-more">
+              <summary>Show every step</summary>
+              <div class="steps-body">
+
               <p class="sub-h">On Render</p>
               <ol class="nsteps">
                 <li><div><span><strong>Click Deploy to Render</strong> and sign in to Render.</span></div></li>
@@ -715,8 +555,7 @@
                   <div class="code"><pre>DATABASE_URL=${{Postgres.DATABASE_URL}}</pre><button class="copy" type="button" aria-label="Copy the DATABASE_URL variable">Copy</button></div></div></li>
                 <li><div><span><strong>Generate a domain</strong> under the service’s networking settings, open it, and create your account.</span></div></li>
               </ol>
-            </div>
-            <aside class="panel-aside" aria-label="What to expect with a cloud platform">
+            
               <div class="expect">
                 <h4>What to expect</h4>
                 <ul>
@@ -730,16 +569,17 @@
                 <h4>Recommended on Railway</h4>
                 <ul><li>Also set <code>APP_SECRET</code> to a long random value, so the encryption key isn’t stored next to your data. Render generates one for you.</li></ul>
               </div>
-            </aside>
-          </section>
-
-          <section class="panel" id="install-docker" role="tabpanel" aria-labelledby="tab-docker" tabindex="0">
-            <div class="panel-main">
-              <div class="panel-head">
-                <div class="meta"><span class="tag good">About 10 minutes</span><span class="tag plain">Windows · Mac · Linux</span></div>
-                <h3>Beginner: Docker Desktop on your computer</h3>
-                <p>The easiest way to try AdLedger for real, with its own database, on the computer in front of you.</p>
+            
               </div>
+            </details>
+          </section>
+          <section class="panel" id="install-docker" role="tabpanel" aria-labelledby="tab-docker" tabindex="0">
+            <h3>Docker Desktop on your computer</h3>
+            <p>The easiest way to try it for real.</p>
+            <div class="code"><pre>docker compose up -d</pre><button class="copy" type="button" aria-label="Copy the docker compose command">Copy</button></div>
+            <details class="steps-more">
+              <summary>Show every step</summary>
+              <div class="steps-body">
               <ol class="nsteps">
                 <li><div><span><strong>Install Docker Desktop</strong> from <a href="https://www.docker.com/products/docker-desktop/">docker.com</a> and open it. Wait until it says the engine is running. It’s free for personal use, education and small businesses.</span></div></li>
                 <li><div><span><strong>Download AdLedger.</strong> <a href="https://github.com/ShubhamVankalas/adledger/archive/refs/heads/main.zip">Download the ZIP</a> and unzip it (the folder is called <code>adledger-main</code>), or clone it with Git:</span>
@@ -751,8 +591,7 @@
                 <li><div><span><strong>Open <a href="http://localhost:3000">localhost:3000</a></strong> and create your owner account. Passwords need at least 15 characters.</span></div></li>
                 <li><div><span><strong>Explore.</strong> Choose <em>Explore with demo data</em> for 90 days of realistic data, or follow the setup checklist to connect your site, payments and ads.</span></div></li>
               </ol>
-            </div>
-            <aside class="panel-aside" aria-label="What to expect with Docker Desktop">
+            
               <div class="expect">
                 <h4>What to expect</h4>
                 <ul>
@@ -767,16 +606,17 @@
 ADMIN_PASSWORD=adledger-demo-123 \
 DEMO_DATA=true docker compose up -d</pre><button class="copy" type="button" aria-label="Copy the demo command">Copy</button>
               </div>
-            </aside>
-          </section>
-
-          <section class="panel" id="install-server" role="tabpanel" aria-labelledby="tab-server" tabindex="0">
-            <div class="panel-main">
-              <div class="panel-head">
-                <div class="meta"><span class="tag good">About 15 minutes</span><span class="tag plain">Linux · 1 GB RAM</span><span class="tag plain">Free HTTPS</span></div>
-                <h3>Server or VPS: the one-line install</h3>
-                <p>Any Linux server works: Hetzner, DigitalOcean, Lightsail, even a Raspberry Pi. A few dollars a month covers it.</p>
+            
               </div>
+            </details>
+          </section>
+          <section class="panel" id="install-server" role="tabpanel" aria-labelledby="tab-server" tabindex="0">
+            <h3>One line on any Linux server</h3>
+            <p>With free HTTPS, on 1 GB of RAM.</p>
+            <div class="code"><pre>curl -fsSL https://raw.githubusercontent.com/ShubhamVankalas/adledger/main/install.sh | DOMAIN=ads.yourcompany.com sh</pre><button class="copy" type="button" aria-label="Copy the install command">Copy</button></div>
+            <details class="steps-more">
+              <summary>Show every step</summary>
+              <div class="steps-body">
               <ol class="nsteps">
                 <li><div><span><strong>Point your domain.</strong> Create a DNS <em>A record</em>, for example <code>ads.yourcompany.com</code>, pointing at your server’s IP address. Do this first so the HTTPS certificate can be issued.</span></div></li>
                 <li><div><span><strong>Connect and check Docker.</strong> SSH into the server. No Docker yet? Install it with:</span>
@@ -785,8 +625,7 @@ DEMO_DATA=true docker compose up -d</pre><button class="copy" type="button" aria
                   <div class="code"><pre>curl -fsSL https://raw.githubusercontent.com/ShubhamVankalas/adledger/main/install.sh | DOMAIN=ads.yourcompany.com sh</pre><button class="copy" type="button" aria-label="Copy the install command">Copy</button></div></div></li>
                 <li><div><span><strong>Open <code>https://ads.yourcompany.com</code></strong> and create your account.</span></div></li>
               </ol>
-            </div>
-            <aside class="panel-aside" aria-label="What to expect on a server">
+            
               <div class="expect">
                 <h4>What to expect</h4>
                 <ul>
@@ -798,16 +637,17 @@ DEMO_DATA=true docker compose up -d</pre><button class="copy" type="button" aria
                   <li><strong>Better tracking:</strong> use a subdomain of your shop, such as <code>t.yourshop.com</code>, so cookies are first-party.</li>
                 </ul>
               </div>
-            </aside>
-          </section>
-
-          <section class="panel" id="install-dev" role="tabpanel" aria-labelledby="tab-dev" tabindex="0">
-            <div class="panel-main">
-              <div class="panel-head">
-                <div class="meta"><span class="tag good">About 5 minutes</span><span class="tag plain">Node 20.9+ · pnpm</span><span class="tag plain">No Docker needed</span></div>
-                <h3>Developer: run from source</h3>
-                <p>One Node process and an embedded PostgreSQL, so there is nothing else to run while you hack on it.</p>
+            
               </div>
+            </details>
+          </section>
+          <section class="panel" id="install-dev" role="tabpanel" aria-labelledby="tab-dev" tabindex="0">
+            <h3>Run from source</h3>
+            <p>One Node process with an embedded database.</p>
+            <div class="code"><pre>pnpm install &amp;&amp; pnpm dev</pre><button class="copy" type="button" aria-label="Copy the dev commands">Copy</button></div>
+            <details class="steps-more">
+              <summary>Show every step</summary>
+              <div class="steps-body">
               <ol class="nsteps">
                 <li><div><span><strong>Clone and install.</strong> <code>corepack enable</code> provides pnpm if you don’t have it.</span>
                   <div class="code"><pre>git clone https://github.com/ShubhamVankalas/adledger
@@ -820,8 +660,7 @@ pnpm install</pre><button class="copy" type="button" aria-label="Copy the clone 
                 <li><div><span><strong>Check your change.</strong> Tests run on an embedded Postgres with every connector mocked; set <code>TEST_DATABASE_URL</code> to use a real one.</span>
                   <div class="code"><pre>pnpm lint &amp;&amp; pnpm typecheck &amp;&amp; pnpm test</pre><button class="copy" type="button" aria-label="Copy the check commands">Copy</button></div></div></li>
               </ol>
-            </div>
-            <aside class="panel-aside" aria-label="Developer resources">
+            
               <div class="expect">
                 <h4>Good to know</h4>
                 <ul>
@@ -830,47 +669,21 @@ pnpm install</pre><button class="copy" type="button" aria-label="Copy the clone 
                   <li><strong>Your own image:</strong> <code>docker compose up -d --build</code> builds the production container locally.</li>
                 </ul>
               </div>
-            </aside>
+            
+              </div>
+            </details>
           </section>
         </div>
       </div>
-      <p class="install-note">Also runs on Coolify, Dokploy, CapRover and Portainer with the Compose file as-is, or as a single container with an embedded database: <code>docker run -d -p 3000:3000 -v adledger:/data ghcr.io/shubhamvankalas/adledger</code>.</p>
     </div>
   </section>
 
-  <section id="compare" class="sec">
-    <div class="wrap">
-      <div class="sec-head" data-reveal>
-        <span class="kicker">Compare</span>
-        <h2 class="h2">How it compares.</h2>
-        <p>The paid tools are good products. AdLedger is the one you can own.</p>
-      </div>
-      <div class="cmp-scroll">
-        <table class="cmp">
-          <thead><tr><th scope="col"><span class="sr-only">Feature</span></th><th scope="col">AdLedger</th><th scope="col">Hyros</th><th scope="col">Triple Whale</th><th scope="col">Cometly</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Price</th><td>Free, AGPL-3.0</td><td class="no">Paid, scales with revenue</td><td class="no">Paid, scales with GMV</td><td class="no">Paid subscription</td></tr>
-            <tr><th scope="row">Your data on your server</th><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-            <tr><th scope="row">Ad platforms</th><td class="yes">9 native + CSV/API</td><td>Many</td><td>Many</td><td>Many</td></tr>
-            <tr><th scope="row">First-party pixel + click IDs</th><td class="yes">Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-            <tr><th scope="row">Payment sources</th><td class="yes">7 native + CSV/API</td><td>Many</td><td>Shopify-first</td><td>Many</td></tr>
-            <tr><th scope="row">Teams, roles, client access</th><td class="yes">Yes, unlimited seats</td><td>Paid tiers</td><td>Paid tiers</td><td>Paid tiers</td></tr>
-            <tr><th scope="row">AI with your own model</th><td class="yes">Yes, including local</td><td class="no">No</td><td class="no">Built-in only</td><td class="no">Built-in only</td></tr>
-            <tr><th scope="row">MCP server for AI agents</th><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
-            <tr><th scope="row">Send conversions back to Meta and Google</th><td class="yes">Yes, with consent signals</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="cmp-note">Based on public information at the time of writing. Check each vendor for current features and pricing.</p>
-    </div>
-  </section>
-
-  <section id="faq" class="sec">
+  <section id="faq" class="sec" data-snap aria-labelledby="faq-title">
     <div class="wrap">
       <div class="sec-head" data-reveal>
         <span class="kicker">FAQ</span>
-        <h2 class="h2">Questions, answered honestly.</h2>
-        <p>The honest answers, including what AdLedger can’t do. The same list is in the <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/FAQ.md">FAQ on GitHub</a>.</p>
+        <h2 id="faq-title" class="h2">Questions, answered honestly.</h2>
+        <p>More in the <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/FAQ.md">FAQ on GitHub</a>.</p>
       </div>
       <div class="faq">
         <details>
@@ -921,19 +734,6 @@ pnpm install</pre><button class="copy" type="button" aria-label="Copy the clone 
       </div>
     </div>
   </section>
-
-  <div class="wrap" style="padding-bottom:96px">
-    <div class="closing gborder" data-reveal>
-      <div>
-        <h2 class="h2" style="font-size:clamp(26px,2.8vw,34px)">Find the ad that made you money.</h2>
-        <p>Load the demo in one click, then connect your own accounts when you’re ready.</p>
-      </div>
-      <div class="cta">
-        <a class="btn btn-ink btn-lg" href="#install" data-magnetic>Install free <svg class="ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
-        <a class="btn btn-line btn-lg" href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Star on GitHub</a>
-      </div>
-    </div>
-  </div>
 </main>
 
 <footer>

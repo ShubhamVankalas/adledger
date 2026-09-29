@@ -16,13 +16,24 @@ describe("landing page", () => {
     for (const name of shots) expect(existsSync(`docs/screenshots/${name}.png`), name).toBe(true);
   });
 
-  it("has a caption for every tour tab, including the new settings screens", () => {
-    const tabs = [...html.matchAll(/data-shot="([\w-]+)"/g)].map((m) => m[1]);
-    for (const name of ["settings-integrations", "onboarding", "settings-members", "settings-notifications"]) {
-      expect(tabs).toContain(name);
+  it("gives every product-story chapter a note, a fallback screenshot and a 3D key", () => {
+    const list = html.slice(html.indexOf('<ol class="chapters">'), html.indexOf("</ol>", html.indexOf('<ol class="chapters">')));
+    const chapters = list.split('<li class="chapter').slice(1);
+    const modules = chapters.filter((c) => !/^ chapter-(head|end)"/.test(c));
+    expect(modules.length).toBeGreaterThanOrEqual(6);
+    for (const c of modules) {
+      const id = c.match(/id="([\w-]+)"/)?.[1];
+      expect(c, id).toMatch(/data-label="[^"]+" data-side="(left|right)"/);
+      expect(c, id).toMatch(/<h3>[^<]+/);
+      expect(c, id).toMatch(/class="ch-shot[^"]*"[^>]*><img src="screenshots\/[\w-]+\.png"[^>]* alt="[^"]+"/);
     }
-    const script = html.slice(html.lastIndexOf("<script>"));
-    for (const name of tabs) expect(script, name).toMatch(new RegExp(`"?${name}"?: \\[`));
+    // site-3d.js has one key for the hero plus one per chapter, and cuts its panels from real screenshots.
+    const story = readFileSync("site/site-3d.js", "utf8");
+    const start = story.indexOf("const KEYS = [");
+    expect([...story.slice(start, story.indexOf("];", start)).matchAll(/\{ focus: /g)].length).toBe(chapters.length + 1);
+    const srcs = [...story.matchAll(/src: "([\w-]+)"/g)].map((m) => m[1]);
+    expect(srcs.length).toBeGreaterThan(5);
+    for (const name of [...srcs, "overview-dark"]) expect(existsSync(`docs/screenshots/${name}.png`), name).toBe(true);
   });
 
   it("defines every logo it uses, with the same paths as the app's brand icons", () => {
@@ -37,12 +48,21 @@ describe("landing page", () => {
   });
 
   it("lists nine ad platforms and seven payment sources", () => {
+    const wall = html.indexOf('id="integrations"');
     const row = (title: string) => {
-      const start = html.indexOf(`<h3>${title}`);
+      const start = html.indexOf(`<h3>${title}<span`, wall);
       return [...html.slice(start, html.indexOf("</ul>", start)).matchAll(/<li class="logo">/g)].length;
     };
     expect(row("Ad platforms")).toBe(2 + EXTRA_ADS_CONNECTORS.length);
     expect(row("Payments &amp; stores")).toBe(7);
+  });
+
+  it("sells what it has: no comparison section and no competitor names", () => {
+    const pages = [html, readFileSync("site/trust.html", "utf8"), readFileSync("docs/FAQ.md", "utf8")];
+    for (const page of pages) {
+      expect(page).not.toMatch(/Hyros|Triple Whale|Cometly|Northbeam|alternative to/i);
+      expect(page).not.toMatch(/#compare|How it compares/);
+    }
   });
 
   it("has a target for every in-page link", () => {
@@ -52,9 +72,18 @@ describe("landing page", () => {
     for (const a of anchors) expect(ids.has(a), a).toBe(true);
   });
 
-  it("is self-contained apart from fonts and GitHub links", () => {
+  it("is self-contained apart from fonts, links and the pinned 3D library", () => {
     const external = [...html.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].map((m) => new URL(m[1]).hostname);
-    for (const host of external) expect(["fonts.googleapis.com", "fonts.gstatic.com", "github.com", "raw.githubusercontent.com"]).toContain(host);
+    // Links only: GitHub, the one-click deploy platforms, Docker Desktop and the reader's own install.
+    const links = ["github.com", "raw.githubusercontent.com", "render.com", "railway.com", "www.docker.com", "localhost"];
+    for (const host of external) expect(["fonts.googleapis.com", "fonts.gstatic.com", ...links]).toContain(host);
+    // Scripts are local, except three.js from an exact, pinned version on jsDelivr (through the import map).
+    for (const [, src] of html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)) expect(src).toMatch(/^[\w-]+\.js$/);
+    const importmap = html.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+    expect(importmap).not.toBeNull();
+    const { imports } = JSON.parse(importmap![1]) as { imports: Record<string, string> };
+    for (const url of Object.values(imports)) expect(url).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/npm\/three@\d+\.\d+\.\d+\//);
+    expect(readFileSync("site/site-3d.js", "utf8")).not.toMatch(/https?:\/\//);
   });
 });
 
