@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { DemoPill, HeaderSearchButton, PendingBar } from "@/components/app-shell";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 type Crumb = { href: string; label: string };
 
@@ -59,7 +60,11 @@ export function PageHeader({
   );
 }
 
-/** Page content: 1440px max, 24px gutters on desktop and 16px on phones. */
-export function PageBody({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto w-full max-w-[1440px] space-y-4 px-4 pt-4 pb-8 md:space-y-5 md:px-6 md:pt-5 md:pb-12">{children}</div>;
+/**
+ * Page content: 1440px max, 24px gutters on desktop and 16px on phones. It arrives with a short
+ * fade, soft blur and a few pixels of rise, on route changes and when the real page replaces its
+ * loading skeleton (`instant` turns that off, for the skeletons themselves).
+ */
+export function PageBody({ children, instant }: { children: React.ReactNode; instant?: boolean }) {
+  return <div className={cn("mx-auto w-full max-w-[1440px] space-y-4 px-4 pt-4 pb-8 md:space-y-5 md:px-6 md:pt-5 md:pb-12", !instant && "page-arrive")}>{children}</div>;
 }

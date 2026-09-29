@@ -1,10 +1,10 @@
 "use client";
 
-import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { ActionResult } from "@/lib/actions";
 
@@ -47,7 +47,7 @@ export function ActionButton({
     });
   const content = (
     <>
-      {pending ? <Loader2Icon className="animate-spin" /> : null}
+      {pending ? <Spinner tone="current" className="size-4" /> : null}
       {children}
     </>
   );
@@ -73,7 +73,7 @@ export function ActionButton({
         <DialogFooter>
           <DialogClose render={<Button variant="outline" className="h-10 sm:h-8" disabled={pending} />}>Cancel</DialogClose>
           <Button variant="destructive" className="h-10 sm:h-8" disabled={pending} onClick={run}>
-            {pending ? <Loader2Icon className="animate-spin" /> : null}
+            {pending ? <Spinner tone="current" className="size-4" /> : null}
             {pending ? "Working…" : label}
           </Button>
         </DialogFooter>

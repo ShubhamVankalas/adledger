@@ -56,6 +56,8 @@ export function WidgetFrame({
       style={style}
       data-widget-type={item.type}
       data-widget-id={item.id}
+      // Pointer glow (globals.css): KPI tiles also rise 1px; off while arranging the board.
+      data-glow={editing ? undefined : isKpi ? "lift" : "soft"}
       className={cn(
         "group/widget relative min-w-0 overflow-hidden",
         SURFACE,

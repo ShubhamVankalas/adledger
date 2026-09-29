@@ -28,7 +28,8 @@ number.
 | **Phone and tablet** | Installable as an app (PWA). A floating tab bar (Overview, Performance, Live, Contacts, More) that hides while you scroll, tables that fold into cards, and a bottom sheet for filters. |
 | **Dark mode** | Follows your system setting. |
 | **Printing** | `Ctrl P` / `⌘P` on any page prints without the sidebar, filters or buttons, in light colours, with charts scaled to the paper. See [REPORTS.md](REPORTS.md#printing-any-page). |
-| **Loading and errors** | Every page has a same-shape loading placeholder and an error screen with Retry; widgets fail one at a time instead of taking the page down. |
+| **Loading and errors** | Every page has a wireframe loading placeholder in its own layout (real header, KPI row, chart, table rows) with a brand-tinted shimmer; the real content then fades in with a soft blur. Placeholders wait 200 ms, so fast pages never flash grey. Errors get a screen with Retry; widgets fail one at a time instead of taking the page down. |
+| **Motion** | Cards glow under the cursor in your accent colour (KPI tiles also lift a pixel), a slim accent bar runs along the top of the window during page navigations, KPI numbers count up the first time they appear, sparklines and target bars draw in, and charts ease in. Screen readers get the final numbers, touch screens keep flat cards, and everything is off or static with the system setting "reduce motion". |
 
 ## Overview
 

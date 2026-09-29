@@ -81,7 +81,7 @@ export function LtvCurveChart({ series, currency, initial }: { series: LtvCurveS
             {series
               .filter((s) => s.key !== sel.key)
               .map((s) => (
-                <Line key={s.key} dataKey={s.key} type="linear" stroke={FAINT} strokeWidth={1.25} dot={false} activeDot={false} connectNulls={false} isAnimationActive={false} />
+                <Line key={s.key} dataKey={s.key} type="linear" stroke={FAINT} strokeWidth={1.25} dot={false} activeDot={false} connectNulls={false} isAnimationActive={false} className="chart-late" />
               ))}
             <Line
               dataKey={sel.key}
@@ -92,7 +92,8 @@ export function LtvCurveChart({ series, currency, initial }: { series: LtvCurveS
               activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)", fill: ACTIVE }}
               connectNulls={false}
               isAnimationActive={animate}
-              animationDuration={400}
+              animationDuration={750}
+              animationEasing="ease-out"
             />
           </LineChart>
         </ChartContainer>

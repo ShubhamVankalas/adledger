@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CountUp } from "@/components/count-up";
 import { Sparkline } from "@/components/charts/sparkline";
 import { loadKpiPair, loadTargets, type DashParams } from "@/lib/dashboard/data";
 import { targetFor, type Targets } from "@/lib/goal-metrics";
@@ -57,7 +58,7 @@ export async function KpiWidget({ metric, p, currency, settings }: { metric: Met
   const drill = def.href.startsWith("/performance") ? `${def.href}?${new URLSearchParams({ range: p.range, model: p.model, ...(p.range === "custom" ? { from: p.start, to: p.end } : {}) })}` : def.href;
 
   return (
-    <div className="flex h-full flex-col px-3.5 pt-3 pb-3 md:px-4 md:pt-3.5">
+    <div className="arrive flex h-full flex-col px-3.5 pt-3 pb-3 md:px-4 md:pt-3.5">
       <div className="flex h-4 items-center gap-1.5 pr-6 text-xs leading-4 font-medium text-muted-foreground">
         <Link href={drill} className="relative z-10 truncate rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           {def.label}
@@ -65,7 +66,7 @@ export async function KpiWidget({ metric, p, currency, settings }: { metric: Met
         <MetricInfo metric={metric} />
       </div>
       <p className="mt-1 truncate text-[1.375rem] leading-7 font-semibold tracking-[-0.02em] tabular-nums md:text-2xl md:leading-8" title={formatMetric(metric, value, currency)}>
-        {text}
+        <CountUp value={text} />
       </p>
       <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-4">
         <DeltaText delta={withPrev} />
@@ -78,11 +79,11 @@ export async function KpiWidget({ metric, p, currency, settings }: { metric: Met
             <span>{Math.round(progress * 100)}%</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-muted">
-            <div className={cn("h-full rounded-full bg-[color:var(--chart-revenue,var(--chart-1))]", progress < 0.7 && "bg-[color:var(--warning)]")} style={{ width: `${Math.min(100, progress * 100)}%` }} />
+            <div className={cn("grow-x h-full rounded-full bg-[color:var(--chart-revenue,var(--chart-1))]", progress < 0.7 && "bg-[color:var(--warning)]")} style={{ width: `${Math.min(100, progress * 100)}%` }} />
           </div>
         </div>
       ) : (
-        <Sparkline className="mt-auto hidden md:block" values={seriesOf(cur, metric)} previous={seriesOf(prev, metric)} color={def.color} />
+        <Sparkline className="reveal-x mt-auto hidden md:block" values={seriesOf(cur, metric)} previous={seriesOf(prev, metric)} color={def.color} />
       )}
     </div>
   );

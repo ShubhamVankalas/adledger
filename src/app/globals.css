@@ -524,3 +524,193 @@
 @utility reveal-delayed {
   animation: delayed-reveal var(--dur-fast) var(--ease-out) 200ms both;
 }
+
+/* ==================================================================================================
+ * Motion & loading polish: pointer glow, page arrival, route progress, skeletons, orbit spinner.
+ * Everything reads the theme tokens (--brand, --brand-2, --fill…), so organization themes and dark
+ * mode apply automatically. Under prefers-reduced-motion the base layer above shortens every
+ * animation and transition to ~0ms; the rules below also drop the movement-only effects.
+ * ================================================================================================ */
+
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+/* Real content replacing a placeholder: a short fade with a soft blur and a few pixels of rise. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    translate: 0 6px;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    translate: 0 0;
+  }
+}
+@keyframes fade-in-soft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+/* Left-to-right reveal (sparklines draw in). Negative insets keep the stroke's round caps unclipped. */
+@keyframes reveal-x {
+  from {
+    clip-path: inset(-4px 100% -4px -4px);
+  }
+  to {
+    clip-path: inset(-4px -4px -4px -4px);
+  }
+}
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer components {
+  /* Skeleton: a flat --fill block with a brand-tinted highlight sweeping across it. The sweep is a
+     transform on a pseudo-element (compositor only), so many skeletons stay at 60fps. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: var(--fill);
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      100deg,
+      transparent 15%,
+      color-mix(in oklch, var(--brand) 11%, transparent) 40%,
+      color-mix(in oklch, var(--brand-2) 15%, transparent) 50%,
+      color-mix(in oklch, var(--brand) 11%, transparent) 60%,
+      transparent 85%
+    );
+    animation: skeleton-sweep 1.7s var(--ease-in-out) infinite;
+  }
+
+  /* Pointer-reactive glow. <PointerGlow/> (components/pointer-glow.tsx) writes --mx / --my (px, relative
+     to the card) on the [data-glow] element under the cursor; the CSS does the rest. Fine pointers only:
+     touch screens keep flat cards. data-glow="lift" adds a 1px rise (KPI tiles). The element must be
+     positioned and clip its overflow (Card and the dashboard widget frame both are). */
+  @media (hover: hover) and (pointer: fine) {
+    [data-glow] {
+      transition: translate var(--dur-base) var(--ease-out);
+    }
+    [data-glow]::before,
+    [data-glow]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--dur-slow) var(--ease-out);
+    }
+    /* A soft wash under the cursor. */
+    [data-glow]::before {
+      background: radial-gradient(22rem circle at var(--mx, 50%) var(--my, 0%), color-mix(in oklch, var(--brand) 9%, transparent), transparent 70%);
+    }
+    .dark [data-glow]::before {
+      background: radial-gradient(22rem circle at var(--mx, 50%) var(--my, 0%), color-mix(in oklch, var(--brand) 13%, transparent), transparent 70%);
+    }
+    /* The 1px border lights up around the cursor (a ring: the padding box minus the content box). */
+    [data-glow]::after {
+      padding: 1px;
+      background: radial-gradient(
+        15rem circle at var(--mx, 50%) var(--my, 0%),
+        color-mix(in oklch, var(--brand) 60%, transparent),
+        color-mix(in oklch, var(--brand-2) 22%, transparent) 55%,
+        transparent 100%
+      );
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+    [data-glow]:hover::before,
+    [data-glow]:hover::after {
+      opacity: 1;
+    }
+    [data-glow="lift"]:hover {
+      translate: 0 -1px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-glow="lift"]:hover {
+      translate: none;
+    }
+  }
+}
+
+/* A page body arriving (route change, or the real page replacing its loading skeleton). The `backwards`
+   fill leaves no transform, filter or stacking context on the element once it has finished. */
+@utility page-arrive {
+  animation: arrive 340ms var(--ease-out) backwards;
+}
+/* A widget or card body arriving after its placeholder. */
+@utility arrive {
+  animation: arrive 260ms var(--ease-out) backwards;
+}
+@utility fade-in-soft {
+  animation: fade-in-soft 420ms var(--ease-out) backwards;
+}
+/* Progress bars filling from the left. */
+@utility grow-x {
+  transform-origin: left;
+  animation: grow-x 700ms var(--ease-out) 150ms backwards;
+}
+/* Server-rendered sparklines drawing in from the left. */
+@utility reveal-x {
+  animation: reveal-x 800ms var(--ease-out) 120ms backwards;
+}
+
+/* Top-of-window route progress bar (components/route-progress.tsx); scaleX/opacity are set from JS. */
+@utility route-progress-bar {
+  transform-origin: left;
+  transform: scaleX(0);
+  opacity: 0;
+  will-change: transform, opacity;
+  box-shadow: 0 0 8px color-mix(in oklch, var(--brand) 55%, transparent);
+}
+
+/* Orbit spinner (components/ui/spinner.tsx): a brand arc circling a faint track and a small dot
+   orbiting the other way. Reduced motion collapses each to one frame: a static arc. */
+@utility orbit-arc {
+  transform-origin: 12px 12px;
+  animation: orbit-spin 0.9s linear infinite;
+}
+@utility orbit-dot {
+  transform-origin: 12px 12px;
+  animation: orbit-spin 1.8s linear infinite reverse;
+}
+
+/* Recharts: a chart fades in as one piece (the responsive container measures after mount and would
+   otherwise pop in); the un-animated comparison lines follow the main series with a late fade. */
+[data-slot="chart"] {
+  animation: fade-in-soft 360ms var(--ease-out) backwards;
+}
+.chart-late {
+  animation: fade-in-soft 500ms var(--ease-out) 280ms backwards;
+}

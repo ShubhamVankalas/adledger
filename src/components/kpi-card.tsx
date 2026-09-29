@@ -1,4 +1,5 @@
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, type LucideIcon } from "lucide-react";
+import { CountUp } from "@/components/count-up";
 import { Card } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { pct } from "@/lib/format";
@@ -36,6 +37,7 @@ export function KpiCard({
     : undefined;
   const body = (
     <Card
+      glow="lift"
       className={cn(
         "@container/kpi relative h-full gap-0 overflow-hidden p-3.5 transition-[box-shadow,background-color] sm:p-4",
         hint && "hover:ring-foreground/20",
@@ -67,7 +69,7 @@ export function KpiCard({
         )}
         title={value}
       >
-        {value}
+        <CountUp value={value} />
       </div>
       {/* Delta chip and sub-metric stack in narrow cards (phones, 6-up rows) instead of truncating. */}
       <div className="mt-1.5 flex min-h-5 flex-col items-start gap-x-2 gap-y-1 text-xs @[11rem]/kpi:flex-row @[11rem]/kpi:items-center">
