@@ -38,6 +38,8 @@ type Spec = {
   info: { title: string; version: string; description: string };
   tags: { name: string; description: string }[];
   paths: Record<string, Record<string, Operation>>;
+  /** Outbound events (OpenAPI 3.1 `webhooks`): what AdLedger POSTs to developer endpoints. */
+  webhooks?: Record<string, Record<string, Operation>>;
   components: { schemas: Record<string, Schema>; responses: Record<string, Response> };
 };
 
@@ -119,6 +121,24 @@ export function renderApiDocs(spec: Spec): string {
         const b = bodyLines(r.content);
         out.push(`| ${status} | ${cell([r.description ?? "", b.length ? `— ${b.join(" · ")}` : ""].filter(Boolean).join(" "))} |`);
       }
+    }
+  }
+
+  const hooks = Object.entries(spec.webhooks ?? {}).flatMap(([name, methods]) => Object.entries(methods).map(([m, op]) => ({ name, m: m.toUpperCase(), op })));
+  if (hooks.length) {
+    const tag = spec.tags.find((t) => hooks[0].op.tags?.includes(t.name));
+    out.push("", "## Webhook events", "", tag?.description ?? "", "", "| Event | Summary |", "|---|---|");
+    for (const { name, op } of hooks) out.push(`| [\`${name}\`](#${anchor(name)}) | ${cell(op.summary)} |`);
+    for (const { name, m, op } of hooks) {
+      out.push("", `### ${name}`, "", `**${op.summary}.** ${op.description ?? ""}`.trim(), "", `Sent as \`${m}\` to your endpoint URL.`);
+      if (op.parameters?.length) {
+        out.push("", "| Header | Description |", "|---|---|");
+        for (const x of op.parameters) out.push(`| \`${x.name}\` | ${cell(x.description ?? "")} |`);
+      }
+      const body = bodyLines(op.requestBody?.content);
+      if (body.length) out.push("", `Body: ${body.join(" · ")}`);
+      out.push("", "| Your response | Meaning |", "|---|---|");
+      for (const [status, r] of Object.entries(op.responses)) out.push(`| ${status} | ${cell(r.description ?? "")} |`);
     }
   }
 

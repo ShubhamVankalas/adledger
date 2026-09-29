@@ -4,7 +4,7 @@
     "title": "AdLedger API",
     "version": "0.1.0",
     "summary": "Self-hosted ad attribution: which ad actually made you money.",
-    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Settings → API & MCP and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.",
+    "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Developers → API keys (Settings → API & MCP for roles without the Developers page) and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.\n\n**Outbound webhooks.** For data out in real time (a new lead, a payment, a stage change), add a webhook endpoint in Developers → Webhooks instead of polling. Events are listed under Webhook events below; docs/WEBHOOKS.md covers signatures and retries.",
     "license": {
       "name": "AGPL-3.0-only",
       "identifier": "AGPL-3.0-only"
@@ -68,6 +68,10 @@
     {
       "name": "Connect",
       "description": "One-click OAuth connect for ad platforms (browser flow, dashboard session)."
+    },
+    {
+      "name": "Webhook events",
+      "description": "Outbound: what AdLedger POSTs to the endpoints you add in Developers → Webhooks. Verify the signature before trusting a body (see docs/WEBHOOKS.md)."
     }
   ],
   "paths": {
@@ -466,6 +470,118 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/leads": {
+      "get": {
+        "tags": [
+          "Contacts"
+        ],
+        "operationId": "listLeads",
+        "summary": "List leads",
+        "description": "Every lead (form fill, lead ad, WhatsApp chat, API or CSV lead), newest first, with cursor pagination: pass `next_cursor` back as `cursor` until it is `null`. API keys need `contacts:read`. Emails are masked unless the key has `contacts:pii` or the member's role may see contact PII. For real-time delivery use the `lead.created` webhook instead of polling.",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "Only leads at or after this time (ISO 8601 with offset).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "description": "Only leads before this time (ISO 8601 with offset).",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "description": "Only leads from one source.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pixel",
+                "webhook",
+                "api",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "`next_cursor` from the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of leads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Lead"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Pass as `cursor` for the next page; null on the last page."
+                    },
+                    "emailsMasked": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "rows",
+                    "next_cursor",
+                    "emailsMasked"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidParameters"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       }
@@ -2536,6 +2652,373 @@
       }
     }
   },
+  "webhooks": {
+    "lead.created": {
+      "post": {
+        "tags": [
+          "Webhook events"
+        ],
+        "operationId": "webhook_lead_created",
+        "summary": "Lead created",
+        "description": "A form fill, lead-ads lead, WhatsApp chat or API lead was recorded. CSV imports don't fire it.",
+        "parameters": [
+          {
+            "name": "AdLedger-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint's signing secret>`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "Same as the body's `id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Delivery",
+            "in": "header",
+            "required": true,
+            "description": "This delivery's id (changes on resend).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "AdLedger-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, then 2, 3… on retries.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookLeadCreated"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h)."
+          }
+        }
+      }
+    },
+    "contact.created": {
+      "post": {
+        "tags": [
+          "Webhook events"
+        ],
+        "operationId": "webhook_contact_created",
+        "summary": "Contact created",
+        "description": "A person appeared for the first time: from a lead, a payment or a pixel identify. CSV imports don't fire it.",
+        "parameters": [
+          {
+            "name": "AdLedger-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint's signing secret>`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "Same as the body's `id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Delivery",
+            "in": "header",
+            "required": true,
+            "description": "This delivery's id (changes on resend).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "AdLedger-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, then 2, 3… on retries.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookContactCreated"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h)."
+          }
+        }
+      }
+    },
+    "contact.updated": {
+      "post": {
+        "tags": [
+          "Webhook events"
+        ],
+        "operationId": "webhook_contact_updated",
+        "summary": "Contact stage changed",
+        "description": "A contact moved to another pipeline stage: dragged on the board (`manual`), won by a payment (`payment`), or a move was undone (`undo`). Deleting a stage doesn't fire it.",
+        "parameters": [
+          {
+            "name": "AdLedger-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint's signing secret>`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "Same as the body's `id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Delivery",
+            "in": "header",
+            "required": true,
+            "description": "This delivery's id (changes on resend).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "AdLedger-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, then 2, 3… on retries.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookContactUpdated"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h)."
+          }
+        }
+      }
+    },
+    "payment.succeeded": {
+      "post": {
+        "tags": [
+          "Webhook events"
+        ],
+        "operationId": "webhook_payment_succeeded",
+        "summary": "Payment succeeded",
+        "description": "A new payment from a revenue source or the conversions API. Replays of the same payment don't fire it again.",
+        "parameters": [
+          {
+            "name": "AdLedger-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint's signing secret>`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "Same as the body's `id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Delivery",
+            "in": "header",
+            "required": true,
+            "description": "This delivery's id (changes on resend).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "AdLedger-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, then 2, 3… on retries.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookPaymentSucceeded"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h)."
+          }
+        }
+      }
+    },
+    "payment.refunded": {
+      "post": {
+        "tags": [
+          "Webhook events"
+        ],
+        "operationId": "webhook_payment_refunded",
+        "summary": "Payment refunded",
+        "description": "A new refund was recorded.",
+        "parameters": [
+          {
+            "name": "AdLedger-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`t=<unix seconds>,v1=<hex HMAC-SHA256 of \"<t>.<raw body>\" with the endpoint's signing secret>`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event",
+            "in": "header",
+            "required": true,
+            "description": "The event type.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Event-Id",
+            "in": "header",
+            "required": true,
+            "description": "Same as the body's `id`.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "AdLedger-Delivery",
+            "in": "header",
+            "required": true,
+            "description": "This delivery's id (changes on resend).",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "AdLedger-Attempt",
+            "in": "header",
+            "required": true,
+            "description": "1 for the first try, then 2, 3… on retries.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookPaymentRefunded"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Received. Answer within 10 seconds; any other status, a timeout or a redirect is retried (1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h)."
+          }
+        }
+      }
+    }
+  },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -3841,6 +4324,639 @@
           "platform",
           "status",
           "url"
+        ]
+      },
+      "Lead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "pixel",
+              "webhook",
+              "api",
+              "csv"
+            ]
+          },
+          "formName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contact": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Masked (`p•••@gmail.com`) without contacts:pii."
+              },
+              "lifecycle": {
+                "type": "string",
+                "enum": [
+                  "lead",
+                  "customer"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "email",
+              "lifecycle"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "occurredAt",
+          "source",
+          "formName",
+          "contact"
+        ]
+      },
+      "WebhookStage": {
+        "type": "object",
+        "description": "A pipeline stage.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "open",
+              "won",
+              "lost"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      },
+      "WebhookContact": {
+        "type": "object",
+        "description": "A contact as sent in webhook events. `email` and `phone` are raw only for endpoints with Include personal data on; otherwise null, with the masked email and SHA-256 hashes for matching.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Raw email (personal data on) or null."
+          },
+          "email_masked": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "e.g. `p•••••@example.com`."
+          },
+          "email_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SHA-256 hex of the lowercased, trimmed email."
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Raw phone as submitted (personal data on, when known at the time of the event) or null."
+          },
+          "phone_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "SHA-256 hex of the phone's digits."
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "lead",
+              "customer"
+            ]
+          },
+          "stage": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WebhookStage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first_seen_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Link to the contact in AdLedger (needs PUBLIC_URL)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "email_masked",
+          "email_sha256",
+          "phone",
+          "phone_sha256",
+          "lifecycle",
+          "stage",
+          "first_seen_at",
+          "url"
+        ]
+      },
+      "WebhookPayment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "description": "stripe, shopify, paddle, api, csv…"
+          },
+          "external_id": {
+            "type": "string",
+            "description": "The payment's id in its source."
+          },
+          "amount_minor": {
+            "type": "integer",
+            "description": "Always positive. Integer minor units (cents)."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217, upper case."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "external_id",
+          "amount_minor",
+          "currency",
+          "occurred_at"
+        ]
+      },
+      "WebhookRefund": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "description": "stripe, shopify, paddle, api, csv…"
+          },
+          "external_id": {
+            "type": "string",
+            "description": "The payment's id in its source."
+          },
+          "amount_minor": {
+            "type": "integer",
+            "description": "Always positive. Integer minor units (cents)."
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217, upper case."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "related_external_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "external_id of the refunded payment."
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "external_id",
+          "amount_minor",
+          "currency",
+          "occurred_at",
+          "related_external_id"
+        ]
+      },
+      "WebhookLead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "pixel",
+              "webhook",
+              "api",
+              "csv"
+            ]
+          },
+          "form_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "form_name",
+          "occurred_at"
+        ]
+      },
+      "LeadCreatedData": {
+        "type": "object",
+        "properties": {
+          "lead": {
+            "$ref": "#/components/schemas/WebhookLead"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/WebhookContact"
+          }
+        },
+        "required": [
+          "lead",
+          "contact"
+        ]
+      },
+      "WebhookLeadCreated": {
+        "type": "object",
+        "description": "Body of a lead.created delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "evt_… Unique per event; retries and resends keep it (dedupe on it)."
+          },
+          "type": {
+            "const": "lead.created"
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Payload format version."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "test": {
+            "type": "boolean",
+            "description": "true for Send test event (sample data)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/LeadCreatedData"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created_at",
+          "workspace_id",
+          "test",
+          "data"
+        ]
+      },
+      "ContactCreatedData": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/WebhookContact"
+          }
+        },
+        "required": [
+          "contact"
+        ]
+      },
+      "WebhookContactCreated": {
+        "type": "object",
+        "description": "Body of a contact.created delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "evt_… Unique per event; retries and resends keep it (dedupe on it)."
+          },
+          "type": {
+            "const": "contact.created"
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Payload format version."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "test": {
+            "type": "boolean",
+            "description": "true for Send test event (sample data)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ContactCreatedData"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created_at",
+          "workspace_id",
+          "test",
+          "data"
+        ]
+      },
+      "ContactUpdatedData": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/WebhookContact"
+          },
+          "changes": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/WebhookStage"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "to": {
+                    "$ref": "#/components/schemas/WebhookStage"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "payment",
+                      "system",
+                      "undo"
+                    ]
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "source"
+                ]
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          }
+        },
+        "required": [
+          "contact",
+          "changes"
+        ]
+      },
+      "WebhookContactUpdated": {
+        "type": "object",
+        "description": "Body of a contact.updated delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "evt_… Unique per event; retries and resends keep it (dedupe on it)."
+          },
+          "type": {
+            "const": "contact.updated"
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Payload format version."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "test": {
+            "type": "boolean",
+            "description": "true for Send test event (sample data)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/ContactUpdatedData"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created_at",
+          "workspace_id",
+          "test",
+          "data"
+        ]
+      },
+      "PaymentSucceededData": {
+        "type": "object",
+        "properties": {
+          "payment": {
+            "$ref": "#/components/schemas/WebhookPayment"
+          },
+          "contact": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WebhookContact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the payment couldn't be matched to a person."
+          }
+        },
+        "required": [
+          "payment",
+          "contact"
+        ]
+      },
+      "WebhookPaymentSucceeded": {
+        "type": "object",
+        "description": "Body of a payment.succeeded delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "evt_… Unique per event; retries and resends keep it (dedupe on it)."
+          },
+          "type": {
+            "const": "payment.succeeded"
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Payload format version."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "test": {
+            "type": "boolean",
+            "description": "true for Send test event (sample data)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/PaymentSucceededData"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created_at",
+          "workspace_id",
+          "test",
+          "data"
+        ]
+      },
+      "PaymentRefundedData": {
+        "type": "object",
+        "properties": {
+          "refund": {
+            "$ref": "#/components/schemas/WebhookRefund"
+          },
+          "contact": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WebhookContact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the payment couldn't be matched to a person."
+          }
+        },
+        "required": [
+          "refund",
+          "contact"
+        ]
+      },
+      "WebhookPaymentRefunded": {
+        "type": "object",
+        "description": "Body of a payment.refunded delivery.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "evt_… Unique per event; retries and resends keep it (dedupe on it)."
+          },
+          "type": {
+            "const": "payment.refunded"
+          },
+          "api_version": {
+            "type": "string",
+            "description": "Payload format version."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "test": {
+            "type": "boolean",
+            "description": "true for Send test event (sample data)."
+          },
+          "data": {
+            "$ref": "#/components/schemas/PaymentRefundedData"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "api_version",
+          "created_at",
+          "workspace_id",
+          "test",
+          "data"
         ]
       }
     }
