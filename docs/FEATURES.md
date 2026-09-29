@@ -151,10 +151,22 @@ number.
 | Attribution model comparison | 2 |
 | LTV and cohorts (landscape) | 2–3 |
 | Wasted spend and budget moves | 2 |
+| Channel mix and efficiency | 2 |
+| Lead source quality | 2 |
+| Creative and ad leaderboard | 2 |
+| Funnel and time to convert | 2 |
+| Pipeline and CRM activity | 1–2 |
+| Profit and refunds | 2 |
 
 - Pick a period and model, **Download PDF**, or **Schedule** weekly or monthly email delivery (with
   "skip quiet periods" and **Send now**).
-- Your organization's logo on the masthead, a methodology appendix, and on every page a
+- **AI document** (`/reports/ai-document`): pick one of 12 ready-made requests (monthly client
+  report, board update, post-mortem, budget memo, Meta vs Google, lead quality audit, stand-up,
+  case study, creative brief, quarter review, funnel leaks, refunds) or write your own, choose the
+  period, and the workspace's AI model writes a structured document. AdLedger draws every KPI,
+  table and chart from SQL, removes any sentence with a number that isn't in the data, and lays it
+  out as a branded PDF with an in-app preview. Needs `reports.pdf` and `insights.generate`.
+- Your organization's logo and accent colour on the masthead, a methodology appendix, and on every page a
   "Prepared for" watermark, page numbers and a **fingerprint** that can be checked at `/verify`.
 - Every export is written to an export log and the audit log. Clients can download aggregate PDFs
   only while the organization allows it.
