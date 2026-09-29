@@ -38,7 +38,7 @@ const hostOf = (url: string) => {
 };
 
 const refresh = (id?: string) => {
-  revalidatePath("/developers/webhooks");
+  revalidatePath("/developers", "layout");
   if (id) revalidatePath(`/developers/webhooks/${id}`);
 };
 

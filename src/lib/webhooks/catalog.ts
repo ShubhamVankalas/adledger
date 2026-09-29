@@ -135,7 +135,7 @@ function sampleContact(pii: boolean, stage: WebhookStage = { id: "7d2e4f6a-8b0c-
 }
 
 /** A realistic example of each event (for "Send test event", the docs and the reference page). */
-export function sampleEvent<T extends WebhookEventType>(type: T, opts: { workspaceId?: string; pii?: boolean; id?: string; now?: Date } = {}): WebhookEnvelope<T> {
+export function sampleEvent<T extends WebhookEventType>(type: T, opts: { workspaceId?: string; pii?: boolean; id?: string; now?: Date; test?: boolean } = {}): WebhookEnvelope<T> {
   const pii = opts.pii ?? false;
   const now = (opts.now ?? new Date("2026-09-29T09:41:13.000Z")).toISOString();
   const won: WebhookStage = { id: "0e9d8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b", name: "Won", kind: "won" };
@@ -163,12 +163,12 @@ export function sampleEvent<T extends WebhookEventType>(type: T, opts: { workspa
     },
   } satisfies WebhookEventData;
   return {
-    id: opts.id ?? "evt_test_01J8ZQ4W3N5K7M9P1R3T5V7X9Z",
+    id: opts.id ?? "evt_8f14e45fceea4b1c9d3a0b7e6c2d1f90",
     type,
     api_version: WEBHOOK_API_VERSION,
     created_at: now,
     workspace_id: opts.workspaceId ?? "00000000-0000-4000-8000-000000000000",
-    test: true,
+    test: opts.test ?? false,
     data: data[type] as WebhookEventData[T],
   };
 }

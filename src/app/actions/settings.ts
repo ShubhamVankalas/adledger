@@ -244,6 +244,7 @@ export async function createApiKeyAction(form: FormData): Promise<ActionResult> 
     const { key } = await createApiKey(user.workspace.id, name, scopes, expiresAt);
     await audit(user, "api_key.created", name, { scopes, expiresDays: days || null });
     revalidatePath("/settings", "layout");
+    revalidatePath("/developers", "layout");
     return ok("Key created. Copy it now — it won't be shown again.", { key });
   });
 }
@@ -258,6 +259,7 @@ export async function revokeApiKeyAction(id: string): Promise<ActionResult> {
       .where(and(eq(schema.apiKeys.id, id), eq(schema.apiKeys.workspaceId, user.workspace.id), isNull(schema.apiKeys.revokedAt)));
     await audit(user, "api_key.revoked", id);
     revalidatePath("/settings", "layout");
+    revalidatePath("/developers", "layout");
     return ok("Key revoked.");
   });
 }

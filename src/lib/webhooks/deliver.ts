@@ -193,7 +193,7 @@ export async function pruneWebhookDeliveries(db: DB, now = new Date()) {
  * include_pii get the sample's fake email and phone, so the receiver sees the real shape.
  */
 export async function sendTestEvent(db: DB, endpoint: Endpoint, type: WebhookEventType, now = new Date()): Promise<Delivery> {
-  const payload = sampleEvent(type, { workspaceId: endpoint.workspaceId, id: newEventId().replace("evt_", "evt_test_"), now });
+  const payload = sampleEvent(type, { workspaceId: endpoint.workspaceId, id: newEventId().replace("evt_", "evt_test_"), now, test: true });
   const piiEnc = endpoint.includePii ? encrypt(JSON.stringify({ email: "priya@example.com", phone: "+1 415 555 0142" }), await getAppSecret(db)) : null;
   const [row] = await db
     .insert(schema.webhookDeliveries)
