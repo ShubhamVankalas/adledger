@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea? Ask in Discussions
+    url: https://github.com/ShubhamVankalas/adledger/discussions
+    about: Setup help, "how do I ...", and early ideas belong in Discussions, not issues.
+  - name: Report a security vulnerability (private)
+    url: https://github.com/ShubhamVankalas/adledger/security/advisories/new
+    about: Never open a public issue for a vulnerability. Report it privately here.
+  - name: Read the docs
+    url: https://github.com/ShubhamVankalas/adledger/tree/main/docs
+    about: Self-hosting, connectors, the API and MCP, security and the FAQ.

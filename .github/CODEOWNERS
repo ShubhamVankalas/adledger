@@ -1,0 +1,25 @@
+# Code owners are requested for review automatically, and the branch ruleset requires their approval
+# (see docs/MAINTAINERS.md). The last matching pattern wins, so the general rule comes first.
+
+# Everything
+*                          @ShubhamVankalas
+
+# Sensitive paths: authentication, authorization, secrets, tenant isolation, and the pipeline.
+# Listed explicitly so they stay owned even if the general rule is ever relaxed.
+/src/lib/auth*             @ShubhamVankalas
+/src/lib/request-auth*     @ShubhamVankalas
+/src/lib/permissions*      @ShubhamVankalas
+/src/lib/security/         @ShubhamVankalas
+/src/lib/security-headers* @ShubhamVankalas
+/src/lib/crypto*           @ShubhamVankalas
+/src/lib/oauth/            @ShubhamVankalas
+/drizzle/                  @ShubhamVankalas
+/src/lib/db/               @ShubhamVankalas
+/.github/                  @ShubhamVankalas
+/Dockerfile                @ShubhamVankalas
+/docker-compose.yml        @ShubhamVankalas
+/install.sh                @ShubhamVankalas
+/scripts/github/           @ShubhamVankalas
+/SECURITY.md               @ShubhamVankalas
+/docs/SECURITY.md          @ShubhamVankalas
+/LICENSE                   @ShubhamVankalas
