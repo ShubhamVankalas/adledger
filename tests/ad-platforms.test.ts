@@ -162,7 +162,7 @@ describe("Reddit report parser", () => {
       account: { externalId: "t2_acme0001", currency: "USD", timezone: "America/New_York" },
       campaign: { externalId: "t3_cmp0000001", name: "r/marketing – Conversions", status: "ACTIVE", objective: "CONVERSIONS" },
       adGroup: { externalId: "t3_adg0000001", name: "Communities – Marketing & PPC" },
-      ad: { externalId: "t3_ad0000001", name: "Promoted post – Open-source Hyros alternative" },
+      ad: { externalId: "t3_ad0000001", name: "Promoted post – Open-source ad attribution" },
       date: "2026-09-20",
       spendMinor: 5831,
       impressions: 30214,

@@ -37,7 +37,7 @@ runs as one container plus PostgreSQL on a server you control.
 
 |   |   |
 |---|---|
-| **A free alternative to Hyros, Triple Whale, Cometly and Northbeam.** No per-seat or revenue-share pricing. Unlimited users, workspaces and client logins. | **Your data never leaves your server.** No telemetry, no licence check, no phone-home. The only outbound calls are the integrations you switch on. |
+| **Free and open source, for good.** No per-seat or revenue-share pricing. Unlimited users, workspaces and client logins. | **Your data never leaves your server.** No telemetry, no licence check, no phone-home. The only outbound calls are the integrations you switch on. |
 | **One command to install.** `docker compose up -d`, or a one-line script with automatic HTTPS. Migrations run on start; everything else is configured in the dashboard. | **Bring your own AI, or none.** Local Ollama or LM Studio, OpenAI, Anthropic, Gemini, OpenRouter, DeepSeek. The model writes words; SQL writes the numbers. |
 
 ## Quick start
@@ -331,22 +331,6 @@ Read the [Trust & security page](docs/SECURITY.md) for the mechanisms and the op
 checklist, and the [Compliance guide](docs/COMPLIANCE.md) for the framework mappings and the
 statements that are safe to make about your install.
 
-## How it compares
-
-|   | **AdLedger** | Hyros | Triple Whale | Cometly | Northbeam |
-|---|---|---|---|---|---|
-| Price | **Free** (AGPL-3.0) | Paid plans | Paid plans | Paid plans | Paid plans |
-| Open source, auditable code | **Yes** | No | No | No | No |
-| Runs on your own server | **Yes** | No | No | No | No |
-| Your data stays with you | **Yes** | Vendor cloud | Vendor cloud | Vendor cloud | Vendor cloud |
-| Use a local AI model (Ollama, LM Studio) | **Yes** | No | No | No | No |
-| MCP server on your own infrastructure | **Yes**, read-only | No | No | No | No |
-| Seats, workspaces, client logins | **Unlimited** | Check plan | Check plan | Check plan | Check plan |
-| White-label PDF reports | **Included** | Check plan | Check plan | Check plan | Check plan |
-
-<sub>Competitor details as publicly listed in 2026; check their sites for current pricing and features.
-Some hosted tools offer things AdLedger doesn't yet, such as data-driven attribution models. The long version, with AdLedger's current limits: [docs/COMPARISON.md](docs/COMPARISON.md).</sub>
-
 ## Architecture
 
 One Next.js app and PostgreSQL. The dashboard, REST API, pixel collector, webhooks, MCP server,
@@ -377,7 +361,6 @@ Playwright. Details and design decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | [MCP](docs/MCP.md) · [API](docs/API.md) | AI assistant tools and the REST API |
 | [Trust & security](docs/SECURITY.md) | Controls, privacy, hardening checklist, disclosure |
 | [Compliance](docs/COMPLIANCE.md) | GDPR, CCPA, SOC 2, ISO 27001, OWASP and CIS mappings, go-live checklist, safe claims |
-| [Comparison](docs/COMPARISON.md) | AdLedger vs Hyros, Triple Whale, Cometly and Northbeam |
 | [FAQ](docs/FAQ.md) | Data, accuracy, iOS, cost, 2FA lockout, compliance questions |
 | [Architecture](docs/ARCHITECTURE.md) · [Product](docs/PRODUCT.md) · [Roadmap](docs/ROADMAP.md) | How it's built, who it's for, what's next |
 

@@ -1,7 +1,7 @@
 # AdLedger — Product Spec
 
 ## One-liner
-**The open-source Hyros.** See exactly which ad, campaign, and keyword produced leads,
+**Open-source ad attribution.** See exactly which ad, campaign, and keyword produced leads,
 customers, and revenue — self-hosted, free, with AI you bring yourself and an MCP server
 so Claude/Codex can answer "which ads made money?"
 
@@ -9,7 +9,7 @@ so Claude/Codex can answer "which ads made money?"
 - Businesses spend on Meta and Google Ads but can't trust in-platform numbers (iOS privacy
   changes, short attribution windows, every platform takes credit for the same sale).
 - Real answers need joining **ad spend** + **first-party clicks/visits** + **leads/CRM**
-  + **actual revenue**. Tools that do this (Hyros, Triple Whale, Cometly, Wicked Reports)
+  + **actual revenue**. Hosted tools that do this
   cost roughly $129 to $2,500+/month and often price by revenue tracked.
 - No serious open-source, self-hosted option exists.
 
@@ -84,8 +84,7 @@ reference is [FEATURES.md](FEATURES.md); in short:
 - `git clone` → `docker compose up` → working demo dashboard in under 5 minutes.
 - A real Stripe test account + real Meta/Google account can be connected from the Settings page (no config files).
 - README has a 20-second GIF: dashboard → "which ad made money" → MCP answer in Claude.
-- Clear comparison table vs Hyros/Triple Whale/Cometly in README.
 
 ## Positioning / README headline options
-- "AdLedger — the open-source Hyros. Know which ads actually make money."
+- "AdLedger: open-source ad attribution. Know which ads actually make money."
 - "Self-hosted ad attribution with AI and MCP. Free forever."

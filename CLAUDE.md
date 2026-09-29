@@ -2,8 +2,7 @@
 
 AdLedger is an open-source, self-hosted **ad attribution + revenue ledger**. It joins ad spend
 (Meta Ads, Google Ads), first-party website events (our pixel), leads, and revenue (Stripe) so a
-founder can answer: **"Which ad actually made me money?"** A free alternative to Hyros / Triple
-Whale / Cometly, with BYO-model AI and a built-in MCP server.
+founder can answer: **"Which ad actually made me money?"** Free and self-hosted, with BYO-model AI and a built-in MCP server.
 
 Read before starting any task:
 - `docs/PRODUCT.md` — what we are building and for whom
