@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AuthField, FormError, PasswordInput, authButton, authInput, useFocusFirstError } from "../fields";
-import { authCard, authTitle } from "../styles";
+import { authCard, authLead, authTitle } from "../styles";
 
 const code = "rounded bg-muted px-1 py-0.5 font-mono text-[0.7rem] break-all";
 
@@ -21,7 +21,7 @@ export function LoginForm({ next }: { next: string }) {
         <CardTitle className={authTitle}>
           <h1>Welcome back</h1>
         </CardTitle>
-        <CardDescription>Sign in to see which ads are making you money.</CardDescription>
+        <CardDescription className={authLead}>Sign in to see which ads are making you money.</CardDescription>
       </CardHeader>
       <CardContent>
         <form ref={form} action={action} className="grid gap-4">

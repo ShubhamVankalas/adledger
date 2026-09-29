@@ -10,10 +10,10 @@ import { Input } from "@/components/ui/input";
 import { CURRENCIES, TIMEZONES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { AuthField as Field, FormError, PasswordInput, authButton, authInput, describedBy, useFocusFirstError } from "../fields";
-import { authCard, authTitle } from "../styles";
+import { authCard, authLead, authTitle } from "../styles";
 
-// Native selects: 40px tall and 16px text on phones (smaller text makes iOS zoom in on focus).
-const selectCls = "[&_select]:h-10 [&_select]:text-base sm:[&_select]:text-sm";
+// Native selects: 44px tall and 16px text on phones (smaller text makes iOS zoom in on focus).
+const selectCls = "[&_select]:h-11 sm:[&_select]:h-10 lg:[&_select]:h-11 [&_select]:text-base sm:[&_select]:text-sm";
 
 const STARTS = [
   {
@@ -53,7 +53,7 @@ export function SetupForm() {
         <CardTitle className={authTitle}>
           <h1>Welcome to AdLedger</h1>
         </CardTitle>
-        <CardDescription>Create your account. It takes 30 seconds, and nothing leaves your server.</CardDescription>
+        <CardDescription className={authLead}>Create your account. It takes 30 seconds, and nothing leaves your server.</CardDescription>
       </CardHeader>
       <CardContent>
         <form ref={form} action={action} className="grid gap-4">
@@ -143,17 +143,17 @@ export function SetupForm() {
                   <label
                     key={s.value}
                     className={cn(
-                      "relative flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors hover:border-primary/40 has-focus-visible:ring-2 has-focus-visible:ring-ring sm:flex-col sm:gap-1.5",
-                      on && "border-primary bg-primary/5 ring-1 ring-primary/30",
+                      "relative flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors hover:border-brand/40 has-focus-visible:ring-2 has-focus-visible:ring-ring sm:flex-col sm:gap-1.5",
+                      on && "border-brand bg-brand/5 ring-1 ring-brand/30",
                     )}
                   >
                     <input type="radio" name="start" value={s.value} checked={on} onChange={() => setStart(s.value)} className="sr-only" />
-                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md sm:hidden", on ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-md sm:hidden", on ? "bg-brand/15 text-brand-fg" : "bg-muted text-muted-foreground")}>
                       <s.icon aria-hidden className="size-4" />
                     </span>
                     <span className="grid min-w-0 gap-1">
                       <span className="flex items-center gap-2 pr-6 text-sm font-medium">
-                        <s.icon aria-hidden className="hidden size-4 text-primary sm:block" /> {s.title}
+                        <s.icon aria-hidden className="hidden size-4 text-brand-fg sm:block" /> {s.title}
                       </span>
                       <span className="text-xs leading-relaxed text-muted-foreground">{s.body}</span>
                     </span>
@@ -161,7 +161,7 @@ export function SetupForm() {
                       aria-hidden
                       className={cn(
                         "absolute top-3 right-3 flex size-4 items-center justify-center rounded-full border",
-                        on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                        on ? "border-brand bg-brand text-white" : "border-muted-foreground/40",
                       )}
                     >
                       {on ? <CheckIcon className="size-3" strokeWidth={3} /> : null}

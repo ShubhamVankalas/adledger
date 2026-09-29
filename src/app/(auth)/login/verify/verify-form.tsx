@@ -7,7 +7,7 @@ import { CodeInput } from "@/components/settings/two-factor-enroll";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthField, FormError, authButton, useFocusFirstError } from "../../fields";
-import { authCard, authTitle } from "../../styles";
+import { authCard, authLead, authTitle } from "../../styles";
 
 export function VerifyForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(verifyLoginAction, undefined);
@@ -20,7 +20,7 @@ export function VerifyForm({ next }: { next: string }) {
         <CardTitle className={authTitle}>
           <h1>Enter your code</h1>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className={authLead}>
           {recovery ? "Type one of the recovery codes you saved. Each one works once." : "Open your authenticator app and enter the 6-digit code for AdLedger."}
         </CardDescription>
       </CardHeader>

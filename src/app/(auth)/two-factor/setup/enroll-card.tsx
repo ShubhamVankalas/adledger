@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import { TwoFactorEnroll } from "@/components/settings/two-factor-enroll";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { authCard, authTitle } from "../../styles";
+import { cn } from "@/lib/utils";
+import { authCard, authLead, authTitle } from "../../styles";
 
 export function EnrollCard({ organization }: { organization: string }) {
   const router = useRouter();
@@ -14,7 +15,7 @@ export function EnrollCard({ organization }: { organization: string }) {
         <CardTitle className={authTitle}>
           <h1>Set up two-factor sign-in</h1>
         </CardTitle>
-        <CardDescription className="text-pretty">
+        <CardDescription className={cn(authLead, "text-pretty")}>
           {organization} asks everyone to sign in with a code from an authenticator app as well as a password. It takes about a minute.
         </CardDescription>
       </CardHeader>
