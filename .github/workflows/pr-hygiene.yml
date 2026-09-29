@@ -1,0 +1,51 @@
+name: PR hygiene
+
+# Cheap, code-free checks on every pull request: DCO sign-off and a conventional title.
+# Triggered by `pull_request` (never `pull_request_target`), read-only token, and nothing from the
+# PR is executed: the DCO job only runs `git log` through a script that lives in the base checkout.
+# Job names (dco, title) are required status checks; see scripts/github/protect-main.sh.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Every commit is signed off (DCO)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/github/check-dco.sh "$BASE_SHA" "$HEAD_SHA"
+
+  title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: PR title is a conventional commit message
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([A-Za-z0-9._/,-]+\))?!?: [^[:space:]].*$'
+          if printf '%s' "$PR_TITLE" | grep -Eq "$pattern"; then
+            echo "Title OK: $PR_TITLE"
+          else
+            echo "::error title=PR title is not a conventional commit::\"$PR_TITLE\" should look like \"feat(scope): short summary\""
+            echo "Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert."
+            echo "Examples: \"fix: reject negative spend rows\", \"feat(connectors): add Bing Ads\", \"docs: clarify install.sh flags\""
+            exit 1
+          fi
