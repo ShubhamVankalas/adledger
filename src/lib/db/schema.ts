@@ -112,6 +112,8 @@ export const users = pgTable(
     totpLastStep: bigint("totp_last_step", { mode: "number" }),
     /** scrypt hashes of the unused recovery codes (each works once). */
     recoveryCodes: text("recovery_codes").array().notNull().default(sql`'{}'::text[]`),
+    /** In-app product tour: when this user finished or skipped it (null = show it on next login). */
+    tourCompletedAt: tstz("tour_completed_at"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_email_uq").on(t.email)],
