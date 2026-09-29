@@ -12,12 +12,15 @@ export function WidgetCard({
   action,
   children,
   bodyClassName,
+  arrive = true,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
   bodyClassName?: string;
+  /** Fade the body in (real content replacing its skeleton). Skeletons pass false. */
+  arrive?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -28,7 +31,7 @@ export function WidgetCard({
         </div>
         {action ? <div className="flex shrink-0 items-center gap-1">{action}</div> : null}
       </div>
-      <div className={cn("min-h-0 flex-1 px-4 pt-3 pb-4 md:px-5", bodyClassName)}>{children}</div>
+      <div className={cn("min-h-0 flex-1 px-4 pt-3 pb-4 md:px-5", arrive && "arrive", bodyClassName)}>{children}</div>
     </div>
   );
 }

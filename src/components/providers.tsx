@@ -1,6 +1,9 @@
 "use client";
 
 import { ThemeProvider } from "next-themes";
+import { Suspense } from "react";
+import { PointerGlow } from "@/components/pointer-glow";
+import { RouteProgress } from "@/components/route-progress";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -22,6 +25,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       scriptProps={{ type: typeof window === "undefined" ? "text/javascript" : "text/plain" }}
     >
       <TooltipProvider>
+        {/* Motion polish: the cursor glow on cards and the top-of-window navigation bar. */}
+        <PointerGlow />
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         {children}
         <Toaster richColors position="bottom-right" offset={isMobile ? ABOVE_TAB_BAR : undefined} mobileOffset={ABOVE_TAB_BAR} />
       </TooltipProvider>

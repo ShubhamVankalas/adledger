@@ -69,7 +69,7 @@ export function HourlyChart({ hours, metric, currency, hideMoney }: { hours: Liv
           isAnimationActive={false}
           content={(p: TooltipContentProps<TooltipValueType, NameType>) => <HourlyTooltip {...p} metric={def} format={(v) => (masked ? HIDDEN_AMOUNT : isMoney ? moneyWhole(v, currency) : num(v))} running={isMoney} />}
         />
-        <Line dataKey="yesterday" type="monotone" stroke={def.color} strokeOpacity={0.55} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} />
+        <Line dataKey="yesterday" type="monotone" stroke={def.color} strokeOpacity={0.55} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} className="chart-late" />
         <Area
           dataKey="today"
           type="monotone"
@@ -80,7 +80,8 @@ export function HourlyChart({ hours, metric, currency, hideMoney }: { hours: Liv
           connectNulls={false}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)", fill: def.color }}
           isAnimationActive={animate}
-          animationDuration={400}
+          animationDuration={600}
+          animationEasing="ease-out"
         />
       </ComposedChart>
     </ChartContainer>

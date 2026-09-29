@@ -52,8 +52,8 @@ export function SpendRevenueChart({ data, currency, compare = true }: { data: Sp
           isAnimationActive={false}
           content={(p: TooltipContentProps<TooltipValueType, NameType>) => <SpendRevenueTooltip {...p} currency={currency} compare={compare} />}
         />
-        <Bar dataKey="spend" fill={SPEND} fillOpacity={0.5} radius={[3, 3, 0, 0]} maxBarSize={14} isAnimationActive={animate} animationDuration={400} />
-        {compare ? <Line dataKey="prev" type="monotone" stroke={FAINT} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} /> : null}
+        <Bar dataKey="spend" fill={SPEND} fillOpacity={0.5} radius={[3, 3, 0, 0]} maxBarSize={14} isAnimationActive={animate} animationDuration={650} animationEasing="ease-out" />
+        {compare ? <Line dataKey="prev" type="monotone" stroke={FAINT} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} className="chart-late" /> : null}
         <Area
           dataKey="attributed"
           type="monotone"
@@ -63,7 +63,9 @@ export function SpendRevenueChart({ data, currency, compare = true }: { data: Sp
           dot={false}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)", fill: REVENUE }}
           isAnimationActive={animate}
-          animationDuration={400}
+          animationBegin={80}
+          animationDuration={750}
+          animationEasing="ease-out"
         />
       </ComposedChart>
     </ChartContainer>

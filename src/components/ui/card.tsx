@@ -2,17 +2,21 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // Cards sit flat on the canvas with a hairline; shadows are kept for floating layers.
+// `glow` opts a card into the pointer-reactive brand glow (<PointerGlow/> in providers.tsx drives it,
+// globals.css draws it): true = glow only, "lift" = glow plus a 1px rise (KPI tiles).
 function Card({
   className,
   size = "default",
+  glow,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & { size?: "default" | "sm"; glow?: boolean | "lift" }) {
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-glow={glow ? (glow === "lift" ? "lift" : "soft") : undefined}
       className={cn(
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-ui text-card-foreground shadow-(--elev-card) [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden data-glow:relative rounded-xl bg-card py-(--card-spacing) text-ui text-card-foreground shadow-(--elev-card) [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
         className
       )}
       {...props}

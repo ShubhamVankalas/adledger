@@ -63,7 +63,7 @@ export function MetricExplorerChart({ data, metric, currency, compare = true }: 
           content={(props: TooltipContentProps<TooltipValueType, NameType>) => <ExplorerTooltip {...props} metric={metric} currency={currency} compare={compare} />}
         />
         {compare ? (
-          <Line dataKey="prev" type="monotone" stroke={FAINT} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} connectNulls={false} />
+          <Line dataKey="prev" type="monotone" stroke={FAINT} strokeWidth={1.25} strokeDasharray="3 4" dot={false} activeDot={false} isAnimationActive={false} connectNulls={false} className="chart-late" />
         ) : null}
         <Area
           dataKey="cur"
@@ -74,7 +74,7 @@ export function MetricExplorerChart({ data, metric, currency, compare = true }: 
           dot={false}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)", fill: def.color }}
           isAnimationActive={animate}
-          animationDuration={400}
+          animationDuration={750}
           animationEasing="ease-out"
           connectNulls={false}
         />
