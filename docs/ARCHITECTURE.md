@@ -582,7 +582,7 @@ resume from `Last-Event-ID` / `?after=<cursor>`, re-check the session every minu
 resumes on return. Payloads never carry an email, phone or full name: people are initials (`P. S.`) or a
 masked email (`p•••@gmail.com`, company domains fully masked), paths lose their query string, and free
 text is scrubbed of emails and long digit runs. `GET /api/v1/live/pulse` (session or API key) returns
-today's revenue and visitors now for the sidebar pulse, polled every 30 s by one shared client poller.
+today's revenue and visitors now for the live pill in the page header (`HeaderLive`, fed by `LivePulseProvider` in the `(app)` layout) and the Live nav badge, polled every 30 s by one shared client poller.
 Streamer mode (hide every amount) and sale toasts are per-browser preferences in `localStorage`. In a
 sample-data workspace, `src/lib/live-demo.ts` writes a gentle trickle of simulated visits, leads and sales
 (copied from the demo's own campaigns, `@example.com` people) while Live is open, so the page moves and
@@ -697,7 +697,7 @@ The look is specified in `docs/redesign/BRIEF.md` §2 and lives in one place:
   the sidebar (`components/app-sidebar.tsx`: workspace switcher, search, Overview/Live with the
   visitors-now badge, Analyze (Performance, Attribution, Customers, Insights with a triggered-alerts
   badge, Reports), Money (Profit, Receipts, Truth gap), CRM (Contacts, Pipeline, My tasks with an
-  overdue badge), pinned Views, setup ring, the Live pulse (today's revenue), settings, help, account;
+  overdue badge), pinned Views, setup ring, settings, help, account, a creator credit;
   `[` or Ctrl/⌘ B toggles the icon rail, remembered in the `sidebar_state` cookie) and the phone tab bar
   (`mobile-nav.tsx`). `components/app-shell.tsx` holds the shell context (demo pill), the 2px
   pending line and the window events `adledger:open-palette` / `adledger:open-shortcuts` that the
