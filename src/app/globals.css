@@ -347,11 +347,7 @@
   [data-slot="chart"] {
     font-variant-numeric: tabular-nums;
   }
-  /* Slim, theme-aware scrollbars (Windows otherwise draws a thick grey bar inside every wide table). */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
-  }
+  /* Scrollbars: see the "Themed scrollbars" block at the end of this file. */
   h1,
   h2,
   h3,
@@ -713,4 +709,129 @@
 }
 .chart-late {
   animation: fade-in-soft 500ms var(--ease-out) 280ms backwards;
+}
+
+/* ==========================================================================
+   Themed scrollbars
+   --scrollbar / --scrollbar-hover derive from --fg and --brand on the same element, so dark mode and
+   organization themes follow automatically. Chromium and Safari get a real thumb (rounded, inset, hover
+   and drag states) on pointer devices; touch screens keep their native overlay bars. Firefox and any
+   engine without ::-webkit-scrollbar use the standard scrollbar-color / scrollbar-width pair.
+   ========================================================================== */
+:root,
+.dark {
+  --scrollbar: color-mix(in oklch, var(--fg) 20%, transparent);
+  --scrollbar-hover: color-mix(in oklch, var(--brand) 60%, var(--fg) 12%);
+  --scrollbar-active: var(--brand);
+  accent-color: var(--brand);
+}
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  @supports selector(::-webkit-scrollbar) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    /* The transparent border + content-box clip insets the visible thumb to 6px inside the 10px gutter. */
+    ::-webkit-scrollbar-thumb {
+      min-height: 2rem;
+      min-width: 2rem;
+      border: 2px solid transparent;
+      border-radius: 9999px;
+      background-color: var(--scrollbar);
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--scrollbar-hover);
+    }
+    ::-webkit-scrollbar-thumb:active {
+      background-color: var(--scrollbar-active);
+    }
+  }
+}
+
+/* ==========================================================================
+   Auth showcase (src/app/(auth)/showcase.tsx): animated mini dashboard. Pure CSS/SVG; under
+   prefers-reduced-motion the global rule above collapses every animation to its end state.
+   ========================================================================== */
+@keyframes al-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes al-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes al-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes al-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes al-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@keyframes al-ping {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+@keyframes al-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.08);
+  }
+}
+@keyframes al-tick {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }

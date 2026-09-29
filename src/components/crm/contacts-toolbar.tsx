@@ -53,6 +53,7 @@ import {
 } from "@/lib/crm-query";
 import { moneyWhole, platformLabel } from "@/lib/format";
 import { fromDecimalString } from "@/lib/money";
+import { nativeSelectField } from "@/components/ui/menu-styles";
 import { cn } from "@/lib/utils";
 import { memberName } from "./properties";
 import { runAction } from "./run-action";
@@ -859,7 +860,7 @@ export function DisplayMenu({ query, navigate }: { query: ContactQuery; navigate
               value={query.sort}
               onChange={(e) => navigate({ sort: e.target.value as ContactSort, dir: e.target.value === "name" ? "asc" : "desc" })}
               aria-label="Sort by"
-              className="h-7 min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-2 text-ui text-foreground outline-none focus-visible:outline-2 focus-visible:outline-ring"
+              className={cn(nativeSelectField, "h-7 min-w-0 flex-1 px-2 text-ui")}
             >
               {(Object.keys(SORT_LABELS) as ContactSort[]).map((s) => (
                 <option key={s} value={s}>

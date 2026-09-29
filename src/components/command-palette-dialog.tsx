@@ -572,7 +572,7 @@ const Row = memo(function Row({ item, onChoose }: { item: Item; onChoose: (item:
       value={item}
       disabled={item.disabled}
       onClick={(e) => onChoose(item, e)}
-      className="group/row flex h-9 cursor-default items-center gap-2.5 rounded-md px-2.5 text-[13px] outline-none select-none [scroll-margin-block:0.375rem] data-disabled:opacity-60 data-highlighted:bg-foreground/[0.06] max-sm:h-11 dark:data-highlighted:bg-foreground/[0.08]"
+      className="group/row flex h-9 cursor-default items-center gap-2.5 rounded-md px-2.5 text-[13px] outline-none select-none [scroll-margin-block:0.375rem] data-disabled:opacity-60 data-highlighted:bg-brand/10 max-sm:h-11"
     >
       <RowIcon item={item} />
       <span className="flex min-w-0 flex-1 items-baseline gap-2">
@@ -605,7 +605,7 @@ function RowIcon({ item }: { item: Item }) {
   }
   const Icon = item.icon ?? SearchIcon;
   return (
-    <span aria-hidden className="flex size-5 shrink-0 items-center justify-center text-muted-foreground group-data-highlighted/row:text-foreground">
+    <span aria-hidden className="flex size-5 shrink-0 items-center justify-center text-muted-foreground group-data-highlighted/row:text-brand-fg">
       <Icon className="size-4" strokeWidth={1.75} />
     </span>
   );

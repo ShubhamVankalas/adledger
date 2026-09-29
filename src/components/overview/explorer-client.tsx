@@ -3,7 +3,9 @@
 import { ChevronDownIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { ExplorerPoint } from "@/components/charts/metric-explorer-chart";
+import { nativeSelectField } from "@/components/ui/menu-styles";
 import { formatMetric, isMetricKey, METRIC_KEYS, metricDelta, METRICS, type MetricKey } from "@/lib/metrics";
+import { cn } from "@/lib/utils";
 import { useDashboard } from "./dashboard-context";
 import { DeltaText } from "./tone";
 import { WidgetCard } from "./widget-card";
@@ -62,7 +64,7 @@ export function ExplorerClient({ data, currency, defaultMetric, title }: { data:
               name="explorer-metric"
               value={metric}
               onChange={(e) => isMetricKey(e.target.value) && selectMetric(e.target.value)}
-              className="h-7 appearance-none rounded-md border border-input bg-background pr-7 pl-2.5 text-xs font-medium text-foreground outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 pointer-coarse:h-9 max-md:text-base [&>option]:bg-popover [&>option]:text-popover-foreground"
+              className={cn(nativeSelectField, "h-7 w-auto pr-7 pl-2.5 text-xs font-medium pointer-coarse:h-9 max-md:text-base")}
             >
               {METRIC_KEYS.map((k) => (
                 <option key={k} value={k}>

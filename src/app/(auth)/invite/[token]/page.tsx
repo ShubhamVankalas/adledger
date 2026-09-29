@@ -7,8 +7,9 @@ import { findInvitation, getSessionUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { roleLabel } from "@/lib/permissions";
 import { listOrgRoles } from "@/lib/roles";
+import { cn } from "@/lib/utils";
 import { AcceptInviteForm } from "./accept-form";
-import { authCard, authTitle } from "../../styles";
+import { authCard, authLead, authTitle } from "../../styles";
 
 export const metadata = { title: "Join" };
 export const dynamic = "force-dynamic";
@@ -26,10 +27,10 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
           <CardTitle className={authTitle}>
             <h1>This invitation isn’t valid</h1>
           </CardTitle>
-          <CardDescription>It may have expired, been revoked, or already been used. Ask the person who invited you for a new link.</CardDescription>
+          <CardDescription className={authLead}>It may have expired, been revoked, or already been used. Ask the person who invited you for a new link.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button render={<Link href="/login" />} variant="outline" size="lg" className="h-11 w-full sm:h-10">
+          <Button render={<Link href="/login" />} variant="outline" size="lg" className="h-11 w-full">
             Go to sign in
           </Button>
         </CardContent>
@@ -48,17 +49,17 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
         <CardTitle className={`${authTitle} break-words`}>
           <h1>Join {organization.name}</h1>
         </CardTitle>
-        <CardDescription className="break-words">You’ve been invited to see which ads are making {organization.name} money.</CardDescription>
+        <CardDescription className={cn(authLead, "break-words")}>You’ve been invited to see which ads are making {organization.name} money.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <dl className="grid gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
           <div className="flex items-center gap-2">
-            <ShieldCheckIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <ShieldCheckIcon aria-hidden className="size-4 shrink-0 text-brand-fg" />
             <dt className="text-muted-foreground">Role</dt>
             <dd className="ml-auto font-medium">{roleLabel(invitation.role, roles)}</dd>
           </div>
           <div className="flex min-w-0 items-center gap-2">
-            <MailIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <MailIcon aria-hidden className="size-4 shrink-0 text-brand-fg" />
             <dt className="text-muted-foreground">Email</dt>
             <dd translate="no" className="ml-auto min-w-0 truncate font-medium" title={invitation.email}>
               {invitation.email}

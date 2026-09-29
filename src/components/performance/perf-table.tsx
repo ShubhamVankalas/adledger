@@ -7,6 +7,7 @@ import { PlatformBadge } from "@/components/platform-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { creditTitle, platformLabel } from "@/lib/format";
 import type { PerfDeltas, PerfMetrics, PerfRowV2 } from "@/lib/reports-performance";
+import { nativeSelectField } from "@/components/ui/menu-styles";
 import { cn } from "@/lib/utils";
 import { cellLight, DeltaLine, gapDetail, gapSentence, RoasBar, StatusPill, StoplightDot } from "./cells";
 import { formatValue, type ColumnDef, type Density, type PerfTargets, type Sort, type SortKey } from "./columns";
@@ -365,7 +366,7 @@ function PhoneCards({ rows, sort, onSortPreset, compare, totals, totalsStale, cu
                 const [key, dir] = e.target.value.split(":");
                 onSortPreset({ key: key as SortKey, dir: Number(dir) === 1 ? 1 : -1 });
               }}
-              className="h-10 appearance-none rounded-md border border-input bg-surface pr-9 pl-3 text-body font-medium text-foreground outline-none transition-[border-color] duration-100 hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring [&>option]:bg-popover [&>option]:text-popover-foreground"
+              className={cn(nativeSelectField, "h-10 w-auto pr-9 pl-3 text-body font-medium")}
             >
               {/* A sort picked from the table header (e.g. before rotating the phone) may not be in the list. */}
               {MOBILE_SORTS.some(([k, dir]) => k === sort.key && dir === sort.dir) ? null : (
