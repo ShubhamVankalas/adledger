@@ -37,7 +37,8 @@ import { switchOrganizationAction, switchWorkspaceAction } from "@/app/actions/a
 import { logoutAction } from "@/app/actions/auth";
 import { openPalette, openShortcuts } from "@/components/app-shell";
 import { OrgLogo, UserAvatar } from "@/components/avatars";
-import { LiveNavBadge, LivePulse, type PulseData } from "@/components/live/live-pulse";
+import { GithubMark } from "@/components/github-mark";
+import { LiveNavBadge, type PulseData } from "@/components/live/live-pulse";
 import { PinnedViews } from "@/components/performance/pinned-views";
 import {
   DropdownMenu,
@@ -63,6 +64,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { CREATOR } from "@/lib/credits";
 import { hrefAllowed } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { SavedView } from "@/lib/view-params";
@@ -119,7 +121,7 @@ type Props = {
   can: { settings: boolean; members: boolean; workspaces: boolean; tasks: boolean; pages: readonly string[] };
   /** Required setup steps; null hides the ring (setup complete, demo workspace or no permission). */
   setup: SetupProgress | null;
-  /** Today's revenue and visitors now (null without reports.view). */
+  /** Visitors now, for the Live nav badge (null without reports.view). The header pill has its own provider. */
   pulse: PulseData | null;
   /** Saved views pinned to the sidebar (at most eight). */
   pinnedViews: SavedView[];
@@ -299,11 +301,6 @@ export function AppSidebar({ user, organization, organizations, workspace, works
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : null}
-          {pulse ? (
-            <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-              <LivePulse initial={pulse} />
-            </SidebarMenuItem>
-          ) : null}
           <SidebarMenuItem>
             <SidebarMenuButton isActive={isActive(pathname, "/settings")} tooltip="Settings" render={<Link href="/settings/workspace" />}>
               <SettingsIcon strokeWidth={1.75} />
@@ -373,6 +370,18 @@ export function AppSidebar({ user, organization, organizations, workspace, works
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </SidebarMenuItem>
+          {/* Creator credit: a quiet line under the account row; icon-only (with a tooltip) on the rail. */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="sm"
+              tooltip={`Made by ${CREATOR.name} on GitHub`}
+              className="text-fg-faint hover:text-foreground"
+              render={<a href={CREATOR.url} target="_blank" rel="noopener noreferrer" aria-label={`Made by ${CREATOR.name} (GitHub, opens in a new tab)`} />}
+            >
+              <GithubMark />
+              <span className="flex-1">Made by {CREATOR.name}</span>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

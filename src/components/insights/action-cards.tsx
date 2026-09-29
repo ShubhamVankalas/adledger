@@ -63,7 +63,7 @@ export function ActionCards({ cards, caption }: { cards: ActionCard[]; caption: 
         <p className="text-caption text-muted-foreground">{caption}</p>
       </div>
       {cards.length ? (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
           {cards.map((c) => {
             const k = KIND[c.kind];
             return (

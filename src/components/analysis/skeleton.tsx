@@ -32,7 +32,7 @@ export function AnalysisSkeleton({ tabs, active, label, wide = "list" }: { tabs:
           <Skeleton className="hidden h-7 w-36 xl:block" />
         </div>
       </div>
-      <div className="mx-auto w-full max-w-[1440px] space-y-4 px-4 pt-4 md:space-y-5 md:px-6 md:pt-5">
+      <div className="mx-auto w-full max-w-[1920px] space-y-4 px-4 pt-4 md:space-y-5 md:px-6 md:pt-5 2xl:px-8">
         <SectionTabsStatic tabs={tabs} active={active} label={label} />
         <div className="space-y-4 reveal-delayed md:space-y-5">
           <Frame className="flex h-[46px] items-center gap-2.5 py-0">

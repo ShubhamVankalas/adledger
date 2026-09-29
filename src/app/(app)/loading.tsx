@@ -30,7 +30,7 @@ export default function Loading() {
           <Skeleton className="hidden h-7 w-44 xl:block" />
         </div>
       </div>
-      <div className="mx-auto w-full max-w-[1440px] space-y-4 px-4 pt-4 reveal-delayed md:space-y-5 md:px-6 md:pt-5">
+      <div className="mx-auto w-full max-w-[1920px] space-y-4 px-4 pt-4 reveal-delayed md:space-y-5 md:px-6 md:pt-5 2xl:px-8">
         {/* Same shape as Overview: 2-up KPIs on phones, one row of 6 on wide screens, then main + side columns from xl. */}
         <div className="@container">
           <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3 @4xl:grid-cols-6">

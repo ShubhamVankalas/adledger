@@ -22,7 +22,7 @@ export function ReportSkeleton({
           <Skeleton className="h-9 w-32 rounded-lg md:h-8" />
         </div>
       </div>
-      <div className="mx-auto w-full max-w-[1760px] space-y-6 p-4 md:p-6 2xl:px-8">
+      <div className="mx-auto w-full max-w-[1920px] space-y-6 p-4 md:p-6 2xl:px-8">
         {kpis ? (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (

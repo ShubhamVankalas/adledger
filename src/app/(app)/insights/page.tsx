@@ -98,9 +98,10 @@ function CardsSkeleton() {
   return (
     <div className="reveal-delayed space-y-3" aria-busy="true" aria-label="Loading recommendations…">
       <Skeleton className="h-6 w-40" />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <Skeleton className="h-44 rounded-xl" />
         <Skeleton className="h-44 rounded-xl" />
+        <Skeleton className="hidden h-44 rounded-xl 2xl:block" />
       </div>
     </div>
   );
