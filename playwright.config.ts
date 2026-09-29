@@ -29,6 +29,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/v1/health`,
     timeout: 120_000,
     reuseExistingServer: false,
-    env: { PORT: String(PORT), DATA_DIR: ".data/e2e", DATABASE_URL: "", CONNECTOR_MODE: "mock", DISABLE_SCHEDULER: "true" },
+    env: { PORT: String(PORT), DATA_DIR: ".data/e2e", DATABASE_URL: "", CONNECTOR_MODE: "mock", DISABLE_SCHEDULER: "true", DISABLE_TOUR: "true" },
   },
 });

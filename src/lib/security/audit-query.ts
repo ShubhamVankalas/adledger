@@ -31,6 +31,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "account.password_changed": "changed their password",
   "account.avatar_updated": "updated their profile picture",
   "account.avatar_removed": "removed their profile picture",
+  "account.tour_completed": "finished the product tour",
   "account.2fa_enabled": "turned on two-factor sign-in",
   "account.2fa_disabled": "turned off two-factor sign-in",
   "account.recovery_codes_regenerated": "created new recovery codes",
@@ -64,7 +65,7 @@ export const AUDIT_CATEGORIES = [
   { id: "security", label: "Security", match: ["account.2fa%", "account.recovery%", "account.password%", "security.%", "session.%", "api_key.%", "audit.%", "contact.pii_revealed"] },
   { id: "members", label: "Members", match: ["member.%"] },
   { id: "data", label: "Data & exports", match: ["contacts.exported", "contact.%", "workspace.exported", "workspace.data_cleared", "workspace.demo_loaded", "import.%", "retention.%"] },
-  { id: "settings", label: "Settings", match: ["workspace.created", "workspace.updated", "workspace.deleted", "organization.%", "notifications.%", "pixel_site.%", "lead_webhook.%", "ai_model.%", "account.avatar%"] },
+  { id: "settings", label: "Settings", match: ["workspace.created", "workspace.updated", "workspace.deleted", "organization.%", "notifications.%", "pixel_site.%", "lead_webhook.%", "ai_model.%", "account.avatar%", "account.tour%"] },
   { id: "integrations", label: "Integrations", match: ["integration.%"] },
 ] as const;
 

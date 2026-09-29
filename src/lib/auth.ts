@@ -59,6 +59,8 @@ export type SessionUser = {
   can: (permission: Permission) => boolean;
   /** Two-factor sign-in is on for this account. */
   has2fa: boolean;
+  /** When the user finished or skipped the product tour (null: offer it). */
+  tourCompletedAt: Date | null;
   /** The organization requires 2FA and this account hasn't set it up: only enrolment is allowed. */
   needs2fa: boolean;
   /** The current organization's security policy (parsed with defaults). */
@@ -194,6 +196,7 @@ async function userFromSessionToken(token: string | undefined): Promise<SessionU
     organizations: organizations.map((o) => ({ id: o.id, name: o.name, logoUrl: mediaUrl("org", o.id, o.logoUpdatedAt) })),
     can: (p) => roleDefCan(roleDef, p, security),
     has2fa,
+    tourCompletedAt: row.user.tourCompletedAt,
     needs2fa: security.require2fa && !has2fa,
     security,
   };

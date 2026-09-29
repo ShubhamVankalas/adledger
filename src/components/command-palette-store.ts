@@ -18,6 +18,13 @@ export function openShortcutsSheet() {
   window.dispatchEvent(new Event(OPEN_SHORTCUTS_EVENT));
 }
 
+/** Replays the first-run product tour (components/tour). Menus and dialogs may still be closing: the tour waits a beat. */
+export const START_TOUR_EVENT = "adledger:start-tour";
+
+export function startProductTour() {
+  window.dispatchEvent(new Event(START_TOUR_EVENT));
+}
+
 export type RecentEntry = {
   id: string;
   label: string;

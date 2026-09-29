@@ -1,6 +1,7 @@
 import { and, count, eq, gt, ne } from "drizzle-orm";
 import { AccountForms } from "@/components/settings/account-forms";
 import { SettingsHeader } from "@/components/settings/section";
+import { TourCard } from "@/components/settings/tour-card";
 import { requireUser } from "@/lib/auth";
 import { getDb, schema } from "@/lib/db";
 import { mediaUrl } from "@/lib/media";
@@ -35,6 +36,7 @@ export default async function AccountPage() {
         has2fa={user.has2fa}
         otherSessions={otherSessions}
       />
+      <TourCard completedOn={user.tourCompletedAt ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(user.tourCompletedAt) : null} />
     </>
   );
 }

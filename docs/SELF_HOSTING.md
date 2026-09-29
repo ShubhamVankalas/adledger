@@ -107,6 +107,7 @@ See [`.env.example`](../.env.example). Highlights:
 | `SECURITY_CONTACT` | Your contact for vulnerability reports, listed first in `/.well-known/security.txt` |
 | `ADLEDGER_BREAK_GLASS` | One-time two-factor reset for a locked-out owner ([how](SECURITY.md#locked-out-of-two-factor-sign-in-break-glass)); remove it after signing in |
 | `COOKIE_SECURE`, `ALLOW_PRIVATE_URLS`, `DISABLE_SCHEDULER` | Advanced: force secure cookies, allow private outbound URLs, run without background jobs |
+| `DISABLE_TOUR` | Advanced: stop the product tour from offering itself after first sign-in (it can still be replayed) |
 
 ## Hardening
 

@@ -26,6 +26,7 @@ number.
 | **Sidebar** | Workspace switcher, groups for Analyze, Money and CRM, a live visitor count, a setup-progress ring until setup is done, an icon-only rail mode remembered per browser, and a small "Made by Shubham Vankalas" GitHub credit at the bottom (icon-only on the rail). |
 | **Live pill** | The top right of every page header shows a pulsing dot, "Live", visitors on the site right now and today's revenue. It links to Live, updates every 30 seconds, hides the amount in streamer mode, shrinks to a dot and a count on phones and is hidden for roles without report access. |
 | **Wide screens** | Report pages use the whole window up to 1920 px (16 px gutters on phones, 24 px from tablets, 32 px on large screens), so tables, the Overview board and the CRM lists fill the space; Insights cards go three across on large screens. Settings keep a narrower 1440 px measure. |
+| **Product tour** | A spotlight tour of the app (dimmed page, a cut-out around the element, a card with what it is and what you can do there, step counter, Back / Next / Skip, arrow keys and Esc). It starts after a person's first sign-in with a small welcome ("Take a 2-minute tour" or "Maybe later", which asks again after a day) and is skipped while the setup checklist is open. Steps are declared in `src/lib/tour.ts` with the permission each needs, so admins, analysts, viewers and custom roles only see parts they can open (setup and team steps are admin-only); on phones it points at the tab bar. Finishing or skipping stores `users.tour_completed_at` (audited once). Replay it from Settings → Profile, the profile menu or `Ctrl K` → "Take the product tour". |
 | **Sample data pill** | Demo workspaces show a dismissible "Sample data" pill with a link to start with real data. |
 | **Phone and tablet** | Installable as an app (PWA). A floating tab bar (Overview, Performance, Live, Contacts, More) that hides while you scroll, tables that fold into cards, and a bottom sheet for filters. |
 | **Dark mode** | Follows your system setting. |
@@ -282,7 +283,7 @@ tasks here (`T` focuses the field) or from any contact record.
 
 | Page | What it does |
 |---|---|
-| **Profile** | Name, avatar and email. |
+| **Profile** | Name, avatar and email, appearance, and a **Product tour** card to take the tour again. |
 | **Security** | Two-factor sign-in (authenticator app with a QR code, 10 recovery codes), password change (signs out other devices), and the list of signed-in devices with sign out one or everywhere. |
 
 ### Workspace
