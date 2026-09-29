@@ -23,7 +23,8 @@ Supported versions: the latest release and `main`. Self-hosters should update re
 
 Every install also serves `/.well-known/security.txt` (RFC 9116). Set `SECURITY_CONTACT` to list
 your own contact there for problems with your install. For how AdLedger handles data and what it
-does and doesn't claim, read [docs/SECURITY.md](docs/SECURITY.md) (Trust & security).
+does and doesn't claim, read [docs/SECURITY.md](docs/SECURITY.md) (Trust & security). For
+GDPR, CCPA, SOC 2, ISO 27001 and OWASP mappings, see [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 
 ## Hardening notes for self-hosters
 

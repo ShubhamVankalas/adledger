@@ -2,7 +2,8 @@
 
 This page explains how AdLedger handles your data, what it protects against, and what is still
 your job as the person running it. It names mechanisms, not slogans. To report a vulnerability,
-see [SECURITY.md](../SECURITY.md).
+see [SECURITY.md](../SECURITY.md). For framework-by-framework mappings (GDPR, CCPA, SOC 2,
+ISO 27001, OWASP, CIS Docker) and the go-live checklist, see the [Compliance guide](COMPLIANCE.md).
 
 **At a glance**
 
@@ -45,7 +46,8 @@ We don't hold SOC 2 or ISO 27001 certification. Those audit organisations that r
 a codebase, and we don't run your install. AdLedger ships controls that map to common SOC 2
 criteria (access control, audit logging, encryption, change management), but the project itself is
 not audited. You will never see a certification badge from us unless a service we operate has
-actually been audited.
+actually been audited. The [Compliance guide](COMPLIANCE.md) maps each control to GDPR, CCPA, SOC 2,
+ISO 27001 and OWASP requirements, lists what stays your job, and says which claims are safe to make.
 
 ## 3. Security built in
 
@@ -85,7 +87,8 @@ database could rewrite the whole chain. Note the head hash shown on the audit pa
 
 ### 4.1 How the controls help with privacy laws
 
-This is a map of tools, not legal advice. Whether your use of AdLedger is lawful depends on your
+This is a map of tools, not legal advice. The [Compliance guide](COMPLIANCE.md) goes article by
+article. Whether your use of AdLedger is lawful depends on your
 notices, your legal bases and how you configure and run it.
 
 | Obligation (GDPR / UK GDPR, CCPA/CPRA, DPDP) | What AdLedger gives you | What stays your job |
