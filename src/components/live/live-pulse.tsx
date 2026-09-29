@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
+import { createContext, use, useSyncExternalStore } from "react";
 import { moneyShort, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import styles from "./live.module.css";
 import { HIDDEN_AMOUNT, useLivePref } from "./live-prefs";
 
-// The sidebar's live pulse: today's revenue (and visitors now) from GET /api/v1/live/pulse.
-// One poller is shared by every mounted pulse (sidebar row, nav badge…): every 30 seconds while
+// The live pulse: today's revenue (and visitors now) from GET /api/v1/live/pulse.
+// One poller is shared by every mounted pulse (header pill, nav badge…): every 30 seconds while
 // the tab is visible, straight away when it becomes visible again, never while it is hidden.
 
 export type PulseData = { revenueMinor: number; visitorsNow: number; currency: string };
@@ -70,26 +71,52 @@ export function useLivePulse(initial?: PulseData | null): PulseData | null {
   return live ?? initial ?? null;
 }
 
+/** The layout's server-rendered pulse (null without reports.view), shared with the header pill. */
+const InitialPulse = createContext<PulseData | null>(null);
+
+export function LivePulseProvider({ initial, children }: { initial: PulseData | null; children: React.ReactNode }) {
+  return <InitialPulse value={initial}>{children}</InitialPulse>;
+}
+
 /**
- * Sidebar row (BRIEF §2.5): a pulse dot and today's revenue in mono, linking to Live. Streamer
- * mode hides the amount. `initial` is `livePulse(db, ws)` from the layout, so the first paint is right.
+ * The live pill at the top right of every page header: a pulsing dot, "Live", visitors on the site
+ * now and today's revenue in mono, linking to Live. It collapses to the dot and the visitor count on
+ * phones and (1280–1535px) where the report filter bar fills the header, and renders nothing without
+ * reports.view. Streamer mode hides the amount. The first paint
+ * comes from `livePulse(db, ws)` in the layout (via LivePulseProvider); the shared poller takes over.
  */
-export function LivePulse({ initial, className }: { initial?: PulseData | null; className?: string }) {
-  const pulse = useLivePulse(initial);
+export function HeaderLive({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const pulse = useLivePulse(use(InitialPulse));
   const [streamer] = useLivePref("streamer");
-  const amount = pulse ? (streamer ? HIDDEN_AMOUNT : moneyShort(pulse.revenueMinor, pulse.currency)) : "—";
+  if (!pulse) return null;
+  const amount = streamer ? HIDDEN_AMOUNT : moneyShort(pulse.revenueMinor, pulse.currency);
+  const visitors = num(pulse.visitorsNow);
   return (
     <Link
       href="/live"
+      data-slot="live-pill"
+      aria-current={pathname === "/live" ? "page" : undefined}
+      aria-label={`Live: ${visitors} on the site now, ${streamer ? "revenue hidden" : `${amount} revenue today`}`}
       className={cn(
-        "flex h-[30px] min-w-0 items-center gap-2 rounded-md px-2 text-ui text-muted-foreground transition-colors duration-100 hover:bg-fill-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "ml-0.5 inline-flex h-8 shrink-0 items-center gap-2 rounded-full border bg-surface pr-2.5 pl-2.5 text-ui sm:h-9 sm:gap-2.5 shadow-xs transition-colors duration-100 outline-none",
+        "hover:border-border-strong hover:bg-fill-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-[current=page]:bg-fill sm:pr-3.5 sm:pl-3",
         className,
       )}
-      aria-label={pulse ? `Live: ${streamer ? "revenue hidden" : `${amount} revenue today`}, ${num(pulse.visitorsNow)} on the site now` : "Live"}
     >
-      <span aria-hidden className={styles.pulse} data-state={pulse && pulse.visitorsNow > 0 ? "live" : "idle"} />
-      <span className="truncate">Today</span>
-      <span className="ml-auto font-mono text-mono text-foreground tabular-nums">{amount}</span>
+      <span aria-hidden className={styles.pulse} data-state={pulse.visitorsNow > 0 ? "live" : "idle"} />
+      <span aria-hidden className="hidden font-medium text-foreground sm:max-xl:inline 2xl:inline">
+        Live
+      </span>
+      <span aria-hidden className="text-foreground tabular-nums">
+        <span className="num font-medium">{visitors}</span>
+        <span className="hidden text-muted-foreground sm:max-xl:inline 2xl:inline"> visitors</span>
+      </span>
+      <span aria-hidden className="hidden h-4 w-px bg-border lg:max-xl:block 2xl:block" />
+      <span aria-hidden className="hidden items-baseline gap-1.5 lg:max-xl:inline-flex 2xl:inline-flex">
+        <span className="font-mono text-mono font-medium text-foreground tabular-nums">{amount}</span>
+        <span className="text-caption text-muted-foreground">today</span>
+      </span>
     </Link>
   );
 }

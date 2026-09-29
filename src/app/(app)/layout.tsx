@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ShellProvider } from "@/components/app-shell";
 import { AppSidebar } from "@/components/app-sidebar";
 import { CommandPalette } from "@/components/command-palette";
+import { LivePulseProvider } from "@/components/live/live-pulse";
 import { MobileNav } from "@/components/mobile-nav";
 import { DEMO_PILL_COOKIE } from "@/components/shell-constants";
 import { getSetupStatus } from "@/components/onboarding";
@@ -61,42 +62,45 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           demoPillHidden: jar.get(DEMO_PILL_COOKIE)?.value === user.workspace.id,
         }}
       >
-        <AppSidebar
-          user={{ id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.roleName }}
-          organization={{ id: user.organization.id, name: user.organization.name, logoUrl: user.organization.logoUrl }}
-          organizations={user.organizations}
-          workspace={{ id: user.workspace.id, name: user.workspace.name, isDemo: user.workspace.isDemo }}
-          workspaces={user.workspaces}
-          can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage"), tasks: user.can("contacts.notes"), pages }}
-          setup={setup}
-          pulse={pulse}
-          pinnedViews={pinnedViews}
-          overdueTasks={overdueTasks}
-          alertsTriggered={alertsTriggered}
-        />
-        <SidebarInset id="main" className="min-w-0 overflow-x-clip pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-          {/* Keeps scrolled content from showing under a notch / status bar in the installed app. */}
-          <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden" />
-          {children}
-          <CommandPalette
-            workspaceId={user.workspace.id}
-            can={{
-              settings: user.can("workspace.settings"),
-              members: user.can("members.manage"),
-              audit: user.can("audit.view"),
-              api: user.can("apikeys.manage"),
-              alerts: user.can("alerts.manage"),
-              share: user.can("reports.share"),
-              data: user.can("workspace.data"),
-              notes: user.can("contacts.notes"),
-              editContacts: user.can("contacts.edit"),
-              roles: user.can("roles.manage"),
-              pages,
-            }}
+        {/* The header pill on every page reads the pulse from here (null without reports.view). */}
+        <LivePulseProvider initial={pulse}>
+          <AppSidebar
+            user={{ id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, roleLabel: user.roleName }}
+            organization={{ id: user.organization.id, name: user.organization.name, logoUrl: user.organization.logoUrl }}
+            organizations={user.organizations}
+            workspace={{ id: user.workspace.id, name: user.workspace.name, isDemo: user.workspace.isDemo }}
+            workspaces={user.workspaces}
+            can={{ settings: user.can("workspace.settings"), members: user.can("members.manage"), workspaces: user.can("workspaces.manage"), tasks: user.can("contacts.notes"), pages }}
+            setup={setup}
+            pulse={pulse}
+            pinnedViews={pinnedViews}
+            overdueTasks={overdueTasks}
+            alertsTriggered={alertsTriggered}
           />
-          <ShortcutsSheet />
-          <MobileNav pages={pages} />
-        </SidebarInset>
+          <SidebarInset id="main" className="min-w-0 overflow-x-clip pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
+            {/* Keeps scrolled content from showing under a notch / status bar in the installed app. */}
+            <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-background md:hidden" />
+            {children}
+            <CommandPalette
+              workspaceId={user.workspace.id}
+              can={{
+                settings: user.can("workspace.settings"),
+                members: user.can("members.manage"),
+                audit: user.can("audit.view"),
+                api: user.can("apikeys.manage"),
+                alerts: user.can("alerts.manage"),
+                share: user.can("reports.share"),
+                data: user.can("workspace.data"),
+                notes: user.can("contacts.notes"),
+                editContacts: user.can("contacts.edit"),
+                roles: user.can("roles.manage"),
+                pages,
+              }}
+            />
+            <ShortcutsSheet />
+            <MobileNav pages={pages} />
+          </SidebarInset>
+        </LivePulseProvider>
       </ShellProvider>
     </SidebarProvider>
   );
