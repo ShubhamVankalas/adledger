@@ -15,7 +15,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23262e2b'/%3E%3Cpath d='M8 22.5 13.5 15l4 4L24 9.5' fill='none' stroke='%2334c796' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" />
+<!-- the fonts never block the first paint: text shows in the system font and swaps to Geist when it arrives -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" /></noscript>
+<link rel="preload" as="image" href="screenshots/overview.png" fetchpriority="high" />
 <link rel="stylesheet" href="site.css" />
 <script>
   /* Decide before first paint whether the 3D product story can run, so the layout never jumps.
@@ -23,13 +26,26 @@
   (function (d) {
     d.classList.add("js");
     try {
-      if (window.WebGL2RenderingContext && matchMedia("(min-width: 768px) and (min-height: 500px) and (prefers-reduced-motion: no-preference)").matches) d.classList.add("want-3d");
+      var lite = navigator.connection && navigator.connection.saveData;
+      if (!lite && window.WebGL2RenderingContext && matchMedia("(min-width: 768px) and (min-height: 500px) and (prefers-reduced-motion: no-preference)").matches) d.classList.add("want-3d");
     } catch (e) { /* no matchMedia: keep the static page */ }
   })(document.documentElement);
 </script>
 <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }</script>
 <script src="site.js" defer></script>
-<script type="module" src="site-3d.js"></script>
+<script>
+  /* Phones never download the 3D code: it loads only where the story can run, or on a desktop
+     browser that may be resized into it. */
+  (function (d) {
+    try {
+      if (!d.documentElement.classList.contains("want-3d") && !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    } catch (e) { return; }
+    var s = d.createElement("script");
+    s.type = "module";
+    s.src = "site-3d.js";
+    d.head.appendChild(s);
+  })(document);
+</script>
 </head>
 <body>
 <a class="skip" href="#top">Skip to content</a>
@@ -79,7 +95,7 @@
           <a href="#product">Product tour</a>
           <a href="#security">Security &amp; compliance</a>
           <a href="#install">Install</a>
-              <a href="#faq">FAQ</a>
+          <a href="#faq">FAQ</a>
           <a href="trust.html">Trust &amp; Security</a>
           <a href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
           <a class="btn btn-ink" href="#install">Install free</a>
@@ -113,7 +129,7 @@
           <p class="byline">
             <span>Built by <a href="https://github.com/ShubhamVankalas"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>Shubham Vankalas</a></span>
             <span>Running in 5 minutes</span>
-            <span>No per-seat pricing</span>
+            <span class="wide-only">No per-seat pricing</span>
           </p>
         </div>
 
@@ -144,7 +160,7 @@
               <p>Against the previous period, with a one-line briefing.</p>
               <ul class="chips"><li>Revenue</li><li>ROAS &amp; MER</li><li>CAC</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:544;--y:276;--w:2592;--h:248"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="KPI tiles for revenue, ad spend, ROAS, MER, customers and unattributed revenue" /></figure>
+            <figure class="ch-shot frame crop kpi-rows" style="--x:544;--y:276;--w:2592;--h:248"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="KPI tiles for revenue, ad spend, ROAS, MER, customers and unattributed revenue" /><span class="rows" aria-hidden="true"><i></i><i></i><i></i></span></figure>
           </li>
 
           <li class="chapter" id="tour-trend" data-label="Revenue trend" data-side="left">
@@ -154,7 +170,7 @@
               <p>This period drawn over the last one, for any range.</p>
               <ul class="chips"><li>Any range</li><li>Any platform</li><li>Your layout</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:544;--y:660;--w:2592;--h:760"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Revenue chart for the last 30 days against the previous period" /></figure>
+            <figure class="ch-shot frame crop" style="--x:544;--y:660;--w:2592;--h:760;--px:552;--py:672;--pw:1008;--ph:768"><img src="screenshots/overview.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Revenue chart for the last 30 days against the previous period" /></figure>
           </li>
 
           <li class="chapter" id="tour-attribution" data-label="Attribution" data-side="right">
@@ -164,7 +180,7 @@
               <p>Spend to revenue, down to the single ad.</p>
               <ul class="chips"><li>First, last, linear</li><li>Verified sales</li><li>CSV export</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:544;--y:224;--w:2592;--h:1120"><img src="screenshots/performance.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Performance table with spend, leads, customers, revenue and ROAS per campaign" /></figure>
+            <figure class="ch-shot frame crop" style="--x:544;--y:224;--w:2592;--h:1120;--px:544;--py:224;--pw:920;--ph:770"><img src="screenshots/performance.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Performance table with spend, leads, customers, revenue and ROAS per campaign" /></figure>
           </li>
 
           <li class="chapter" id="tour-live" data-label="Live" data-side="left">
@@ -174,7 +190,7 @@
               <p>Clicks, leads and payments as they happen.</p>
               <ul class="chips"><li>Live feed</li><li>Sale alerts</li><li>Streamer mode</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:544;--y:806;--w:1498;--h:1120"><img src="screenshots/live.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Live activity feed with ad clicks, leads and payments" /></figure>
+            <figure class="ch-shot frame crop" style="--x:544;--y:806;--w:1498;--h:1120;--px:544;--py:808;--pw:896;--ph:832"><img src="screenshots/live.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Live activity feed with ad clicks, leads and payments" /></figure>
           </li>
 
           <li class="chapter" id="tour-crm" data-label="CRM" data-side="right">
@@ -184,7 +200,7 @@
               <p>A pipeline tied to the click that started it.</p>
               <ul class="chips"><li>Drag to Won</li><li>One timeline</li><li>No seats</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:480;--y:104;--w:2720;--h:1880"><img src="screenshots/pipeline.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Pipeline board with contacts in stages from New lead to Won" /></figure>
+            <figure class="ch-shot frame crop" style="--x:480;--y:104;--w:2720;--h:1880;--px:506;--py:128;--pw:1126;--ph:930"><img src="screenshots/pipeline.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Pipeline board with contacts in stages from New lead to Won" /></figure>
           </li>
 
           <li class="chapter" id="tour-reports" data-label="Reports" data-side="left">
@@ -204,7 +220,7 @@
               <p>Answers read from your ledger, never invented.</p>
               <ul class="chips"><li>Any model</li><li>Local LLMs</li><li>MCP server</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:544;--y:304;--w:1792;--h:806"><img src="screenshots/insights-ask.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Ask tab with suggested questions about campaigns, spend and platforms" /></figure>
+            <figure class="ch-shot frame crop" style="--x:544;--y:304;--w:1792;--h:806;--px:544;--py:656;--pw:896;--ph:500"><img src="screenshots/insights-ask.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Ask tab with suggested questions about campaigns, spend and platforms" /></figure>
           </li>
 
           <li class="chapter" id="tour-security" data-label="Security" data-side="left">
@@ -214,7 +230,7 @@
               <p>On by default, free for everyone.</p>
               <ul class="chips"><li>2FA</li><li>Audit chain</li><li>AES-256-GCM</li></ul>
             </article>
-            <figure class="ch-shot frame crop" style="--x:1072;--y:318;--w:2064;--h:1148"><img src="screenshots/settings-security.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Security checklist for this install" /></figure>
+            <figure class="ch-shot frame crop" style="--x:1072;--y:318;--w:2064;--h:1148;--px:1072;--py:344;--pw:912;--ph:968"><img src="screenshots/settings-security.png" width="3200" height="2000" loading="lazy" decoding="async" alt="Security checklist for this install" /></figure>
           </li>
 
           <li class="chapter chapter-end" id="tour-end" data-label="All together">
