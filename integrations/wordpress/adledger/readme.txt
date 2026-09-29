@@ -5,14 +5,14 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Stable tag: 0.1.0
-License: AGPL-3.0-or-later
-License URI: https://www.gnu.org/licenses/agpl-3.0.html
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 See which ad actually made you money. Connects WordPress and WooCommerce to your self-hosted AdLedger.
 
 == Description ==
 
-[AdLedger](https://github.com/ShubhamVankalas/adledger) is a free, open-source, self-hosted ad attribution tool. It joins your ad spend, website visits, leads and revenue so you can see real ROAS per campaign and ad.
+[AdLedger](https://github.com/ShubhamVankalas/adledger) is a free-to-self-host ad attribution tool (source available on GitHub). It joins your ad spend, website visits, leads and revenue so you can see real ROAS per campaign and ad.
 
 This plugin:
 
@@ -22,6 +22,8 @@ This plugin:
 * Optionally skips logged-in administrators so your own visits don't count.
 
 You need a running AdLedger instance. This plugin sends data only to the AdLedger URL you enter.
+
+License: this plugin is licensed under the GPLv2 or later. AdLedger itself, the self-hosted application this plugin talks to over HTTP, is a separate work licensed under the Functional Source License (FSL-1.1-ALv2).
 
 == Installation ==
 

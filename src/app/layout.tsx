@@ -7,7 +7,7 @@ import "./print.css";
 
 export const metadata: Metadata = {
   title: { default: "AdLedger", template: "%s · AdLedger" },
-  description: "Open-source ad attribution. See which ad actually made you money.",
+  description: "Self-hosted ad attribution. See which ad actually made you money.",
   icons: { icon: "/icon.svg", apple: { url: "/icons/apple-touch-icon.png", sizes: "180x180" } },
   appleWebApp: { capable: true, title: "AdLedger", statusBarStyle: "default" },
 };

@@ -16,7 +16,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Setup is a longer form with two-column rows, so it opts into a wider column via data-wide. */}
           <div className="w-full max-w-md animate-in duration-500 fade-in-0 slide-in-from-bottom-2 has-data-wide:max-w-lg lg:max-w-[26rem] lg:has-data-wide:max-w-xl">
             {children}
-            <p className="mt-6 text-center text-xs text-balance text-muted-foreground sm:mt-8 lg:hidden">Open-source ad attribution · your data stays on your server</p>
+            <p className="mt-6 text-center text-xs text-balance text-muted-foreground sm:mt-8 lg:hidden">Self-hosted ad attribution · your data stays on your server</p>
           </div>
         </main>
       </div>

@@ -7,12 +7,12 @@ ISO 27001, OWASP, CIS Docker) and the go-live checklist, see the [Compliance gui
 
 **At a glance**
 
-- Self-hosted and open source: your data stays in your PostgreSQL, with no telemetry or phone-home.
+- Self-hosted and source available: your data stays in your PostgreSQL, with no telemetry or phone-home.
 - No certification badges. AdLedger is built to help you meet GDPR, UK GDPR, CCPA/CPRA and India's
   DPDP; when you self-host, you are the data controller.
 - Free two-factor sign-in, session and device management, five roles with email masking, scoped
   and expiring API keys, AES-256-GCM secrets and a hash-chained audit log. There is no paid
-  security tier: everything on this page is in the free, open-source code.
+  security tier: everything on this page is in the free code.
 - Consent modes and Global Privacy Control in the pixel; consent-aware conversion uploads.
 - Leaks are deterred and traceable: permissions, watermarked and fingerprinted PDFs, an export log
   and security alerts.
@@ -31,7 +31,7 @@ ISO 27001, OWASP, CIS Docker) and the go-live checklist, see the [Compliance gui
 
 ## 1. Your data stays in your database
 
-AdLedger is open source (AGPL-3.0) and self-hosted. There is no AdLedger server in the loop: no
+AdLedger is source available (FSL-1.1) and self-hosted. There is no AdLedger server in the loop: no
 telemetry, no licence check, no phone-home. The only outbound calls are the ones you configure:
 ad platforms, revenue sources, your AI model and your notification channels. Each one is listed in
 Settings → Workspace → Integrations and can be switched off there.
@@ -198,6 +198,7 @@ sees amounts) and data about children. It isn't designed or tested for those.
 
 ## 10. Licence and name
 
-AdLedger is licensed under the GNU AGPL-3.0: if you run a modified version as a network service,
-you must offer its source to its users. The name and logo are covered by
-[TRADEMARKS.md](../TRADEMARKS.md): use them freely for your own install; forks need their own name.
+AdLedger is licensed under the [Functional Source License, FSL-1.1-ALv2](../LICENSE): free to use and
+self-host, with the full source available to read and audit, but not to sell or to offer as a competing
+product or service. Each version converts to Apache-2.0 two years after its release. The name and logo are
+covered by [TRADEMARKS.md](../TRADEMARKS.md): use them freely for your own install; forks need their own name.

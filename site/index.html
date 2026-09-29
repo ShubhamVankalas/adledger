@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>AdLedger: every sale gets a receipt</title>
-<meta name="description" content="Open-source, self-hosted ad attribution and CRM. See which ad earned each payment, what it really made you, and prove it. Free forever." />
+<meta name="description" content="Self-hosted ad attribution and CRM, free to self-host with the source available (FSL-1.1). See which ad earned each payment, what it really made you, and prove it." />
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#f9fbfa" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#151918" media="(prefers-color-scheme: dark)" />
@@ -119,7 +119,7 @@
     <section class="hero" data-snap aria-labelledby="hero-title">
       <div class="wrap">
         <div class="hero-copy">
-          <a class="pill gborder" href="https://github.com/ShubhamVankalas/adledger"><b>AGPL-3.0</b>Open source, self-hosted, free forever</a>
+          <a class="pill gborder" href="https://github.com/ShubhamVankalas/adledger"><b>FSL-1.1</b>Free to self-host, source available</a>
           <h1 id="hero-title" class="display">Every sale gets a <span class="grad">receipt.</span></h1>
           <p class="lede">See which ad earned each payment, on your own server.</p>
           <div class="cta">
@@ -728,8 +728,14 @@ pnpm install</pre><button class="copy" type="button" aria-label="Copy the clone 
         <details>
           <summary>What does self-hosting cost?</summary>
           <div class="a">
-            <p><strong>The software is free</strong> (AGPL-3.0), with no per-seat or revenue-based pricing. You pay only for where it runs. It needs about 1 GB of RAM, which a small VPS covers for a few dollars a month. Render and Railway work too, at their own prices.</p>
+            <p><strong>The software is free to self-host</strong> (source available under FSL-1.1), with no per-seat or revenue-based pricing. You pay only for where it runs. It needs about 1 GB of RAM, which a small VPS covers for a few dollars a month. Render and Railway work too, at their own prices.</p>
             <p>Your laptop is fine for trying it, but the pixel and payment webhooks need a public HTTPS address, so use a server for real tracking. The one-line installer sets up HTTPS for free. AI is optional: Ollama or LM Studio costs nothing, and a cloud model costs whatever its provider charges for one short note a week.</p>
+          </div>
+        </details>
+        <details>
+          <summary>What is the licence?</summary>
+          <div class="a">
+            <p>AdLedger is source available under the <a href="https://github.com/ShubhamVankalas/adledger/blob/main/LICENSE">Functional Source License (FSL-1.1-ALv2)</a>. You can install it, use it for your own business and read or change the code, all for free. You can't sell it or offer it as a competing product or hosted service. Two years after each release, that version becomes Apache-2.0. It is not an OSI-approved open source licence.</p>
           </div>
         </details>
         <details>
@@ -765,7 +771,7 @@ pnpm install</pre><button class="copy" type="button" aria-label="Copy the clone 
       </div>
     </div>
     <div class="foot-row">
-      <span><strong style="color:var(--fg);font-weight:500">AdLedger</strong>, open-source ad attribution. AGPL-3.0.</span>
+      <span><strong style="color:var(--fg);font-weight:500">AdLedger</strong>, self-hosted ad attribution. Source available (FSL-1.1).</span>
       <nav aria-label="Footer">
         <a href="https://github.com/ShubhamVankalas/adledger">GitHub</a>
         <a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs">Docs</a>

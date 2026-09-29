@@ -1,12 +1,12 @@
 # Trademark policy
 
-The AdLedger code is licensed under the [GNU AGPL-3.0](LICENSE). The licence covers the code, not
+The AdLedger code is licensed under the [Functional Source License, FSL-1.1-ALv2](LICENSE). The licence covers the code, not
 the name "AdLedger" or its logo. This page says how you may use them. It is written to be
 permissive for everyone running AdLedger and strict only about confusing people.
 
 ## You may, without asking
 
-- Run AdLedger for yourself, your company or your clients and call it AdLedger, including on an
+- Run AdLedger for yourself or your company, or alongside professional services you provide, and call it AdLedger, including on an
   internal URL such as `adledger.yourcompany.com`.
 - Say that your product or service "works with AdLedger", "integrates with AdLedger" or "is built
   on AdLedger", as long as the claim is true.
@@ -16,8 +16,8 @@ permissive for everyone running AdLedger and strict only about confusing people.
 
 ## Please don't
 
-- Ship a modified fork under the AdLedger name or logo. A fork is welcome (that is what the AGPL is
-  for) but it needs its own name and logo, so users know which project they are running and where
+- Ship a modified fork under the AdLedger name or logo. A fork for your own use is welcome (the
+  licence allows it) but it needs its own name and logo, so users know which project they are running and where
   to report problems.
 - Offer a hosted or paid service named AdLedger, or with "AdLedger" in its product or domain name,
   in a way that suggests it is run or endorsed by the AdLedger project.

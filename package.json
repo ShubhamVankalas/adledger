@@ -70,8 +70,8 @@
     "vitest": "^5.0.2"
   },
   "packageManager": "pnpm@12.6.0",
-  "description": "Open-source, self-hosted ad attribution: see which ad actually made you money.",
-  "license": "AGPL-3.0-only",
+  "description": "Free to self-host, source-available ad attribution: see which ad actually made you money.",
+  "license": "FSL-1.1-ALv2",
   "engines": {
     "node": ">=20.9"
   }

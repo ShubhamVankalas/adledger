@@ -72,7 +72,7 @@ export function Showcase() {
         <div className="grid max-w-xl gap-3">
           <h2 className="text-4xl leading-[1.08] font-semibold tracking-[-0.03em] text-balance xl:text-[2.75rem]">{promise}</h2>
           <p className="max-w-md text-body/[1.375rem] text-pretty text-white/80 [@media(max-height:50rem)]:hidden">
-            Open-source attribution that ties every dollar of ad spend to the revenue it brought in, on a server you own.
+            Self-hosted attribution that ties every dollar of ad spend to the revenue it brought in, on a server you own.
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export function Showcase() {
         <Dot />
         <span>Your data stays yours</span>
         <Dot />
-        <span>Open source</span>
+        <span>Source available</span>
       </p>
     </aside>
   );

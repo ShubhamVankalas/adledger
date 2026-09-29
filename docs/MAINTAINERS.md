@@ -80,7 +80,7 @@ requests kindly with a reason (see the non-negotiables in CONTRIBUTING.md).
 - Small and focused? Read the diff, run the checks you doubt, and merge when green.
 - Touches auth, permissions, crypto, the database layer, migrations, workflows, the Dockerfile or
   `install.sh`? Review line by line, and check for new outbound calls and new dependencies.
-- New dependency? It must be justified in the PR, fit AGPL-3.0 and pass dependency review.
+- New dependency? It must be justified in the PR, fit the dependency licence policy in CONTRIBUTING.md (no GPL, AGPL, SSPL or BUSL) and pass dependency review.
 - Approve the workflow run for a first-time contributor only after skimming the diff for changes to
   `.github/`, `package.json` scripts and lockfile oddities.
 - Squash-merge with a conventional title. The PR title becomes the commit message.

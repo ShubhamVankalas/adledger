@@ -27,7 +27,7 @@ export default async function AboutPage() {
 
   return (
     <>
-      <SettingsHeader title="About AdLedger" description="Open-source, self-hosted ad attribution and revenue ledger." />
+      <SettingsHeader title="About AdLedger" description="Free to self-host, source-available ad attribution and revenue ledger." />
       <div className="grid grid-cols-1 items-start gap-5 md:gap-6 @4xl/settings:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
@@ -53,7 +53,7 @@ export default async function AboutPage() {
                 <dt className="text-muted-foreground">License</dt>
                 <dd className="flex items-center gap-2 text-foreground">
                   <ScaleIcon aria-hidden className="size-4 text-fg-faint" strokeWidth={1.75} />
-                  GNU AGPL-3.0
+                  FSL-1.1 (converts to Apache-2.0 after two years)
                 </dd>
               </div>
               <div className="grid gap-1 py-3 last:pb-0 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">

@@ -3,16 +3,17 @@
 <a href="https://shubhamvankalas.github.io/adledger/">
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="docs/readme/banner-light.webp" />
-    <img src="docs/readme/banner-dark.webp" alt="AdLedger: know which ad actually made you money. Open-source ad attribution, revenue ledger and CRM that runs on your own server." width="100%" />
+    <img src="docs/readme/banner-dark.webp" alt="AdLedger: know which ad actually made you money. Self-hosted ad attribution, revenue ledger and CRM that runs on your own server. Source available under FSL-1.1." width="100%" />
   </picture>
 </a>
 
 ### Every sale gets a receipt.
 
 **See which ad actually made you money, what that customer really cost, and prove it.**<br />
-Open-source, self-hosted ad attribution, revenue ledger and CRM.
+Self-hosted ad attribution, revenue ledger and CRM.<br />
+Free to self-host. Source available ([FSL-1.1](LICENSE)). Your server, your data.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-0f766e)](LICENSE)
+[![License: FSL-1.1](https://img.shields.io/badge/license-FSL--1.1-0f766e)](LICENSE)
 [![CI](https://github.com/ShubhamVankalas/adledger/actions/workflows/ci.yml/badge.svg)](https://github.com/ShubhamVankalas/adledger/actions/workflows/ci.yml)
 [![Docker image](https://img.shields.io/badge/ghcr.io-shubhamvankalas%2Fadledger-2496ED?logo=docker&logoColor=white)](https://github.com/ShubhamVankalas/adledger/pkgs/container/adledger)
 [![GitHub stars](https://img.shields.io/github/stars/ShubhamVankalas/adledger?style=flat&logo=github&color=16a34a)](https://github.com/ShubhamVankalas/adledger/stargazers)
@@ -63,7 +64,7 @@ Not sure yet? **[Take the 3D product tour](https://shubhamvankalas.github.io/adl
 </table>
 
 <p align="center">
-  <b>Free and open source, for good.</b> No per-seat or revenue-share pricing. Unlimited users, workspaces and client logins.<br />
+  <b>Free to self-host, with the source on GitHub.</b> No per-seat or revenue-share pricing. Unlimited users, workspaces and client logins.<br />
   <b>Your data never leaves your server.</b> No telemetry, no licence check, no phone-home.
 </p>
 
@@ -526,8 +527,19 @@ Bug reports, connectors, report kinds and docs fixes are welcome. Start with
 
 ## License
 
-[AGPL-3.0](LICENSE). Free to use, modify and self-host. If you offer a modified version as a network
-service, share your changes. The name and logo are covered by [TRADEMARKS.md](TRADEMARKS.md).
+AdLedger is source available under the [Functional Source License, FSL-1.1-ALv2](LICENSE), a "Fair Source"
+licence. It is not an OSI-approved open source licence.
+
+- **What you can do:** use it and self-host it for free, including for a business or an agency running its
+  own ads, read and modify the code, and contribute changes back.
+- **What you can't do:** sell it, sell a modified version, or offer it (or something substantially similar
+  built from it) as a competing product or hosted service.
+- **After two years:** each version automatically converts to the permissive Apache-2.0 licence, counted
+  from the date that version was released.
+
+Contributions are accepted under the same licence (see [CONTRIBUTING.md](CONTRIBUTING.md)). The name and logo
+are covered by [TRADEMARKS.md](TRADEMARKS.md). The WordPress plugin in `integrations/wordpress` is a separate
+work licensed GPL-2.0-or-later, as WordPress.org requires.
 
 <div align="center">
 
@@ -535,7 +547,7 @@ service, share your changes. The name and logo are covered by [TRADEMARKS.md](TR
 
 <a href="https://github.com/ShubhamVankalas"><img src="https://github.com/ShubhamVankalas.png?size=96" width="72" height="72" alt="Shubham Vankalas" style="border-radius:50%" /></a>
 
-**Built by [Shubham Vankalas](https://github.com/ShubhamVankalas)**, as free software for founders who want to know which ad paid off.
+**Built by [Shubham Vankalas](https://github.com/ShubhamVankalas)**, as a free-to-self-host tool for founders who want to know which ad paid off.
 
 **If AdLedger shows you which ad made you money, [give it a star](https://github.com/ShubhamVankalas/adledger).** It helps other founders find it.
 

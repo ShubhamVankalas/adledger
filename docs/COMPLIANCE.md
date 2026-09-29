@@ -246,13 +246,13 @@ written or close to it; the qualifiers matter.
 | Statement | Why it is accurate |
 |---|---|
 | **Self-hosted: your data never leaves your server** (except through integrations you switch on) | No telemetry or phone-home; outbound calls are the integrations you configure. |
-| **Open source and auditable (AGPL-3.0)** | Full source, CI and docs in the repository. |
+| **Source available and auditable (FSL-1.1)** | Full source, CI and docs in the repository. Not "open source": the licence limits competing use. |
 | **Built to help you meet GDPR, UK GDPR and CCPA/CPRA obligations** ("GDPR-ready tooling", "CCPA-ready tooling") | Consent modes, GPC, export, erasure, retention, minimisation, masking. Always as *tooling that helps you comply*, never "GDPR compliant". |
 | **Privacy by design: hashed identifiers, truncated IPs, masked emails, redacted payloads** | See Art. 5(1)(c) and 25 rows. Say "hashed", not "anonymous". |
 | **SOC 2-aligned controls** (or "controls that map to SOC 2 criteria") | Section 5 maps access control, monitoring, change management and confidentiality features. Not "SOC 2 compliant", not "SOC 2 certified". |
 | **ISO 27001-aligned controls** (optional) | Section 6. Not "ISO 27001 certified". |
 | **Security practices informed by OWASP Top 10 and ASVS** | Section 7 self-assessment. Not "ASVS certified" or "ASVS Level 2 verified". |
-| **Two-factor sign-in, custom roles and audit log, all free** | Everything is in the open-source code; there is no paid security tier. |
+| **Two-factor sign-in, custom roles and audit log, all free** | Everything is in the source-available code; there is no paid security tier. |
 | **Tamper-evident audit log** | Hash-chained with Verify. Not "tamper-proof". |
 | **AES-256-GCM encryption for stored credentials** | Connector credentials and 2FA secrets. Not "all data encrypted at rest". |
 | **Non-root container image with vulnerability scanning in CI** | Dockerfile, Trivy step. |

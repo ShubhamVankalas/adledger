@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "AdLedger",
     short_name: "AdLedger",
-    description: "Open-source ad attribution. See which ad actually made you money.",
+    description: "Self-hosted ad attribution. See which ad actually made you money.",
     start_url: "/",
     scope: "/",
     display: "standalone",

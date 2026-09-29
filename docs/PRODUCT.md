@@ -1,7 +1,7 @@
 # AdLedger — Product Spec
 
 ## One-liner
-**Open-source ad attribution.** See exactly which ad, campaign, and keyword produced leads,
+**Self-hosted ad attribution, free to run, source available (FSL-1.1).** See exactly which ad, campaign, and keyword produced leads,
 customers, and revenue — self-hosted, free, with AI you bring yourself and an MCP server
 so Claude/Codex can answer "which ads made money?"
 
@@ -11,7 +11,7 @@ so Claude/Codex can answer "which ads made money?"
 - Real answers need joining **ad spend** + **first-party clicks/visits** + **leads/CRM**
   + **actual revenue**. Hosted tools that do this
   cost roughly $129 to $2,500+/month and often price by revenue tracked.
-- No serious open-source, self-hosted option exists.
+- No serious free, self-hosted option exists.
 
 ## Who it's for
 1. **Startups and SaaS founders** running Meta/Google Ads with Stripe billing.
@@ -86,5 +86,5 @@ reference is [FEATURES.md](FEATURES.md); in short:
 - README has a 20-second GIF: dashboard → "which ad made money" → MCP answer in Claude.
 
 ## Positioning / README headline options
-- "AdLedger: open-source ad attribution. Know which ads actually make money."
+- "AdLedger: free to self-host ad attribution. Know which ads actually make money."
 - "Self-hosted ad attribution with AI and MCP. Free forever."

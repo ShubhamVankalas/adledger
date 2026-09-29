@@ -98,7 +98,7 @@ const CAMPAIGNS: CampaignSpec[] = [
     groups: ["Brand – Exact", "Brand – Phrase"], adsPerGroup: 2, adNames: ["RSA – Official site", "RSA – Pricing"] },
   { key: "comp", platform: "google", account: 2, name: "Search – Category Keywords", objective: "SEARCH",
     dailySpend: 260, cpc: 14, leadRate: 0.04, custRate: 0.1, firstOrder: 700,
-    groups: ["Ad attribution software", "Ad tracking tool", "Revenue analytics"], adsPerGroup: 2, adNames: ["RSA – Free forever", "RSA – Open source"] },
+    groups: ["Ad attribution software", "Ad tracking tool", "Revenue analytics"], adsPerGroup: 2, adNames: ["RSA – Free forever", "RSA – Self-hosted"] },
   { key: "pmax", platform: "google", account: 2, name: "Performance Max – All Products", objective: "PERFORMANCE_MAX",
     dailySpend: 300, cpc: 8, leadRate: 0.04, custRate: 0.2, firstOrder: 1000,
     groups: ["Asset group – Core", "Asset group – Seasonal"], adsPerGroup: 3, adNames: ["Assets – Dashboard", "Assets – AI insights", "Assets – Integrations"] },
@@ -110,7 +110,7 @@ const CAMPAIGNS: CampaignSpec[] = [
     groups: ["Heads of Growth – NA"], adsPerGroup: 2, adNames: ["Document ad: Attribution playbook", "Single image: Stop guessing"] },
   { key: "bing", platform: "microsoft", account: 5, name: "Microsoft Search – Brand + Category", objective: "SEARCH",
     dailySpend: 60, cpc: 2, leadRate: 0.1, custRate: 0.2, firstOrder: 900,
-    groups: ["Brand", "Marketing attribution software"], adsPerGroup: 2, adNames: ["RSA – Official site", "RSA – Free & open source"] },
+    groups: ["Brand", "Marketing attribution software"], adsPerGroup: 2, adNames: ["RSA – Official site", "RSA – Free & self-hosted"] },
 ];
 
 export const DEMO_ACCOUNTS = [

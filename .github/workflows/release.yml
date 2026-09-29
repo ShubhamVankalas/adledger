@@ -36,6 +36,9 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository_owner }}/adledger
+          # GitHub does not recognise FSL yet, so state the SPDX id instead of taking it from the repo.
+          labels: |
+            org.opencontainers.image.licenses=FSL-1.1-ALv2
           tags: |
             type=edge,branch=main
             type=semver,pattern={{version}}

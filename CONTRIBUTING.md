@@ -9,7 +9,8 @@ rules that are not up for negotiation. It is short on purpose. If something is u
 [Discussion](https://github.com/ShubhamVankalas/adledger/discussions); questions are welcome.
 
 By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md). AdLedger is
-licensed under [AGPL-3.0](LICENSE), and your contributions are too (see [Sign-off](#sign-off-dco)).
+licensed under [FSL-1.1-ALv2](LICENSE), and your contributions are too: what you contribute is licensed
+under the same terms as the project (inbound = outbound). See [Sign-off](#sign-off-dco).
 
 **Contents:** [Ways to help](#ways-to-help) · [Set up](#set-up) · [Branches and commits](#branches-and-commits) ·
 [The pull request flow](#the-pull-request-flow) · [What "done" means](#what-done-means) ·
@@ -180,9 +181,13 @@ AdLedger holds ad-platform credentials, customer emails and revenue data, so rev
   sources, their AI model, their notification channels). A new integration or endpoint needs an
   issue first, must be off until configured, and must go through the SSRF guard when the URL is user-supplied.
 - **New dependencies need justification.** Say in the PR what it does, why the standard library or an
-  existing dependency isn't enough, its licence (it must fit AGPL-3.0; SSPL and BUSL are refused by CI),
+  existing dependency isn't enough, its licence (see the policy below),
   and how well maintained it is. Prefer small, widely used packages, and none that run install scripts
   unless unavoidable. Never add a dependency to the pixel.
+- **Dependency licences.** Permissive licences (MIT, Apache-2.0, BSD, ISC, MPL-2.0 for unmodified use,
+  0BSD, CC0, Unlicense) are fine. LGPL is decided case by case, so ask in the PR. GPL, AGPL, SSPL and
+  BUSL dependencies are not accepted, because they cannot be shipped under FSL-1.1-ALv2; CI's
+  dependency review refuses them.
 - **Don't weaken defaults.** No loosening of the CSP, cookie flags, rate limits, permission checks or the
   private-URL guard just to make something work.
 - **Found a vulnerability?** Report it privately, not in a public issue or PR. See [SECURITY.md](SECURITY.md).
@@ -191,7 +196,8 @@ AdLedger holds ad-platform credentials, customer emails and revenue data, so rev
 
 AdLedger uses the [Developer Certificate of Origin](https://developercertificate.org/) (DCO). It is a
 lightweight way to say "I wrote this, or I have the right to submit it, under this project's licence
-(AGPL-3.0)". There is no CLA and you keep your copyright.
+(FSL-1.1-ALv2)". Contributions are licensed under FSL-1.1-ALv2, the same as the rest of the project.
+There is no CLA and you keep your copyright.
 
 You sign off by adding one line to each commit message:
 

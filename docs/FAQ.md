@@ -30,14 +30,24 @@ Short, honest answers, including what AdLedger can't do. Many of these are also 
 
 ## Is it really free?
 
-**Yes.** AdLedger is open source under the [AGPL-3.0](../LICENSE). There is no paid edition, no
+**Yes.** AdLedger is free to self-host and its source code is available on GitHub under the
+[Functional Source License (FSL-1.1-ALv2)](../LICENSE). There is no paid edition, no
 per-seat or revenue-based pricing and no feature held back: two-factor sign-in, the audit log,
 unlimited team members and client logins, white-label PDF reports and the MCP server are all in the
 free code. You pay only for the server you run it on.
 
-The AGPL asks one thing in return: if you offer a *modified* version to others as a network
-service, you must share your changes with its users. Running an unmodified copy, for your own
-business or for your clients, asks nothing of you.
+### What is the licence, in plain words?
+
+- **You can** install it, use it for your own business or your own ad accounts (agencies included),
+  read and modify the code, and use it alongside professional services you provide to clients who run it.
+- **You can't** sell AdLedger, sell a modified version of it, or offer it (or something built from it)
+  as a competing product or hosted service.
+- **After two years** each version converts to Apache-2.0, which is a fully permissive open source
+  licence. Every release starts its own two-year clock.
+
+This is a source-available, "Fair Source" licence. It is not an OSI-approved open source licence,
+because it limits competing use. If your situation is unusual (for example you want to host AdLedger
+for other companies as a paid service), open a Discussion or contact the maintainer first.
 
 ## What does self-hosting cost?
 

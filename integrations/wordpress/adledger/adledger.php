@@ -8,13 +8,18 @@
  * Requires PHP:         7.4
  * Author:               AdLedger contributors
  * Author URI:           https://github.com/ShubhamVankalas/adledger
- * License:              AGPL-3.0-or-later
- * License URI:          https://www.gnu.org/licenses/agpl-3.0.html
+ * License:              GPL-2.0-or-later
+ * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:          adledger
  * WC requires at least: 7.1
  * WC tested up to:      9.3
  *
  * @package AdLedger
+ *
+ * This plugin is free software: you can redistribute it and/or modify it under the terms of the
+ * GNU General Public License as published by the Free Software Foundation, either version 2 of
+ * the License, or (at your option) any later version. It is a separate work from the AdLedger
+ * application, which is licensed under FSL-1.1-ALv2 and only talks to this plugin over HTTP.
  */
 
 defined( 'ABSPATH' ) || exit;

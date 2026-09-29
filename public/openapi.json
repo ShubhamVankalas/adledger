@@ -6,8 +6,8 @@
     "summary": "Self-hosted ad attribution: which ad actually made you money.",
     "description": "REST API of a self-hosted AdLedger install. Reporting endpoints read the same SQL as the dashboard and the MCP server, so numbers always agree.\n\n**Authentication.** Create an API key in Developers → API keys (Settings → API & MCP for roles without the Developers page) and send it as `Authorization: Bearer al_...`. Each key carries scopes: `reports:read` (the default for new keys), `mcp`, `contacts:read` (emails masked), `contacts:pii` (raw emails) and `ingest:write` (push data, trigger syncs, erase contacts). A call without the scope it needs gets 403. A dashboard session cookie also works for same-origin calls and is held to the member's role. Ingestion endpoints called by third parties (pixel, webhooks) are authenticated by their own site key, URL token or signature instead.\n\n**Money** is always an integer in minor units (e.g. cents) plus an ISO 4217 currency code. **Dates** in query strings are `YYYY-MM-DD` in the workspace timezone (end inclusive); timestamps in responses are ISO 8601 UTC.\n\n**Outbound webhooks.** For data out in real time (a new lead, a payment, a stage change), add a webhook endpoint in Developers → Webhooks instead of polling. Events are listed under Webhook events below; docs/WEBHOOKS.md covers signatures and retries.",
     "license": {
-      "name": "AGPL-3.0-only",
-      "identifier": "AGPL-3.0-only"
+      "name": "FSL-1.1-ALv2",
+      "url": "https://github.com/ShubhamVankalas/adledger/blob/main/LICENSE"
     }
   },
   "servers": [
