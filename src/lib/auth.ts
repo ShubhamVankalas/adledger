@@ -452,7 +452,7 @@ export async function auditForUser(userId: string, action: string, meta: Record<
 }
 
 /** Actions that raise a security alert (see lib/security/alerts.ts). */
-const ALERTING_ACTIONS = new Set(["api_key.created", "member.updated", "account.2fa_disabled", "security.2fa_reset", "contacts.exported", "workspace.exported", "contact.erased", "auth.new_device"]);
+const ALERTING_ACTIONS = new Set(["api_key.created", "webhook.created", "member.updated", "account.2fa_disabled", "security.2fa_reset", "contacts.exported", "workspace.exported", "contact.erased", "auth.new_device"]);
 
 // ---- API keys (for MCP clients, scripts and the REST API)
 

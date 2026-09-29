@@ -41,6 +41,15 @@ export async function alertFor(db: DB, e: Entry): Promise<NotificationMessage | 
       const scopes = Array.isArray(m.scopes) ? (m.scopes as string[]).map(scopeLabel).join(", ") : "reports";
       return { title: `New API key${await where()}`, text: `${await who()} created the API key **${e.target ?? "API key"}** (${scopes}). If you didn't expect this, revoke it in Settings → API & MCP.`, severity: "warning", url };
     }
+    case "webhook.created": {
+      const pii = m.includePii === true ? " with contact emails and phone numbers" : "";
+      return {
+        title: `New webhook endpoint${await where()}`,
+        text: `${await who()} started sending workspace events${pii} to **${e.target ?? "a new URL"}**. If you didn't expect this, delete it in Developers → Webhooks.`,
+        severity: "warning",
+        url: appUrl("/developers/webhooks"),
+      };
+    }
     case "member.updated": {
       if (typeof m.role !== "string") return null;
       const member = await actorName(db, e.target);
