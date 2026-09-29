@@ -4,17 +4,29 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Trust &amp; Security · AdLedger</title>
-<meta name="description" content="How AdLedger protects your data, who is responsible for what when you self-host, and what we will and won't claim." />
+<meta name="description" content="How AdLedger protects your data, which compliance controls it ships, who is responsible for what when you self-host, and what we will and won't claim." />
+<meta name="color-scheme" content="light dark" />
 <meta name="theme-color" content="#f9fbfa" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#151918" media="(prefers-color-scheme: dark)" />
+<meta name="author" content="Shubham Vankalas" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23262e2b'/%3E%3Cpath d='M8 22.5 13.5 15l4 4L24 9.5' fill='none' stroke='%2334c796' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" />
 <link rel="stylesheet" href="site.css" />
+<script src="site.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#top">Skip to content</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-github" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  </defs>
+</svg>
 
 <header class="nav">
   <div class="wrap">
@@ -23,21 +35,43 @@
       <span>AdLedger</span>
     </a>
     <nav class="navlinks" aria-label="Primary">
-      <a href="index.html#features">Features</a>
-      <a href="index.html#crm">CRM</a>
-      <a href="index.html#tour">Product</a>
+      <a href="index.html#product">Product</a>
       <a href="trust.html" aria-current="page">Security</a>
       <a href="index.html#install">Install</a>
-      <a href="https://github.com/ShubhamVankalas/adledger">GitHub</a>
+      <a href="index.html#compare">Compare</a>
+      <a href="index.html#faq">FAQ</a>
     </nav>
-    <a class="btn btn-ink" href="index.html#install">Install free</a>
+    <div class="nav-end">
+      <a class="star" href="https://github.com/ShubhamVankalas/adledger" aria-label="Star AdLedger on GitHub">
+        <svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>
+        <span class="lbl">Star</span>
+        <svg class="ico" aria-hidden="true"><use href="#i-star" /></svg>
+      </a>
+      <a class="btn btn-ink" href="index.html#install">Install free</a>
+      <details class="menu">
+        <summary aria-label="Menu">
+          <svg class="ico open" aria-hidden="true"><use href="#i-menu" /></svg>
+          <svg class="ico close" aria-hidden="true"><use href="#i-close" /></svg>
+        </summary>
+        <nav class="menu-panel" aria-label="Mobile">
+          <a href="index.html#product">Product tour</a>
+          <a href="index.html#security">Security &amp; compliance</a>
+          <a href="index.html#install">Install</a>
+          <a href="index.html#compare">Compare</a>
+          <a href="index.html#faq">FAQ</a>
+          <a href="https://github.com/ShubhamVankalas/adledger"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
+          <a class="btn btn-ink" href="index.html#install">Install free</a>
+        </nav>
+      </details>
+    </div>
   </div>
 </header>
 
 <main id="top" class="wrap">
   <div class="doc-head">
-    <h1 class="h2" style="font-size:clamp(34px,4.4vw,48px)">Trust &amp; Security</h1>
-    <p>AdLedger runs on your server, so your data never passes through ours. This page explains how it is protected, who is responsible for what, and the claims we won’t make.</p>
+    <span class="kicker">Trust &amp; Security</span>
+    <h1 class="h2" style="font-size:clamp(34px,4.4vw,48px)">Security and compliance, in plain words.</h1>
+    <p>AdLedger runs on your server, so your data never passes through ours. This page explains how it is protected, which compliance controls it ships, who is responsible for what, and the claims we won’t make.</p>
   </div>
 
   <div class="doc">
@@ -46,6 +80,7 @@
       <a href="#data">Your data stays with you</a>
       <a href="#responsibility">Who is responsible</a>
       <a href="#claims">What we say, and don’t</a>
+      <a href="#compliance">Compliance frameworks</a>
       <a href="#built-in">Security built in</a>
       <a href="#privacy">Privacy by design</a>
       <a href="#leaks">Loss and leaks</a>
@@ -65,7 +100,7 @@
       <section id="responsibility" aria-labelledby="h-resp">
         <h2 id="h-resp">Who is responsible for what</h2>
         <p>When you run AdLedger, <strong>you are the data controller</strong> (and the processor). We write the software; you decide what it collects, where it runs and who can see it. That is why the controls below are switches you own, not promises we make on your behalf.</p>
-        <p>We don’t hold SOC 2 or ISO 27001. Those audit organisations running services, not codebases. AdLedger’s controls map to common SOC 2 criteria, and the project itself is not audited.</p>
+        <p>We don’t hold SOC 2 or ISO 27001 certification. Those audits cover organisations running services, not codebases, and we don’t run your install. <strong>Certification is the operator’s to pursue</strong>: AdLedger ships SOC 2-aligned controls and a mapping that shortens that work, and the project itself is not audited.</p>
       </section>
 
       <section id="claims" aria-labelledby="h-claims">
@@ -75,12 +110,30 @@
           <table class="say">
             <thead><tr><th scope="col">We never say</th><th scope="col">What we say instead</th></tr></thead>
             <tbody>
-              <tr><td>“SOC 2 compliant”, “ISO certified”</td><td>Ships controls that map to common SOC 2 criteria. The project itself is not audited.</td></tr>
-              <tr><td>“GDPR compliant”</td><td>Built to help you meet GDPR, UK GDPR, CCPA/CPRA and India’s DPDP. When you self-host, you are the data controller.</td></tr>
-              <tr><td>“No consent needed”, “cookieless”</td><td>Consent modes are built in. A cookieless mode is available, with weaker attribution.</td></tr>
+              <tr><td>“SOC 2 certified”, “ISO certified”</td><td>SOC 2-aligned controls, with a mapping to ISO 27001 themes. The project itself is not audited.</td></tr>
+              <tr><td>“GDPR compliant”</td><td>GDPR-ready: built to help you meet GDPR, UK GDPR, CCPA/CPRA, ePrivacy and PECR, and India’s DPDP. When you self-host, you are the data controller.</td></tr>
+              <tr><td>“No consent needed”, “cookieless”</td><td>Consent modes are built in, including Google Consent Mode v2 glue. A cookieless mode is available, with weaker attribution.</td></tr>
               <tr><td>“Bank-grade security”</td><td>AES-256-GCM secrets, scrypt passwords, hashed tokens, signed webhooks.</td></tr>
               <tr><td>“HIPAA compliant”</td><td>Not designed for health data, card data or children’s data.</td></tr>
               <tr><td>“Leak-proof”</td><td>Leaks are deterred and traceable: permissions, watermarks, fingerprints, an audit trail.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="compliance" aria-labelledby="h-compliance">
+        <h2 id="h-compliance">Compliance frameworks</h2>
+        <p>What AdLedger gives you for each framework, and what stays with you as the operator. The control-by-control detail is in the <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/COMPLIANCE.md">compliance mapping</a>.</p>
+        <div style="overflow-x:auto">
+          <table class="say fw-table">
+            <thead><tr><th scope="col">Framework</th><th scope="col">What AdLedger ships</th><th scope="col">What you own</th></tr></thead>
+            <tbody>
+              <tr><td>GDPR &amp; UK GDPR</td><td>Subject access export and erasure per person, retention for raw events, hashed identifiers, truncated IPs, redacted payloads.</td><td>Lawful basis, privacy notice, records of processing, contracts with the tools you connect.</td></tr>
+              <tr><td>CCPA / CPRA</td><td>Global Privacy Control honoured by the pixel; export and delete per person; nothing sent to AdLedger.</td><td>Your notices and how you handle requests.</td></tr>
+              <tr><td>ePrivacy &amp; PECR</td><td>Pixel consent modes (opt-out, consent required, cookieless) and glue for Google Consent Mode v2, Cookiebot, CookieYes, Osano and Klaro.</td><td>Your cookie banner and the mode you choose per site.</td></tr>
+              <tr><td>SOC 2</td><td>Aligned controls: role-based access, 2FA, session limits, encryption, a tamper-evident audit log, security alerts and a posture checklist.</td><td>The audit, your policies, hosting, backups and monitoring.</td></tr>
+              <tr><td>ISO/IEC 27001</td><td>Controls mapped to Annex A themes: access control, cryptography, logging, secure development.</td><td>Your ISMS, risk assessment and statement of applicability.</td></tr>
+              <tr><td>OWASP Top 10 &amp; ASVS</td><td>Practices: CSP and security headers, SSRF guards, same-origin checks, constant-time signature checks, parameterised SQL.</td><td>Keeping the install updated and behind HTTPS.</td></tr>
             </tbody>
           </table>
         </div>
@@ -92,22 +145,21 @@
           <div>
             <h3>In AdLedger today</h3>
             <ul>
+              <li><strong>Roles</strong>: five built-in roles from Owner to Client, plus custom roles limited to pages and workspaces.</li>
+              <li><strong>Two-factor sign-in</strong> (TOTP) with recovery codes, and an org-wide “Require 2FA”.</li>
+              <li><strong>Sessions and devices</strong>: idle timeout, maximum lifetime, sign out one device or everywhere.</li>
               <li><strong>Passwords</strong> hashed with scrypt; session and API tokens stored only as hashes.</li>
-              <li><strong>Connector secrets</strong> encrypted with AES-256-GCM.</li>
-              <li><strong>Signed webhooks</strong> from payment tools and lead forms.</li>
-              <li><strong>SSRF guards</strong> on every URL set in the dashboard.</li>
-              <li><strong>Security headers</strong>, including a Content Security Policy.</li>
-              <li><strong>Five roles</strong> from Owner to Client, and an audit log.</li>
+              <li><strong>Connector secrets and 2FA keys</strong> encrypted with AES-256-GCM.</li>
+              <li><strong>Email and phone masking</strong> by role, with every reveal audited.</li>
+              <li><strong>A tamper-evident audit log</strong>: a hash chain with a Verify button.</li>
+              <li><strong>Signed webhooks</strong>, SSRF guards, and security headers including a Content Security Policy.</li>
             </ul>
           </div>
           <div>
-            <h3>Rolling out in the next releases</h3>
+            <h3>On the roadmap</h3>
             <ul>
-              <li>Free two-factor sign-in with recovery codes, and an org-wide “Require 2FA”.</li>
-              <li>Email and phone masking by role, with every reveal audited.</li>
-              <li>A tamper-evident audit log with a Verify button.</li>
-              <li>Session list and revoke, and secret rotation.</li>
               <li>Passkeys and OIDC single sign-on, with no “SSO tax”.</li>
+              <li>Rotating the encryption key with re-encryption of stored secrets.</li>
             </ul>
           </div>
         </div>
@@ -131,13 +183,19 @@
           <li><strong>Exports you control:</strong> full workspace export, and separate permissions for aggregate reports and contact lists.</li>
           <li><strong>Traceable files:</strong> PDF reports carry a watermark and a fingerprint, so a leaked file can be traced to the export that made it.</li>
           <li><strong>Share links that end:</strong> client links show totals only, expire, and can be revoked.</li>
+          <li><strong>Alerts:</strong> bulk contact exports, workspace exports, new API keys and role changes raise a security alert.</li>
           <li><strong>Why we don’t block right-click:</strong> view-source, extensions and screenshots get around it, and it breaks accessibility. We make leaks traceable instead.</li>
         </ul>
       </section>
 
       <section id="supply-chain" aria-labelledby="h-supply">
         <h2 id="h-supply">Supply chain</h2>
-        <p>Every change runs lint, type checks and the full test suite against a real database. Dependency updates, code scanning and signed release provenance are part of the release process as it matures, and pull requests are reviewed in the open.</p>
+        <ul>
+          <li><strong>A hardened container.</strong> The app runs as a non-root user, and npm is removed from the runtime image because the app never uses it.</li>
+          <li><strong>Scanning.</strong> CodeQL scans the code and workflows, Trivy scans the image, and dependency review, Dependabot and <code>pnpm audit</code> watch dependencies.</li>
+          <li><strong>Release provenance.</strong> Release images carry an SBOM and provenance.</li>
+          <li><strong>Tests.</strong> Every change runs lint, type checks and the full test suite against a real database, and pull requests are reviewed in the open.</li>
+        </ul>
       </section>
 
       <section id="hardening" aria-labelledby="h-harden">
@@ -146,9 +204,11 @@
           <li><span>Set <code>APP_SECRET</code> and keep it out of the backups it protects.</span></li>
           <li><span>Serve AdLedger over HTTPS. The bundled Caddy profile does it for free.</span></li>
           <li><span>Keep the database on the private Docker network.</span></li>
-          <li><span>Give people the lowest role that works, and turn on two-factor sign-in when it ships.</span></li>
+          <li><span>Give people the lowest role that works, and turn on <strong>Require two-factor sign-in</strong>.</span></li>
+          <li><span>Keep sessions short, and verify the audit log now and then.</span></li>
           <li><span>Back up the database, and update regularly with <code>docker compose pull</code>.</span></li>
         </ol>
+        <p>The app’s Security policy page runs this checklist against your install.</p>
       </section>
 
       <section id="report" aria-labelledby="h-report">
@@ -171,13 +231,26 @@
 
 <footer>
   <div class="wrap">
-    <span><strong style="color:var(--fg);font-weight:500">AdLedger</strong>, open-source ad attribution. AGPL-3.0.</span>
-    <nav aria-label="Footer">
-      <a href="index.html">Home</a>
-      <a href="https://github.com/ShubhamVankalas/adledger">GitHub</a>
-      <a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs">Docs</a>
-      <a href="https://github.com/ShubhamVankalas/adledger/blob/main/SECURITY.md">Security policy</a>
-    </nav>
+    <div class="credit" data-glow>
+      <div class="credit-who">
+        <span class="avatar" aria-hidden="true">SV</span>
+        <p><strong>Built by Shubham Vankalas</strong>AdLedger is built in the open. Issues, ideas and pull requests are welcome.</p>
+      </div>
+      <div class="credit-links">
+        <a class="btn btn-line" href="https://github.com/ShubhamVankalas"><svg class="gh" aria-hidden="true"><use href="#i-github" /></svg>@ShubhamVankalas</a>
+        <a class="btn btn-ink" href="https://github.com/ShubhamVankalas/adledger"><svg class="ico" aria-hidden="true"><use href="#i-star" /></svg>Star AdLedger</a>
+      </div>
+    </div>
+    <div class="foot-row">
+      <span><strong style="color:var(--fg);font-weight:500">AdLedger</strong>, open-source ad attribution. AGPL-3.0.</span>
+      <nav aria-label="Footer">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/ShubhamVankalas/adledger">GitHub</a>
+        <a href="https://github.com/ShubhamVankalas/adledger/tree/main/docs">Docs</a>
+        <a href="https://github.com/ShubhamVankalas/adledger/blob/main/docs/COMPLIANCE.md">Compliance</a>
+        <a href="https://github.com/ShubhamVankalas/adledger/blob/main/SECURITY.md">Security policy</a>
+      </nav>
+    </div>
   </div>
 </footer>
 </body>
