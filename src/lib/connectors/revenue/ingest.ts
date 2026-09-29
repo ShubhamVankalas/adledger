@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { schema, type DB } from "../../db";
+import { emitRevenueEvent } from "../../webhooks/emit";
 import { linkVisitor, upsertContact } from "../../tracking/identity";
 import { nudgeLive } from "../../live";
 import { formatMoney } from "../../money";
@@ -99,8 +100,9 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
             contactId: sql`coalesce(${schema.revenueEvents.contactId}, excluded.contact_id)`,
           },
         })
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      const isNew = row?.inserted === true;
+        .returning({ ...getTableColumns(schema.revenueEvents), inserted: sql<boolean>`(xmax = 0)` });
+      const { inserted, ...stored } = row;
+      const isNew = inserted === true;
       if (e.type === "payment") {
         let name: string | null = null;
         if (contactId) {
@@ -113,6 +115,9 @@ export async function ingestRevenue(db: DB, workspaceId: string, source: string,
         }
         if (isNew) alerts.push({ kind: "big_payment", e, contactId, name });
       }
+      // Outbound webhooks (payment.succeeded / payment.refunded): new rows only, after the stage
+      // update above so the event's contact already shows the won stage.
+      if (isNew) await emitRevenueEvent(tx, stored, e.customer.phone);
     });
     stored++;
   }

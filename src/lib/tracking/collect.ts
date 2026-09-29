@@ -181,6 +181,7 @@ export async function processCollect(
               formName: e.name ?? (typeof e.props?.form === "string" ? e.props.form : null),
               occurredAt,
               raw: { url: e.url, props: e.props ?? {} },
+              phone: e.traits.phone,
             });
             newLeads++;
           }

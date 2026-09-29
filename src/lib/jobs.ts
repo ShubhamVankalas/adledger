@@ -10,6 +10,7 @@ import { log } from "./log";
 const g = globalThis as unknown as {
   __adledgerTimers?: Map<string, NodeJS.Timeout>;
   __adledgerScheduler?: NodeJS.Timeout[];
+  __adledgerWebhookPrune?: number;
 };
 const timers = (g.__adledgerTimers ??= new Map());
 
@@ -61,6 +62,22 @@ export const BUILTIN_JOBS: Scheduled[] = [
     name: "alerts",
     everyMs: 3_600_000,
     run: async () => (await import("./alerts")).runAlertsAll(),
+  },
+  {
+    // Developers → Webhooks: retries that are due (new events are also sent right away by a short
+    // timer, see lib/webhooks/emit.ts), and once an hour the 30-day log cleanup.
+    name: "webhooks",
+    everyMs: 60_000,
+    run: async () => {
+      const { dispatchDueWebhooks, pruneWebhookDeliveries } = await import("./webhooks/deliver");
+      const db = await getDb();
+      const r = await dispatchDueWebhooks({ db });
+      if (r.attempted) log.info(`webhooks: ${r.delivered} delivered, ${r.retrying} retrying, ${r.failed} failed`);
+      if (Date.now() - (g.__adledgerWebhookPrune ?? 0) > 3_600_000) {
+        g.__adledgerWebhookPrune = Date.now();
+        await pruneWebhookDeliveries(db);
+      }
+    },
   },
 ];
 

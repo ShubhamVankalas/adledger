@@ -63,7 +63,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         ? (body.form_response as { definition: { title: string } }).definition.title
         : null) ||
       hook.name;
-    const lead = await recordLead(tx, { workspaceId: hook.workspaceId, contactId: contact.id, source: "webhook", formName, occurredAt: now, raw: body });
+    const lead = await recordLead(tx, { workspaceId: hook.workspaceId, contactId: contact.id, source: "webhook", formName, occurredAt: now, raw: body, phone: traits.phone });
     return { contactId: contact.id, leadId: lead.id };
   });
   if (!result) return json({ error: "could not create contact" }, 422);

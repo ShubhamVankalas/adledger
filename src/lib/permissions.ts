@@ -25,7 +25,8 @@ export type PagePermission =
   | "page.profit"
   | "page.contacts"
   | "page.pipeline"
-  | "page.tasks";
+  | "page.tasks"
+  | "page.developers";
 
 export type Permission =
   | "reports.view"
@@ -54,6 +55,7 @@ export type Permission =
   | "org.manage"
   | "dashboard.edit"
   | "pipeline.move"
+  | "developers.access"
   | PagePermission;
 
 const EVERYONE: BuiltinRole[] = ["owner", "admin", "analyst", "viewer", "client"];
@@ -71,6 +73,11 @@ const MATRIX: Record<Permission, BuiltinRole[]> = {
   "page.contacts": EVERYONE,
   "page.pipeline": EVERYONE,
   "page.tasks": EVERYONE,
+  // Developers area (quickstart, API keys, API reference, recipes). Admin-only by default: it is
+  // the door to getting data out.
+  "page.developers": ["owner", "admin"],
+  // Outbound webhooks: create endpoints that receive lead, contact and payment events. Exports data.
+  "developers.access": ["owner", "admin"],
   // Move contacts between pipeline stages (stage configuration itself is workspace.settings).
   "pipeline.move": ["owner", "admin", "analyst"],
   "reports.view": ["owner", "admin", "analyst", "viewer", "client"],
@@ -204,6 +211,7 @@ export const PAGES: { permission: PagePermission; label: string; href: string; r
   { permission: "page.contacts", label: "Contacts", href: "/contacts", routes: ["/contacts"] },
   { permission: "page.pipeline", label: "Pipeline", href: "/pipeline", routes: ["/pipeline"] },
   { permission: "page.tasks", label: "My tasks", href: "/tasks", routes: ["/tasks"] },
+  { permission: "page.developers", label: "Developers", href: "/developers", routes: ["/developers"] },
 ];
 
 /** The page permission that guards a link (query string ignored), or null for everything else (settings…). */
@@ -229,7 +237,10 @@ export function firstAllowedPage(can: (p: Permission) => boolean): { href: strin
 
 // ---- grouped catalogue for the role editor
 
-export const PERMISSION_GROUPS: { title: string; items: { permission: Permission; label: string; description: string }[] }[] = [
+/** `sensitive`: a short warning the role editor shows next to the permission (e.g. it exports data). */
+export type PermissionItem = { permission: Permission; label: string; description: string; sensitive?: string };
+
+export const PERMISSION_GROUPS: { title: string; items: PermissionItem[] }[] = [
   {
     title: "Pages & dashboards",
     items: [
@@ -277,7 +288,19 @@ export const PERMISSION_GROUPS: { title: string; items: { permission: Permission
       { permission: "workspace.settings", label: "Workspace settings", description: "Tracking, integrations, notifications, AI model." },
       { permission: "workspace.data", label: "Workspace data", description: "Switch off demo data, merge duplicates, delete data." },
       { permission: "alerts.manage", label: "Alerts", description: "Create and edit alert rules." },
+    ],
+  },
+  {
+    title: "Developers",
+    items: [
+      { permission: "page.developers", label: "Developers page", description: "Quickstart, API reference and ready-made recipes." },
       { permission: "apikeys.manage", label: "API keys", description: "Keys for the REST API and MCP clients." },
+      {
+        permission: "developers.access",
+        label: "Webhooks",
+        description: "Send new leads, contacts and payments to outside URLs (Zapier, Make, n8n or their own code).",
+        sensitive: "Exports data",
+      },
     ],
   },
   {

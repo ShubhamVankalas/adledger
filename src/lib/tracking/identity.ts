@@ -1,7 +1,8 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { EMAIL_RE, hashEmail, hashPhone, normalizeEmail, redactPii } from "../crypto";
 import { schema, type DB } from "../db";
 import type { ConsentState } from "../db/schema";
+import { emitContactCreated, emitLeadCreated } from "../webhooks/emit";
 
 export type Traits = { email?: string | null; phone?: string | null; name?: string | null };
 
@@ -24,7 +25,8 @@ export async function upsertContact(
 
   if (email) {
     const emailHash = hashEmail(email);
-    const [row] = await db
+    // `xmax = 0` only for a freshly inserted row (an existing contact takes the update branch).
+    const [{ inserted, ...row }] = await db
       .insert(schema.contacts)
       .values({ workspaceId, email, emailHash, phoneHash, name, firstSeenAt: at })
       .onConflictDoUpdate({
@@ -35,7 +37,8 @@ export async function upsertContact(
           firstSeenAt: sql`least(${schema.contacts.firstSeenAt}, excluded.first_seen_at)`,
         },
       })
-      .returning();
+      .returning({ ...getTableColumns(schema.contacts), inserted: sql<boolean>`(xmax = 0)` });
+    if (inserted) await emitContactCreated(db, workspaceId, row.id, traits.phone);
     return row;
   }
   if (phoneHash) {
@@ -55,6 +58,7 @@ export async function upsertContact(
       .insert(schema.contacts)
       .values({ workspaceId, phoneHash, name, firstSeenAt: at })
       .returning();
+    await emitContactCreated(db, workspaceId, row.id, traits.phone);
     return row;
   }
   return null;
@@ -77,6 +81,8 @@ export async function recordLead(
     formName?: string | null;
     occurredAt: Date;
     raw: unknown;
+    /** Raw phone, only for lead.created webhooks with personal data on (encrypted in the outbox, never stored here). */
+    phone?: string | null;
   },
 ) {
   const [lead] = await db
@@ -90,6 +96,7 @@ export async function recordLead(
       raw: redactPii(args.raw) as Record<string, unknown>,
     })
     .returning();
+  await emitLeadCreated(db, lead, args.phone ?? null);
   return lead;
 }
 
