@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # AdLedger — single production image (dashboard + API + pixel + MCP + background jobs).
 
-FROM node:24-alpine AS base
+FROM node:26-alpine AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 WORKDIR /app
@@ -18,7 +18,7 @@ ARG APP_VERSION=dev
 ENV APP_VERSION=$APP_VERSION
 RUN pnpm build
 
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 DATA_DIR=/data
 # The app never runs npm; dropping the bundled copy removes its dependencies (and their CVEs) from the image.
